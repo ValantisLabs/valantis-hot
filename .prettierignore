@@ -1,0 +1,13 @@
+**/archive
+**/cache
+**/coverage
+**/deployments
+**/docs
+**/img
+**/lib
+**/out
+**/node_modules
+**/docs
+**/artifacts
+**/cache
+**/cache_hardhat

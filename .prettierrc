@@ -1,0 +1,6 @@
+{
+  "singleQuote": true,
+  "bracketSpacing": true,
+  "compiler": "0.8.19",
+  "printWidth": 120
+}
