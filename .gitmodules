@@ -6,3 +6,6 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 	branch = 281550b
+[submodule "lib/valantis-core"]
+	path = lib/valantis-core
+	url = git@github.com:ValantisLabs/valantis-core.git
