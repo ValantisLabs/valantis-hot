@@ -4,20 +4,37 @@ pragma solidity 0.8.19;
 import {
     IERC20Metadata
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
-
+import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import {
+    SignatureChecker
+} from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
 import {
     ISovereignALM,
     ALMLiquidityQuote,
     ALMLiquidityQuoteInput
 } from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
+
+import { SOTHash } from 'src/libraries/SOTHash.sol';
+import { SOTParams } from 'src/libraries/SOTParams.sol';
+import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM {
+contract SOT is ISovereignALM, EIP712 {
+    using SignatureChecker for address;
+    using SOTHash for SolverOrderType;
+
+    /************************************************
+     *  CUSTOM ERRORS
+     ***********************************************/
+
+    error SOT__invalidSignature();
+
     /************************************************
      *  IMMUTABLES
      ***********************************************/
@@ -130,27 +147,20 @@ contract SOT is ISovereignALM {
     uint256 public spotPriceX128;
 
     /**
-		@notice Block timestamp of the last Solver Order Type which has been successfully processed.
+        @notice Contains state variables which get updated on swaps. 
      */
-    uint32 public lastProcessedBlockTimestamp;
+    SwapState public swapState;
 
-    /**
-		@notice The Fee Growth according to the last Solver Order Type which has been successfully processed.
-		@dev Must be within the bounds of min and max fee growth immutables.
-     */
-    uint16 public lastProcessedFeeGrowth;
+    /************************************************
+     *  MODIFIERS
+     ***********************************************/
 
-    /**
-	    @notice Minimum AMM fee according to the last Solver Order Type which has been successfully processed.
-	    @dev Must be no less than `MIN_AMM_FEE`.
-     */
-    uint16 public lastProcessedFeeMin;
-
-    /**
-	    @notice Maximum AMM fee according to the last Solver Order Type which has been successfully processed.
-	    @dev Must be no greater than `MAX_AMM_FEE`.
-     */
-    uint16 public lastProcessedFeeMax;
+    modifier onlyPool() {
+        if (msg.sender != pool) {
+            revert SOT__onlyPool();
+        }
+        _;
+    }
 
     /************************************************
      *  CONSTRUCTOR
@@ -167,8 +177,8 @@ contract SOT is ISovereignALM {
         uint16 _minAmmFee,
         address _feedToken0,
         address _feedToken1
-    ) {
-        // TODO: Refactor into separate contracts/libraries, and check params validity
+    ) EIP712('Valantis Solver Order Type', '1') {
+        // TODO: Refactor into separate contracts/libraries + check params validity
         pool = _pool;
 
         token0 = ISovereignPool(pool).token0();
@@ -202,13 +212,59 @@ contract SOT is ISovereignALM {
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
         bytes calldata /*_verifierData*/
-    ) external override returns (ALMLiquidityQuote memory) {}
+    ) external override onlyPool returns (ALMLiquidityQuote memory) {
+        (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
+
+        SwapState memory swapStateCache = swapState;
+
+        SOTParams.validateBasicParams(
+            sot.authorizedSender,
+            sot.amountInMax,
+            sot.signatureTimestamp,
+            sot.expiry,
+            _almLiquidityQuoteInput.amountInMinusFee,
+            swapStateCache.lastProcessedBlockTimestamp,
+            swapStateCache.lastProcessedSignatureTimestamp
+        );
+
+        // TODO: validate remaining params
+
+        bytes32 sotHash = sot.hashStruct();
+        if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
+            revert SOT__invalidSignature();
+        }
+
+        uint256 amountOut = _almLiquidityQuoteInput.isZeroToOne
+            ? Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax)
+            : Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountInMax, sot.amountOutMax);
+
+        ALMLiquidityQuote memory liquidityQuote;
+        // Always true, since reserves must be stored in the pool
+        liquidityQuote.quoteFromPoolReserves = true;
+        liquidityQuote.amountOut = amountOut;
+        liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
+
+        // Update state
+        swapState = SwapState({
+            lastProcessedBlockTimestamp: uint32(block.timestamp),
+            lastProcessedSignatureTimestamp: sot.signatureTimestamp,
+            lastProcessedFeeGrowth: sot.feeGrowth,
+            lastProcessedFeeMin: sot.feeMin,
+            lastProcessedFeeMax: sot.feeMax
+        });
+
+        return liquidityQuote;
+    }
 
     function onDepositLiquidityCallback(
         uint256 /*_amount0*/,
         uint256 /*_amount1*/,
         bytes memory /*_data*/
-    ) external override {}
+    ) external override onlyPool {}
 
-    function onSwapCallback(bool /*_isZeroToOne*/, uint256 /*_amountIn*/, uint256 /*_amountOut*/) external override {}
+    function onSwapCallback(
+        bool /*_isZeroToOne*/,
+        uint256 /*_amountIn*/,
+        uint256 /*_amountOut*/
+    ) external override onlyPool {}
 }
