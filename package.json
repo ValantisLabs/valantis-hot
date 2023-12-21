@@ -6,7 +6,7 @@
   "license": "MIT",
   "husky": {
     "hooks": {
-      "pre-commit": "npx pretty-quick --staged && yarn format && yarn lint"
+      "pre-commit": "npx pretty-quick --staged && yarn format && yarn lint && forge build"
     }
   },
   "scripts": {

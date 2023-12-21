@@ -5,6 +5,7 @@ import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 
 library SOTParams {
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
+    error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     error SOTParams__validateBasicParams_invalidSignatureTimestamp();
     error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
@@ -17,9 +18,11 @@ library SOTParams {
     function validateBasicParams(
         address authorizedSender,
         uint256 amountInMax,
+        uint256 amountOutMax,
         uint32 signatureTimestamp,
         uint32 expiry,
         uint256 amountIn,
+        uint256 tokenOutMaxBound,
         uint32 lastProcessedBlockTimestamp,
         uint32 lastProcessedSignatureTimestamp
     ) internal view {
@@ -36,6 +39,8 @@ library SOTParams {
         }
 
         if (block.timestamp > signatureTimestamp + expiry) revert SOTParams__validateBasicParams_quoteExpired();
+
+        if (amountOutMax > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     }
 
     function validateFeeParams(

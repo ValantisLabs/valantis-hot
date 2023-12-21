@@ -33,7 +33,8 @@ contract SOT is ISovereignALM, EIP712 {
      *  CUSTOM ERRORS
      ***********************************************/
 
-    error SOT__invalidSignature();
+    error SOT__onlyPool();
+    error SOT__getLiquidityQuote_invalidSignature();
 
     /************************************************
      *  IMMUTABLES
@@ -140,11 +141,10 @@ contract SOT is ISovereignALM, EIP712 {
     uint256 public maxToken1VolumeToQuote;
 
     /**
-	    @notice AMM spot price.
-          TODO: Depending on the final AMM design, this format might change.
+	    @notice AMM square-root spot price, in Q96 format.
         @dev It can only be updated on AMM swaps or after processing a valid SOT quote.
      */
-    uint256 public spotPriceX128;
+    uint160 public sqrtSpotPriceX96;
 
     /**
         @notice Contains state variables which get updated on swaps. 
@@ -220,23 +220,24 @@ contract SOT is ISovereignALM, EIP712 {
         SOTParams.validateBasicParams(
             sot.authorizedSender,
             sot.amountInMax,
+            sot.amountOutMax,
             sot.signatureTimestamp,
             sot.expiry,
             _almLiquidityQuoteInput.amountInMinusFee,
+            _almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
             swapStateCache.lastProcessedBlockTimestamp,
             swapStateCache.lastProcessedSignatureTimestamp
         );
+        SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         // TODO: validate remaining params
 
         bytes32 sotHash = sot.hashStruct();
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
-            revert SOT__invalidSignature();
+            revert SOT__getLiquidityQuote_invalidSignature();
         }
 
-        uint256 amountOut = _almLiquidityQuoteInput.isZeroToOne
-            ? Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax)
-            : Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountInMax, sot.amountOutMax);
+        uint256 amountOut = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax);
 
         ALMLiquidityQuote memory liquidityQuote;
         // Always true, since reserves must be stored in the pool
