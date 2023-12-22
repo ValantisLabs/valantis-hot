@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import {
     SignatureChecker
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
@@ -23,6 +24,8 @@ import { SOTOracle } from 'src/SOTOracle.sol';
     @notice Valantis Sovereign Liquidity Module.
  */
 contract SOT is ISovereignALM, EIP712, SOTOracle {
+    using Math for uint256;
+    using SafeCast for uint256;
     using SignatureChecker for address;
     using SOTHash for SolverOrderType;
 
@@ -215,15 +218,17 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         uint160 sqrtOraclePriceX96 = _getSqrtOraclePriceX96();
 
         SOTParams.validatePriceBounds(
+            _almLiquidityQuoteInput.isZeroToOne
+                ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
+                : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
             sqrtSpotPriceX96,
             sot.sqrtSpotPriceX96New,
             sqrtOraclePriceX96,
             sqrtPriceLowX96,
             sqrtPriceHighX96,
-            oraclePriceMaxDiffBips
+            oraclePriceMaxDiffBips,
+            solverMaxDiscountBips
         );
-
-        // TODO: validate remaining params
 
         bytes32 sotHash = sot.hashStruct();
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
