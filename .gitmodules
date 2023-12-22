@@ -1,3 +1,7 @@
 [submodule "lib/valantis-core"]
 	path = lib/valantis-core
 	url = git@github.com:ValantisLabs/valantis-core.git
+[submodule "lib/v3-periphery"]
+	path = lib/v3-periphery
+	url = https://github.com/Uniswap/v3-periphery
+	branch = 0.8
