@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 struct SolverOrderType {
+    bool isActive;
     uint256 amountInMax;
     uint256 amountOutMax;
     uint160 sqrtSpotPriceX96New;
