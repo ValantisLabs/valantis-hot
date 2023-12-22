@@ -37,6 +37,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
      ***********************************************/
 
     error SOT__onlyPool();
+    error SOT__constructor_invalidMinAmmFee();
+    error SOT__constructor_invalidMaxAmmFeeGrowth();
+    error SOT__constructor_invalidMinAmmFeeGrowth();
+    error SOT__constructor_invalidMaxDelay();
+    error SOT__constructor_invalidOracleMaxDiff();
+    error SOT__constructor_invalidSolverDiscount();
+    error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
     error SOT__getLiquidityQuote_invalidSignature();
@@ -166,7 +173,10 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         EIP712('Valantis Solver Order Type', '1')
         SOTOracle(_token0, _token1, _feedToken0, _feedToken1, _maxOracleUpdateDuration)
     {
-        // TODO: Refactor into separate contracts/libraries + check params validity
+        if (_pool == address(0)) {
+            revert SOT__constructor_invalidSovereignPool();
+        }
+
         pool = _pool;
 
         if (_token0 != ISovereignPool(pool).token0()) {
@@ -180,13 +190,40 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         token0 = _token0;
         token1 = _token1;
 
+        if (_maxDelay > 10 minutes) {
+            revert SOT__constructor_invalidMaxDelay();
+        }
+
         maxDelay = _maxDelay;
+
+        if (_solverMaxDiscountBips > 5_000) {
+            revert SOT__constructor_invalidSolverDiscount();
+        }
+
         solverMaxDiscountBips = _solverMaxDiscountBips;
+
+        if (_oraclePriceMaxDiffBips > 5_000) {
+            revert SOT__constructor_invalidOracleMaxDiff();
+        }
 
         oraclePriceMaxDiffBips = _oraclePriceMaxDiffBips;
 
+        if (_minAmmFeeGrowth > 10_000) {
+            revert SOT__constructor_invalidMinAmmFeeGrowth();
+        }
+
         minAmmFeeGrowth = _minAmmFeeGrowth;
+
+        if (_maxAmmFeeGrowth > 10_000) {
+            revert SOT__constructor_invalidMaxAmmFeeGrowth();
+        }
+
         maxAmmFeeGrowth = _maxAmmFeeGrowth;
+
+        if (_minAmmFee > 10_000) {
+            revert SOT__constructor_invalidMinAmmFee();
+        }
+
         minAmmFee = _minAmmFee;
     }
 
