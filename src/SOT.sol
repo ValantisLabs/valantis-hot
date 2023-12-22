@@ -246,6 +246,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
 
         // Update state
+        // TODO: try to pack into one slot
         swapState = SwapState({
             lastProcessedBlockTimestamp: uint32(block.timestamp),
             lastProcessedSignatureTimestamp: sot.signatureTimestamp,
@@ -253,6 +254,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             lastProcessedFeeMin: sot.feeMin,
             lastProcessedFeeMax: sot.feeMax
         });
+        sqrtSpotPriceX96 = sot.sqrtSpotPriceX96New;
 
         return liquidityQuote;
     }
