@@ -7,11 +7,13 @@ import {
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { SOTParams } from 'src/libraries/SOTParams.sol';
 
 abstract contract SOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
+    error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___getOraclePriceUSD_stalePrice();
 
     /**
@@ -62,11 +64,15 @@ abstract contract SOTOracle {
         feedToken1 = AggregatorV3Interface(_feedToken1);
     }
 
-    function _getSqrtOraclePriceX96() internal view returns (uint160) {
+    function _getSqrtOraclePriceX96() internal view returns (uint160 sqrtOraclePriceX96) {
         (uint256 oraclePrice0USD, uint256 oracle0Base) = _getOraclePriceUSD(feedToken0);
         (uint256 oraclePrice1USD, uint256 oracle1Base) = _getOraclePriceUSD(feedToken1);
 
-        return _calculateSqrtOraclePriceX96(oraclePrice0USD, oraclePrice1USD, oracle0Base, oracle1Base);
+        sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(oraclePrice0USD, oraclePrice1USD, oracle0Base, oracle1Base);
+
+        if (sqrtOraclePriceX96 < SOTParams.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTParams.MAX_SQRT_PRICE) {
+            revert SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
+        }
     }
 
     function _getOraclePriceUSD(

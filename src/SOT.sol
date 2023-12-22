@@ -214,6 +214,15 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 
         uint160 sqrtOraclePriceX96 = _getSqrtOraclePriceX96();
 
+        SOTParams.validatePriceBounds(
+            sqrtSpotPriceX96,
+            sot.sqrtSpotPriceX96New,
+            sqrtOraclePriceX96,
+            sqrtPriceLowX96,
+            sqrtPriceHighX96,
+            oraclePriceMaxDiffBips
+        );
+
         // TODO: validate remaining params
 
         bytes32 sotHash = sot.hashStruct();

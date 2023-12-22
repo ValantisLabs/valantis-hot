@@ -14,6 +14,16 @@ library SOTParams {
     error SOTParams__validateFeeParams_invalidFeeGrowth();
     error SOTParams__validateFeeParams_invalidFeeMax();
     error SOTParams__validateFeeParams_invalidFeeMin();
+    error SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
+    error SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
+    error SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
+
+    /**
+        @notice Min and max sqrt price bounds.
+        @dev Same bounds as in https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol.
+     */
+    uint160 public constant MIN_SQRT_PRICE = 4295128739;
+    uint160 public constant MAX_SQRT_PRICE = 1461446703485210103287273052203988822378723970342;
 
     function validateBasicParams(
         address authorizedSender,
@@ -26,6 +36,8 @@ library SOTParams {
         uint32 lastProcessedBlockTimestamp,
         uint32 lastProcessedSignatureTimestamp
     ) internal view {
+        // TODO: Might need to use tx.origin to authenticate solvers,
+        // since CowSwap contract will be msg.sender to the pool
         if (authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (amountIn > amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
@@ -53,11 +65,47 @@ library SOTParams {
     ) internal pure {
         if (feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
 
-        if (feeGrowth < feeGrowthMinBound || feeGrowth > feeGrowthMaxBound)
+        if (feeGrowth < feeGrowthMinBound || feeGrowth > feeGrowthMaxBound) {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
+        }
 
         if (feeMin > feeMax || feeMin > 10_000) revert SOTParams__validateFeeParams_invalidFeeMin();
 
         if (feeMax > 10_000) revert SOTParams__validateFeeParams_invalidFeeMax();
+    }
+
+    function validatePriceBounds(
+        uint160 sqrtSpotPriceX96,
+        uint160 sqrtSpotPriceNewX96,
+        uint160 sqrtOraclePriceX96,
+        uint160 sqrtPriceLowX96,
+        uint160 sqrtPriceHighX96,
+        uint256 oraclePriceMaxDiffBips
+    ) internal pure {
+        // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
+        uint256 spotPriceAndOracleAbsDiff = sqrtSpotPriceX96 > sqrtOraclePriceX96
+            ? sqrtSpotPriceX96 - sqrtOraclePriceX96
+            : sqrtOraclePriceX96 - sqrtSpotPriceX96;
+
+        if (spotPriceAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+            revert SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
+        }
+
+        // New AMM sqrt spot price (provided by SOT quote) and oracle sqrt price cannot differ
+        // beyond allowed bounds
+        uint256 spotPriceNewAndOracleAbsDiff = sqrtSpotPriceNewX96 > sqrtOraclePriceX96
+            ? sqrtSpotPriceNewX96 - sqrtOraclePriceX96
+            : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
+
+        if (spotPriceNewAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+            revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
+        }
+
+        // New AMM sqrt spot price cannot exceed lower nor upper AMM position's bounds
+        if (sqrtSpotPriceNewX96 < sqrtPriceLowX96 || sqrtSpotPriceNewX96 > sqrtPriceHighX96) {
+            revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
+        }
+
+        // TODO: validate solver exchange rate + double check if expectedOraclePrice check is needed
     }
 }
