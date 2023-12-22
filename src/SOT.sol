@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import {
-    IERC20Metadata
-} from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import {
@@ -19,13 +16,13 @@ import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPoo
 import { SOTHash } from 'src/libraries/SOTHash.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
-import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { SOTOracle } from 'src/SOTOracle.sol';
 
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM, EIP712 {
+contract SOT is ISovereignALM, EIP712, SOTOracle {
     using SignatureChecker for address;
     using SOTHash for SolverOrderType;
 
@@ -34,6 +31,8 @@ contract SOT is ISovereignALM, EIP712 {
      ***********************************************/
 
     error SOT__onlyPool();
+    error SOT__constructor_invalidToken0();
+    error SOT__constructor_invalidToken1();
     error SOT__getLiquidityQuote_invalidSignature();
 
     /************************************************
@@ -74,13 +73,6 @@ contract SOT is ISovereignALM, EIP712 {
     uint16 public immutable oraclePriceMaxDiffBips;
 
     /**
-	    @notice Maximum allowed duration for each oracle update, in seconds.
-        @dev Oracle prices are considered stale beyond this threshold,
-             meaning that all swaps should revert.
-     */
-    uint32 public immutable maxOracleUpdateDuration;
-
-    /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
 					as time increases between last processed quote.
         @dev SOT reverts if feeGrowth exceeds these bounds.
@@ -93,28 +85,6 @@ contract SOT is ISovereignALM, EIP712 {
 	    @dev SOT reverts if feeMin is below this value.
      */
     uint16 public immutable minAmmFee;
-
-    /**
-	    @notice Decimals for token{0,1}.
-        @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
-     */
-    uint8 public immutable token0Decimals;
-    uint8 public immutable token1Decimals;
-
-    /**
-	    @notice Base unit for token{0,1}.
-          For example: token0Base = 10 ** token0Decimals;
-        @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
-     */
-    uint256 public immutable token0Base;
-    uint256 public immutable token1Base;
-
-    /**
-	    @notice Price feeds for token{0,1}, denominated in USD.
-	    @dev These must be valid Chainlink Price Feeds.
-     */
-    AggregatorV3Interface public immutable feedToken0;
-    AggregatorV3Interface public immutable feedToken1;
 
     /************************************************
      *  STORAGE
@@ -147,6 +117,13 @@ contract SOT is ISovereignALM, EIP712 {
     uint160 public sqrtSpotPriceX96;
 
     /**
+        @notice AMM position's square-root low and upper price bounds, in Q96 format.
+        TODO: Use ticks to pack into one storage slot 
+     */
+    uint160 public sqrtPriceLowX96;
+    uint160 public sqrtPriceHighX96;
+
+    /**
         @notice Contains state variables which get updated on swaps. 
      */
     SwapState public swapState;
@@ -168,6 +145,8 @@ contract SOT is ISovereignALM, EIP712 {
 
     constructor(
         address _pool,
+        address _token0,
+        address _token1,
         uint32 _maxDelay,
         uint16 _solverMaxDiscountBips,
         uint16 _oraclePriceMaxDiffBips,
@@ -177,36 +156,39 @@ contract SOT is ISovereignALM, EIP712 {
         uint16 _minAmmFee,
         address _feedToken0,
         address _feedToken1
-    ) EIP712('Valantis Solver Order Type', '1') {
+    )
+        EIP712('Valantis Solver Order Type', '1')
+        SOTOracle(_token0, _token1, _feedToken0, _feedToken1, _maxOracleUpdateDuration)
+    {
         // TODO: Refactor into separate contracts/libraries + check params validity
         pool = _pool;
 
-        token0 = ISovereignPool(pool).token0();
-        token1 = ISovereignPool(pool).token1();
+        if (_token0 != ISovereignPool(pool).token0()) {
+            revert SOT__constructor_invalidToken0();
+        }
+
+        if (_token1 != ISovereignPool(pool).token1()) {
+            revert SOT__constructor_invalidToken1();
+        }
+
+        token0 = _token0;
+        token1 = _token1;
 
         maxDelay = _maxDelay;
         solverMaxDiscountBips = _solverMaxDiscountBips;
 
         oraclePriceMaxDiffBips = _oraclePriceMaxDiffBips;
-        maxOracleUpdateDuration = _maxOracleUpdateDuration;
 
         minAmmFeeGrowth = _minAmmFeeGrowth;
         maxAmmFeeGrowth = _maxAmmFeeGrowth;
         minAmmFee = _minAmmFee;
-
-        token0Decimals = IERC20Metadata(token0).decimals();
-        token1Decimals = IERC20Metadata(token1).decimals();
-
-        token0Base = 10 ** token0Decimals;
-        token1Base = 10 ** token1Decimals;
-
-        feedToken0 = AggregatorV3Interface(_feedToken0);
-        feedToken1 = AggregatorV3Interface(_feedToken1);
     }
 
     /************************************************
      *  EXTERNAL FUNCTIONS
      ***********************************************/
+
+    // TODO: Add getters and setters
 
     function getLiquidityQuote(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
@@ -230,6 +212,8 @@ contract SOT is ISovereignALM, EIP712 {
         );
         SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
+        uint160 sqrtOraclePriceX96 = _getSqrtOraclePriceX96();
+
         // TODO: validate remaining params
 
         bytes32 sotHash = sot.hashStruct();
@@ -237,12 +221,14 @@ contract SOT is ISovereignALM, EIP712 {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
-        uint256 amountOut = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax);
-
         ALMLiquidityQuote memory liquidityQuote;
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
-        liquidityQuote.amountOut = amountOut;
+        liquidityQuote.amountOut = Math.mulDiv(
+            _almLiquidityQuoteInput.amountInMinusFee,
+            sot.amountOutMax,
+            sot.amountInMax
+        );
         liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
 
         // Update state
