@@ -46,6 +46,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
+    error SOT__onlyManager();
     error SOT__getLiquidityQuote_invalidSignature();
 
     /************************************************
@@ -152,6 +153,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         _;
     }
 
+    modifier onlyManager() {
+        if (msg.sender != manager) {
+            revert SOT__onlyManager();
+        }
+        _;
+    }
+
     /************************************************
      *  CONSTRUCTOR
      ***********************************************/
@@ -225,6 +233,23 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         }
 
         minAmmFee = _minAmmFee;
+    }
+
+    /************************************************
+     *  SETTER FUNCTIONS
+     ***********************************************/
+
+    function setManager(address _manager) external onlyManager {
+        manager = _manager;
+    }
+
+    function setSigner(address _signer) external onlyManager {
+        signer = _signer;
+    }
+
+    function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
+        maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
+        maxToken1VolumeToQuote = _maxToken1VolumeToQuote;
     }
 
     /************************************************
