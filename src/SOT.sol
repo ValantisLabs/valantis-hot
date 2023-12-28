@@ -239,14 +239,23 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
      *  SETTER FUNCTIONS
      ***********************************************/
 
+    /**
+        @notice Changes the manager of the pool ( To be protected by timelock )
+     */
     function setManager(address _manager) external onlyManager {
         manager = _manager;
     }
 
+    /**
+        @notice Changes the signer of the pool ( To be protected by timelock )
+     */
     function setSigner(address _signer) external onlyManager {
         signer = _signer;
     }
 
+    /**
+        @notice Changes the maximum token volumes available for a single SOT quote ( To be protected by timelock )
+     */
     function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
         maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
         maxToken1VolumeToQuote = _maxToken1VolumeToQuote;
@@ -334,6 +343,24 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             ALMLiquidityQuote memory liquidityQuote;
             return liquidityQuote;
         }
+        uint256 amountOut = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax);
+
+        ALMLiquidityQuote memory liquidityQuote;
+        // Always true, since reserves must be stored in the pool
+        liquidityQuote.quoteFromPoolReserves = true;
+        liquidityQuote.amountOut = amountOut;
+        liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
+
+        // Update state
+        swapState = SwapState({
+            lastProcessedBlockTimestamp: uint32(block.timestamp),
+            lastProcessedSignatureTimestamp: sot.signatureTimestamp,
+            lastProcessedFeeGrowth: sot.feeGrowth,
+            lastProcessedFeeMin: sot.feeMin,
+            lastProcessedFeeMax: sot.feeMax
+        });
+
+        return liquidityQuote;
     }
 
     function onDepositLiquidityCallback(
