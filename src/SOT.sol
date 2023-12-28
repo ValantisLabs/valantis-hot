@@ -271,7 +271,41 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
         bytes calldata /*_verifierData*/
-    ) external override onlyPool returns (ALMLiquidityQuote memory) {
+    ) external override onlyPool returns (ALMLiquidityQuote memory liquidityQuote) {
+        if (_externalContext.length == 0) {
+            // AMM Swap
+            _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
+        } else {
+            // Solver Swap
+            _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
+        }
+    }
+
+    function onDepositLiquidityCallback(
+        uint256 /*_amount0*/,
+        uint256 /*_amount1*/,
+        bytes memory /*_data*/
+    ) external override onlyPool {}
+
+    function onSwapCallback(
+        bool /*_isZeroToOne*/,
+        uint256 /*_amountIn*/,
+        uint256 /*_amountOut*/
+    ) external override onlyPool {}
+
+    /************************************************
+     *  INTERNAL FUNCTIONS
+     ***********************************************/
+    function _ammSwap(
+        ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
+        ALMLiquidityQuote memory liquidityQuote
+    ) internal {}
+
+    function _solverSwap(
+        ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
+        bytes memory _externalContext,
+        ALMLiquidityQuote memory liquidityQuote
+    ) internal {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
 
         if (sot.isActive) {
@@ -345,7 +379,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         }
         uint256 amountOut = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax);
 
-        ALMLiquidityQuote memory liquidityQuote;
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
         liquidityQuote.amountOut = amountOut;
@@ -359,19 +392,5 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             lastProcessedFeeMin: sot.feeMin,
             lastProcessedFeeMax: sot.feeMax
         });
-
-        return liquidityQuote;
     }
-
-    function onDepositLiquidityCallback(
-        uint256 /*_amount0*/,
-        uint256 /*_amount1*/,
-        bytes memory /*_data*/
-    ) external override onlyPool {}
-
-    function onSwapCallback(
-        bool /*_isZeroToOne*/,
-        uint256 /*_amountIn*/,
-        uint256 /*_amountOut*/
-    ) external override onlyPool {}
 }
