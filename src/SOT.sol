@@ -308,83 +308,51 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     ) internal {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
 
-        if (sot.isActive) {
-            // Execute SOT swap
-            SwapState memory swapStateCache = swapState;
+        // Execute SOT swap
+        SwapState memory swapStateCache = swapState;
 
-            SOTParams.validateBasicParams(
-                sot.authorizedSender,
-                sot.amountInMax,
-                sot.amountOutMax,
-                sot.signatureTimestamp,
-                sot.expiry,
-                _almLiquidityQuoteInput.amountInMinusFee,
-                _almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
-                swapStateCache.lastProcessedBlockTimestamp,
-                swapStateCache.lastProcessedSignatureTimestamp
-            );
-            SOTParams.validateFeeParams(
-                sot.feeMin,
-                sot.feeGrowth,
-                sot.feeMax,
-                minAmmFee,
-                minAmmFeeGrowth,
-                maxAmmFeeGrowth
-            );
+        SOTParams.validateBasicParams(
+            sot.authorizedSender,
+            sot.amountInMax,
+            sot.amountOutMax,
+            sot.signatureTimestamp,
+            sot.expiry,
+            _almLiquidityQuoteInput.amountInMinusFee,
+            _almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
+            swapStateCache.lastProcessedBlockTimestamp,
+            swapStateCache.lastProcessedSignatureTimestamp
+        );
+        SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
-            SOTParams.validatePriceBounds(
-                _almLiquidityQuoteInput.isZeroToOne
-                    ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
-                    : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
-                sqrtSpotPriceX96,
-                sot.sqrtSpotPriceX96New,
-                _getSqrtOraclePriceX96(),
-                sqrtPriceLowX96,
-                sqrtPriceHighX96,
-                oraclePriceMaxDiffBips,
-                solverMaxDiscountBips
-            );
+        SOTParams.validatePriceBounds(
+            _almLiquidityQuoteInput.isZeroToOne
+                ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
+                : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
+            sqrtSpotPriceX96,
+            sot.sqrtSpotPriceX96New,
+            _getSqrtOraclePriceX96(),
+            sqrtPriceLowX96,
+            sqrtPriceHighX96,
+            oraclePriceMaxDiffBips,
+            solverMaxDiscountBips
+        );
 
-            bytes32 sotHash = sot.hashStruct();
-            if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
-                revert SOT__getLiquidityQuote_invalidSignature();
-            }
-
-            ALMLiquidityQuote memory liquidityQuote;
-            // Always true, since reserves must be stored in the pool
-            liquidityQuote.quoteFromPoolReserves = true;
-            liquidityQuote.amountOut = Math.mulDiv(
-                _almLiquidityQuoteInput.amountInMinusFee,
-                sot.amountOutMax,
-                sot.amountInMax
-            );
-            liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
-
-            // Update state
-            // TODO: try to pack into one slot
-            swapState = SwapState({
-                lastProcessedBlockTimestamp: uint32(block.timestamp),
-                lastProcessedSignatureTimestamp: sot.signatureTimestamp,
-                lastProcessedFeeGrowth: sot.feeGrowth,
-                lastProcessedFeeMin: sot.feeMin,
-                lastProcessedFeeMax: sot.feeMax
-            });
-            sqrtSpotPriceX96 = sot.sqrtSpotPriceX96New;
-
-            return liquidityQuote;
-        } else {
-            // TODO: AMM swap
-            ALMLiquidityQuote memory liquidityQuote;
-            return liquidityQuote;
+        bytes32 sotHash = sot.hashStruct();
+        if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
+            revert SOT__getLiquidityQuote_invalidSignature();
         }
-        uint256 amountOut = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, sot.amountOutMax, sot.amountInMax);
 
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
-        liquidityQuote.amountOut = amountOut;
+        liquidityQuote.amountOut = Math.mulDiv(
+            _almLiquidityQuoteInput.amountInMinusFee,
+            sot.amountOutMax,
+            sot.amountInMax
+        );
         liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
 
         // Update state
+        // TODO: try to pack into one slot
         swapState = SwapState({
             lastProcessedBlockTimestamp: uint32(block.timestamp),
             lastProcessedSignatureTimestamp: sot.signatureTimestamp,
@@ -392,5 +360,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             lastProcessedFeeMin: sot.feeMin,
             lastProcessedFeeMax: sot.feeMax
         });
+        sqrtSpotPriceX96 = sot.sqrtSpotPriceX96New;
     }
 }
