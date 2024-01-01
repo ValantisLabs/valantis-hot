@@ -10,8 +10,6 @@ import {
     IUniswapV3Pool
 } from 'lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 
-import { NoDelegateCall } from 'lib/v3-core/contracts/NoDelegateCall.sol';
-
 import { SafeCast } from 'lib/v3-core/contracts/libraries/SafeCast.sol';
 import { Tick } from 'lib/v3-core/contracts/libraries/Tick.sol';
 import { TickBitmap } from 'lib/v3-core/contracts/libraries/TickBitmap.sol';
@@ -30,7 +28,7 @@ import { IUniswapV3MintCallback } from 'lib/v3-core/contracts/interfaces/callbac
 import { IUniswapV3SwapCallback } from 'lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import { IUniswapV3FlashCallback } from 'lib/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
 
-contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
+contract UniswapV3PoolInternal is IUniswapV3Pool {
     using SafeCast for uint256;
     using SafeCast for int256;
     using Tick for mapping(int24 => Tick.Info);
@@ -153,12 +151,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
     function snapshotCumulativesInside(
         int24 tickLower,
         int24 tickUpper
-    )
-        external
-        view
-        noDelegateCall
-        returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside)
-    {
+    ) external view returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside) {
         checkTicks(tickLower, tickUpper);
 
         int56 tickCumulativeLower;
@@ -229,12 +222,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
     /// @inheritdoc IUniswapV3PoolDerivedState
     function observe(
         uint32[] calldata secondsAgos
-    )
-        external
-        view
-        noDelegateCall
-        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
-    {
+    ) external view returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {
         return
             observations.observe(
                 _blockTimestamp(),
@@ -246,7 +234,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
             );
     }
 
-    function increaseObservationCardinalityNext(uint16 observationCardinalityNext) external lock noDelegateCall {
+    function increaseObservationCardinalityNext(uint16 observationCardinalityNext) external lock {
         uint16 observationCardinalityNextOld = slot0.observationCardinalityNext; // for the event
         uint16 observationCardinalityNextNew = observations.grow(
             observationCardinalityNextOld,
@@ -295,7 +283,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
     /// @return amount1 the amount of token1 owed to the pool, negative if the pool should pay the recipient
     function _modifyPosition(
         ModifyPositionParams memory params
-    ) private noDelegateCall returns (Position.Info storage position, int256 amount0, int256 amount1) {
+    ) private returns (Position.Info storage position, int256 amount0, int256 amount1) {
         checkTicks(params.tickLower, params.tickUpper);
 
         Slot0 memory _slot0 = slot0; // SLOAD for gas optimization
@@ -442,7 +430,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
         }
     }
 
-    /// @dev noDelegateCall is applied indirectly via _modifyPosition
     function mint(
         address recipient,
         int24 tickLower,
@@ -501,7 +488,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
         emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
     }
 
-    /// @dev noDelegateCall is applied indirectly via _modifyPosition
     function burn(
         int24 tickLower,
         int24 tickUpper,
@@ -587,7 +573,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool, NoDelegateCall {
         int256 amountSpecified,
         uint160 sqrtPriceLimitX96,
         bytes calldata data
-    ) internal noDelegateCall returns (int256 amount0, int256 amount1) {
+    ) internal returns (int256 amount0, int256 amount1) {
         if (amountSpecified == 0) revert AS();
 
         Slot0 memory slot0Start = slot0;

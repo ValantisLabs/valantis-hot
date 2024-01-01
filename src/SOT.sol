@@ -287,10 +287,15 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
+
+    function _updateAMMState() internal {}
+
     function _ammSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal {}
+    ) internal {
+        // Swap with UniV3 pool internally
+    }
 
     function _solverSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
@@ -352,5 +357,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
             lastProcessedFeeMax: sot.feeMax
         });
         sqrtSpotPriceX96 = sot.sqrtSpotPriceX96New;
+
+        // Rebalance reserves and liquidity in AMM
+        _updateAMMState();
     }
 }
