@@ -19,14 +19,16 @@ import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPoo
 
 import { SOTHash } from 'src/libraries/SOTHash.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
+import { SolverOrderType, SwapStateSOT } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
+
+import { UniswapV3PoolInternal } from 'src/amm/V3PoolInternal.sol';
 
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM, EIP712, SOTOracle {
+contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -57,16 +59,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 	    @notice Sovereign Pool to which this Liquidity Module is bound.
     */
     address public immutable pool;
-
-    /**
-        @notice Address of pool's token0. 
-     */
-    address public immutable token0;
-
-    /**
-        @notice Address of pool's token1. 
-     */
-    address public immutable token1;
 
     /**
 	    @notice Maximum delay, in seconds, for acceptance of SOT quotes.
@@ -140,7 +132,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     /**
         @notice Contains state variables which get updated on swaps. 
      */
-    SwapState public swapState;
+    SwapStateSOT public swapStateSOT;
 
     /************************************************
      *  MODIFIERS
@@ -180,6 +172,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     )
         EIP712('Valantis Solver Order Type', '1')
         SOTOracle(_token0, _token1, _feedToken0, _feedToken1, _maxOracleUpdateDuration)
+        // TODO: temporary set fee and spacing values to 0 & 1, update these
+        UniswapV3PoolInternal(_token0, _token1, 0, 1)
     {
         if (_pool == address(0)) {
             revert SOT__constructor_invalidSovereignPool();
@@ -194,9 +188,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         if (_token1 != ISovereignPool(pool).token1()) {
             revert SOT__constructor_invalidToken1();
         }
-
-        token0 = _token0;
-        token1 = _token1;
 
         if (_maxDelay > 10 minutes) {
             revert SOT__constructor_invalidMaxDelay();
@@ -309,7 +300,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
-        SwapState memory swapStateCache = swapState;
+        SwapStateSOT memory swapStateSOTCache = swapStateSOT;
 
         SOTParams.validateBasicParams(
             sot.authorizedSender,
@@ -319,8 +310,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             sot.expiry,
             _almLiquidityQuoteInput.amountInMinusFee,
             _almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
-            swapStateCache.lastProcessedBlockTimestamp,
-            swapStateCache.lastProcessedSignatureTimestamp
+            swapStateSOTCache.lastProcessedBlockTimestamp,
+            swapStateSOTCache.lastProcessedSignatureTimestamp
         );
         SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
@@ -353,7 +344,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 
         // Update state
         // TODO: try to pack into one slot
-        swapState = SwapState({
+        swapStateSOT = SwapStateSOT({
             lastProcessedBlockTimestamp: uint32(block.timestamp),
             lastProcessedSignatureTimestamp: sot.signatureTimestamp,
             lastProcessedFeeGrowth: sot.feeGrowth,

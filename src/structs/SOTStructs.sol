@@ -33,7 +33,7 @@ struct SolverOrderType {
             *lastProcessedFeeMax:
                 Maximum AMM fee according to the last Solver Order Type which has been successfully processed.
  */
-struct SwapState {
+struct SwapStateSOT {
     uint32 lastProcessedBlockTimestamp;
     uint32 lastProcessedSignatureTimestamp;
     uint16 lastProcessedFeeGrowth;
