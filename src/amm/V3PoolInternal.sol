@@ -53,9 +53,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         // the current tick
         int24 tick;
         // TODO: Pack slot 0 with relevant SOT variables
-        // the current protocol fee as a percentage of the swap fee taken on withdrawal
-        // represented as an integer denominator (1/x)%
-        uint8 feeProtocol;
     }
     /// @inheritdoc IUniswapV3PoolState
     Slot0 public override slot0;
@@ -64,14 +61,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
     uint256 public override feeGrowthGlobal0X128;
     /// @inheritdoc IUniswapV3PoolState
     uint256 public override feeGrowthGlobal1X128;
-
-    // accumulated protocol fees in token0/token1 units
-    struct ProtocolFees {
-        uint128 token0;
-        uint128 token1;
-    }
-    /// @inheritdoc IUniswapV3PoolState
-    ProtocolFees public override protocolFees;
 
     /// @inheritdoc IUniswapV3PoolState
     uint128 public override liquidity;
@@ -126,7 +115,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        slot0 = Slot0({ sqrtPriceX96: sqrtPriceX96, tick: tick, feeProtocol: 0 });
+        slot0 = Slot0({ sqrtPriceX96: sqrtPriceX96, tick: tick });
 
         emit Initialize(sqrtPriceX96, tick);
     }
@@ -357,8 +346,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
     }
 
     struct SwapCache {
-        // the protocol fee for the input token
-        uint8 feeProtocol;
         // liquidity at the beginning of the swap
         uint128 liquidityStart;
     }
@@ -375,8 +362,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         int24 tick;
         // the global fee growth of the input token
         uint256 feeGrowthGlobalX128;
-        // amount of input token paid as protocol fee
-        uint128 protocolFee;
         // the current liquidity in range
         uint128 liquidity;
     }
@@ -414,10 +399,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
             'SPL'
         );
 
-        SwapCache memory cache = SwapCache({
-            liquidityStart: liquidity,
-            feeProtocol: zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4)
-        });
+        SwapCache memory cache = SwapCache({ liquidityStart: liquidity });
 
         bool exactInput = amountSpecified > 0;
 
@@ -427,7 +409,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
             sqrtPriceX96: slot0Start.sqrtPriceX96,
             tick: slot0Start.tick,
             feeGrowthGlobalX128: zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
-            protocolFee: 0,
             liquidity: cache.liquidityStart
         });
 
@@ -477,15 +458,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
                 state.amountCalculated += (step.amountIn + step.feeAmount).toInt256();
             }
 
-            // if the protocol fee is on, calculate how much is owed, decrement feeAmount, and increment protocolFee
-            if (cache.feeProtocol > 0) {
-                unchecked {
-                    uint256 delta = step.feeAmount / cache.feeProtocol;
-                    step.feeAmount -= delta;
-                    state.protocolFee += uint128(delta);
-                }
-            }
-
             // update global fee tracker
             if (state.liquidity > 0) {
                 unchecked {
@@ -533,18 +505,11 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         // update liquidity if it changed
         if (cache.liquidityStart != state.liquidity) liquidity = state.liquidity;
 
-        // update fee growth global and, if necessary, protocol fees
-        // overflow is acceptable, protocol has to withdraw before it hits type(uint128).max fees
+        // update fee growth global and
         if (zeroForOne) {
             feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
-            unchecked {
-                if (state.protocolFee > 0) protocolFees.token0 += state.protocolFee;
-            }
         } else {
             feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
-            unchecked {
-                if (state.protocolFee > 0) protocolFees.token1 += state.protocolFee;
-            }
         }
 
         unchecked {
