@@ -56,8 +56,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         // the current protocol fee as a percentage of the swap fee taken on withdrawal
         // represented as an integer denominator (1/x)%
         uint8 feeProtocol;
-        // whether the pool is locked
-        bool unlocked;
     }
     /// @inheritdoc IUniswapV3PoolState
     Slot0 public override slot0;
@@ -84,16 +82,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
     mapping(int16 => uint256) public override tickBitmap;
     /// @inheritdoc IUniswapV3PoolState
     mapping(bytes32 => Position.Info) public override positions;
-
-    /// @dev Mutually exclusive reentrancy protection into the pool to/from a method. This method also prevents entrance
-    /// to a function before the pool is initialized. The reentrancy guard is required throughout the contract because
-    /// we use balance checks to determine the payment status of interactions such as mint, swap and flash.
-    modifier lock() {
-        if (!slot0.unlocked) revert LOK();
-        slot0.unlocked = false;
-        _;
-        slot0.unlocked = true;
-    }
 
     constructor(address _token0, address _token1, uint24 _fee, int24 _tickSpacing) {
         token0 = _token0;
@@ -133,13 +121,12 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         return abi.decode(data, (uint256));
     }
 
-    /// @dev not locked because it initializes unlocked
     function initialize(uint160 sqrtPriceX96) internal {
         if (slot0.sqrtPriceX96 != 0) revert AI();
 
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
 
-        slot0 = Slot0({ sqrtPriceX96: sqrtPriceX96, tick: tick, feeProtocol: 0, unlocked: true });
+        slot0 = Slot0({ sqrtPriceX96: sqrtPriceX96, tick: tick, feeProtocol: 0 });
 
         emit Initialize(sqrtPriceX96, tick);
     }
@@ -288,7 +275,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         int24 tickUpper,
         uint128 amount,
         bytes calldata data
-    ) internal lock returns (uint256 amount0, uint256 amount1) {
+    ) internal returns (uint256 amount0, uint256 amount1) {
         require(amount > 0);
         (, int256 amount0Int, int256 amount1Int) = _modifyPosition(
             ModifyPositionParams({
@@ -319,7 +306,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         int24 tickUpper,
         uint128 amount0Requested,
         uint128 amount1Requested
-    ) internal lock returns (uint128 amount0, uint128 amount1) {
+    ) internal returns (uint128 amount0, uint128 amount1) {
         // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
         Position.Info storage position = positions.get(msg.sender, tickLower, tickUpper);
 
@@ -344,7 +331,7 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         int24 tickLower,
         int24 tickUpper,
         uint128 amount
-    ) internal lock returns (uint256 amount0, uint256 amount1) {
+    ) internal returns (uint256 amount0, uint256 amount1) {
         unchecked {
             (Position.Info storage position, int256 amount0Int, int256 amount1Int) = _modifyPosition(
                 ModifyPositionParams({
@@ -420,15 +407,12 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
 
         Slot0 memory slot0Start = slot0;
 
-        if (!slot0Start.unlocked) revert LOK();
         require(
             zeroForOne
                 ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > TickMath.MIN_SQRT_RATIO
                 : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < TickMath.MAX_SQRT_RATIO,
             'SPL'
         );
-
-        slot0.unlocked = false;
 
         SwapCache memory cache = SwapCache({
             liquidityStart: liquidity,
@@ -568,7 +552,5 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
                 ? (amountSpecified - state.amountSpecifiedRemaining, state.amountCalculated)
                 : (state.amountCalculated, amountSpecified - state.amountSpecifiedRemaining);
         }
-
-        slot0.unlocked = true;
     }
 }
