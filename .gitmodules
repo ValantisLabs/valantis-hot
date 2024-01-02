@@ -9,3 +9,7 @@
 	path = lib/v3-core
 	url = https://github.com/Uniswap/v3-core
 	branch = 0.8
+[submodule "lib/v3-core-sot"]
+	path = lib/v3-core-sot
+	url = https://github.com/ValantisLabs/v3-core-sot
+	branch = main
