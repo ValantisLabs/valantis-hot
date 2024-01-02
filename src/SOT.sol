@@ -50,6 +50,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
     error SOT__constructor_invalidToken1();
     error SOT__onlyManager();
     error SOT__getLiquidityQuote_invalidSignature();
+    error SOT__ammSwap_invalidAmounts();
 
     /************************************************
      *  IMMUTABLES
@@ -295,6 +296,34 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
         // Swap with UniV3 pool internally
+        // TODO: Check direction of limits
+        uint160 sqrtPriceLimitX96 = _almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96 : sqrtPriceHighX96;
+
+        (int256 amount0, int256 amount1) = UniswapV3PoolInternal.swap(
+            _almLiquidityQuoteInput.isZeroToOne,
+            _almLiquidityQuoteInput.amountInMinusFee.toInt256(),
+            sqrtPriceLimitX96
+        );
+
+        // Sanity checks & quote construction
+        // TODO: verify if the amounts returned by uni-v3 amm are correct
+        if (_almLiquidityQuoteInput.isZeroToOne) {
+            // amount1 must be negative, amount0 must be positive
+            if (amount1 <= 0 && amount0 >= 0) {
+                liquidityQuote.amountInFilled = uint256(amount0);
+                liquidityQuote.amountOut = uint256(-amount1);
+            } else {
+                revert SOT__ammSwap_invalidAmounts();
+            }
+        } else {
+            // amount0 must be negative, amount1 must be positive
+            if (amount0 <= 0 && amount1 >= 0) {
+                liquidityQuote.amountInFilled = uint256(amount1);
+                liquidityQuote.amountOut = uint256(-amount0);
+            } else {
+                revert SOT__ammSwap_invalidAmounts();
+            }
+        }
     }
 
     function _solverSwap(

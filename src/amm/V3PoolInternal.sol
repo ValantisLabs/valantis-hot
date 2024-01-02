@@ -412,11 +412,9 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
     }
 
     function swap(
-        address recipient,
         bool zeroForOne,
         int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bytes calldata data
+        uint160 sqrtPriceLimitX96
     ) internal returns (int256 amount0, int256 amount1) {
         if (amountSpecified == 0) revert AS();
 
@@ -571,26 +569,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
                 : (state.amountCalculated, amountSpecified - state.amountSpecifiedRemaining);
         }
 
-        // do the transfers and collect payment
-        if (zeroForOne) {
-            unchecked {
-                if (amount1 < 0) TransferHelper.safeTransfer(token1, recipient, uint256(-amount1));
-            }
-
-            uint256 balance0Before = balance0();
-            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            if (balance0Before + uint256(amount0) > balance0()) revert IIA();
-        } else {
-            unchecked {
-                if (amount0 < 0) TransferHelper.safeTransfer(token0, recipient, uint256(-amount0));
-            }
-
-            uint256 balance1Before = balance1();
-            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            if (balance1Before + uint256(amount1) > balance1()) revert IIA();
-        }
-
-        emit Swap(msg.sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
         slot0.unlocked = true;
     }
 }
