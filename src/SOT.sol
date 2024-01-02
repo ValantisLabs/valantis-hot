@@ -289,6 +289,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, UniswapV3PoolInternal {
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
+    // TODO: implement logic for liquidity rebalancing after SOT Quote here
     function _updateAMMState() internal {}
 
     function _ammSwap(
