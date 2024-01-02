@@ -111,11 +111,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         if (tickUpper > TickMath.MAX_TICK) revert TUM();
     }
 
-    /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
-    function _blockTimestamp() internal view virtual returns (uint32) {
-        return uint32(block.timestamp); // truncation is desired
-    }
-
     /// @dev Get the pool's balance of token0
     /// @dev This function is gas optimized to avoid a redundant extcodesize check in addition to the returndatasize
     /// check
@@ -379,8 +374,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
         uint8 feeProtocol;
         // liquidity at the beginning of the swap
         uint128 liquidityStart;
-        // the timestamp of the current block
-        uint32 blockTimestamp;
     }
 
     // the top level state of the swap, the results of which are recorded in storage at the end
@@ -441,7 +434,6 @@ contract UniswapV3PoolInternal is IUniswapV3Pool {
 
         SwapCache memory cache = SwapCache({
             liquidityStart: liquidity,
-            blockTimestamp: _blockTimestamp(),
             feeProtocol: zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4)
         });
 
