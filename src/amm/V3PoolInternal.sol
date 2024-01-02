@@ -7,24 +7,24 @@ import {
     IUniswapV3PoolActions,
     IUniswapV3PoolOwnerActions,
     IUniswapV3Pool
-} from 'lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+} from 'lib/v3-core-sot/contracts/interfaces/IUniswapV3Pool.sol';
 
-import { SafeCast } from 'lib/v3-core/contracts/libraries/SafeCast.sol';
-import { Tick } from 'lib/v3-core/contracts/libraries/Tick.sol';
-import { TickBitmap } from 'lib/v3-core/contracts/libraries/TickBitmap.sol';
-import { Position } from 'lib/v3-core/contracts/libraries/Position.sol';
+import { SafeCast } from 'lib/v3-core-sot/contracts/libraries/SafeCast.sol';
+import { Tick } from 'lib/v3-core-sot/contracts/libraries/Tick.sol';
+import { TickBitmap } from 'lib/v3-core-sot/contracts/libraries/TickBitmap.sol';
+import { Position } from 'lib/v3-core-sot/contracts/libraries/Position.sol';
 
-import { FullMath } from 'lib/v3-core/contracts/libraries/FullMath.sol';
-import { FixedPoint128 } from 'lib/v3-core/contracts/libraries/FixedPoint128.sol';
-import { TransferHelper } from 'lib/v3-core/contracts/libraries/TransferHelper.sol';
-import { TickMath } from 'lib/v3-core/contracts/libraries/TickMath.sol';
-import { SqrtPriceMath } from 'lib/v3-core/contracts/libraries/SqrtPriceMath.sol';
-import { SwapMath } from 'lib/v3-core/contracts/libraries/SwapMath.sol';
+import { FullMath } from 'lib/v3-core-sot/contracts/libraries/FullMath.sol';
+import { FixedPoint128 } from 'lib/v3-core-sot/contracts/libraries/FixedPoint128.sol';
+import { TransferHelper } from 'lib/v3-core-sot/contracts/libraries/TransferHelper.sol';
+import { TickMath } from 'lib/v3-core-sot/contracts/libraries/TickMath.sol';
+import { SqrtPriceMath } from 'lib/v3-core-sot/contracts/libraries/SqrtPriceMath.sol';
+import { SwapMath } from 'lib/v3-core-sot/contracts/libraries/SwapMath.sol';
 
-import { IERC20Minimal } from 'lib/v3-core/contracts/interfaces/IERC20Minimal.sol';
-import { IUniswapV3MintCallback } from 'lib/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol';
-import { IUniswapV3SwapCallback } from 'lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
-import { IUniswapV3FlashCallback } from 'lib/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
+import { IERC20Minimal } from 'lib/v3-core-sot/contracts/interfaces/IERC20Minimal.sol';
+import { IUniswapV3MintCallback } from 'lib/v3-core-sot/contracts/interfaces/callback/IUniswapV3MintCallback.sol';
+import { IUniswapV3SwapCallback } from 'lib/v3-core-sot/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
+import { IUniswapV3FlashCallback } from 'lib/v3-core-sot/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
 
 contract UniswapV3PoolInternal is IUniswapV3Pool {
     using SafeCast for uint256;
