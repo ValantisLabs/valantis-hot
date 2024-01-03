@@ -297,16 +297,19 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
-    function _getAMMSwapFee() private pure returns (uint16) {
-        // uint32 fee = uint32(lastProcessedFeeGrowth) * (block.timestamp - lastProcessedSignatureTimestamp);
-        // // Add minimum fee
-        // fee += uint32(lastProcessedFeeMin);
-        // // Cap fee if necessary
-        // if (fee > uint32(lastProcessedFeeMax)) {
-        //     fee = uint32(lastProcessedFeeMax);
-        // }
+    function _getAMMSwapFee() private view returns (uint16) {
+        SwapState memory swapStateCache = swapState;
 
-        return uint16(0);
+        uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
+            uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
+        // Add minimum fee
+        fee += uint32(swapStateCache.lastProcessedFeeMin);
+        // Cap fee if necessary
+        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
+            fee = uint32(swapStateCache.lastProcessedFeeMax);
+        }
+
+        return uint16(fee);
     }
 
     function _getEffectiveLiquidity(
