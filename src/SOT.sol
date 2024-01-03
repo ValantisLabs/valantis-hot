@@ -265,8 +265,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
      *  EXTERNAL FUNCTIONS
      ***********************************************/
 
-    // TODO: Add getters and setters
-
     function getLiquidityQuote(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
@@ -360,17 +358,17 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         uint160 sqrtPriceNextX96;
         uint256 amountOut;
         if (_almLiquidityQuoteInput.isZeroToOne) {
-            (sqrtPriceNextX96, , amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtPriceNextX96, amountIn, amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
-                sqrtPriceLowX96Cache, // TODO: Add limit price
+                sqrtPriceLowX96Cache,
                 effectiveLiquidity,
                 amountInMinusFee.toInt256(), // always exact input swap
                 0
             ); // fees have already been deducted
         } else {
-            (sqrtPriceNextX96, , amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtPriceNextX96, amountIn, amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
-                sqrtPriceHighX96Cache, // TODO: Add limit price
+                sqrtPriceHighX96Cache,
                 effectiveLiquidity,
                 amountInMinusFee.toInt256(), // always exact input swap
                 0
@@ -382,7 +380,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         liquidityQuote.amountOut = amountOut;
         // In exact input swaps, the entire `amountInMinusFee` will be consumed in `computeSwapStep`,
         // and we also need to add the previously computed swap fee portion
-        liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
+        liquidityQuote.amountInFilled = amountIn;
 
         // Update State Variables
         sqrtSpotPriceX96 = sqrtPriceNextX96;
