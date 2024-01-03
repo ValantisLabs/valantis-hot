@@ -363,7 +363,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     }
 
     function _ammSwap(
-        ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
     ) internal view returns (uint160 sqrtSpotPriceNewX96) {
         // Cache sqrt spot price
@@ -386,9 +386,9 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         // and keeping 0 as default constant fee
         // Therefore, the dynamic swap fee is calculated inside this Liquidity Module
         // via `_getAMMSwapFee()`
-        uint256 amountInMinusFee = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, 1e4 - _getAMMSwapFee(), 1e4);
+        uint256 amountInMinusFee = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, 1e4 - _getAMMSwapFee(), 1e4);
 
-        if (_almLiquidityQuoteInput.isZeroToOne) {
+        if (almLiquidityQuoteInput.isZeroToOne) {
             (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceLowX96Cache,
@@ -410,11 +410,11 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     }
 
     function _solverSwap(
-        ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
-        bytes memory _externalContext,
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
+        bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
     ) internal returns (uint160 sqrtSpotPriceNewX96) {
-        (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
+        (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
         SwapState memory swapStateCache = swapState;
@@ -425,15 +425,15 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             sot.amountOutMax,
             sot.signatureTimestamp,
             sot.expiry,
-            _almLiquidityQuoteInput.amountInMinusFee,
-            _almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
+            almLiquidityQuoteInput.amountInMinusFee,
+            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
             swapStateCache.lastProcessedBlockTimestamp,
             swapStateCache.lastProcessedSignatureTimestamp
         );
         SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         SOTParams.validatePriceBounds(
-            _almLiquidityQuoteInput.isZeroToOne
+            almLiquidityQuoteInput.isZeroToOne
                 ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
                 : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
             sqrtSpotPriceX96,
@@ -453,11 +453,11 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
         liquidityQuote.amountOut = Math.mulDiv(
-            _almLiquidityQuoteInput.amountInMinusFee,
+            almLiquidityQuoteInput.amountInMinusFee,
             sot.amountOutMax,
             sot.amountInMax
         );
-        liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
+        liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Update state
         // TODO: try to pack into one slot
