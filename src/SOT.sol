@@ -4,6 +4,8 @@ pragma solidity 0.8.19;
 import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 
+import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
+import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
@@ -31,12 +33,15 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     using SafeCast for uint256;
     using SignatureChecker for address;
     using SOTHash for SolverOrderType;
+    using SafeERC20 for IERC20;
 
     /************************************************
      *  CUSTOM ERRORS
      ***********************************************/
 
     error SOT__onlyPool();
+    error SOT__onlyManager();
+    error SOT__onlyLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidMaxAmmFeeGrowth();
     error SOT__constructor_invalidMinAmmFeeGrowth();
@@ -46,7 +51,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
-    error SOT__onlyManager();
     error SOT__getLiquidityQuote_invalidSignature();
 
     /************************************************
@@ -116,6 +120,12 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     address public signer;
 
     /**
+	    @notice Address of account which is meant to deposit & withdraw liquidity.
+        @dev Can be updated by `manager`.
+     */
+    address public liquidityProvider;
+
+    /**
 	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
         @dev Can be updated by `manager`.
 	    @dev Since there can only be one SOT per block, this is also a maximum
@@ -156,6 +166,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     modifier onlyManager() {
         if (msg.sender != manager) {
             revert SOT__onlyManager();
+        }
+        _;
+    }
+
+    modifier onlyLiquidityProvider() {
+        if (msg.sender != liquidityProvider) {
+            revert SOT__onlyLiquidityProvider();
         }
         _;
     }
@@ -272,18 +289,34 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     ) external override onlyPool returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // AMM Swap
-            _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
+            sqrtSpotPriceX96 = _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
             // Solver Swap
-            _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
+            sqrtSpotPriceX96 = _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
     }
 
+    function depositLiquidity(uint256 _amount0, uint256 _amount1) external onlyLiquidityProvider {
+        ISovereignPool(pool).depositLiquidity(_amount0, _amount1, liquidityProvider, '', '');
+    }
+
+    function withdrawLiquidity(uint256 _amount0, uint256 _amount1) external onlyLiquidityProvider {
+        ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, liquidityProvider, '');
+    }
+
     function onDepositLiquidityCallback(
-        uint256 /*_amount0*/,
-        uint256 /*_amount1*/,
+        uint256 _amount0,
+        uint256 _amount1,
         bytes memory /*_data*/
-    ) external override onlyPool {}
+    ) external override onlyPool {
+        if (_amount0 > 0) {
+            IERC20(token0).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
+        }
+
+        if (_amount1 > 0) {
+            IERC20(token1).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
+        }
+    }
 
     function onSwapCallback(
         bool /*_isZeroToOne*/,
@@ -332,7 +365,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     function _ammSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal {
+    ) internal view returns (uint160 sqrtSpotPriceNewX96) {
         // Cache sqrt spot price
         uint160 sqrtPriceX96Cache = sqrtSpotPriceX96;
         // Cache sqrt price lower bound
@@ -355,10 +388,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         // via `_getAMMSwapFee()`
         uint256 amountInMinusFee = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, 1e4 - _getAMMSwapFee(), 1e4);
 
-        uint160 sqrtPriceNextX96;
-        uint256 amountOut;
         if (_almLiquidityQuoteInput.isZeroToOne) {
-            (sqrtPriceNextX96, amountIn, amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceLowX96Cache,
                 effectiveLiquidity,
@@ -366,7 +397,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
                 0
             ); // fees have already been deducted
         } else {
-            (sqrtPriceNextX96, amountIn, amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceHighX96Cache,
                 effectiveLiquidity,
@@ -374,23 +405,15 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
                 0
             ); // fees have already been deducted
         }
-
         // Reserves are always kept in Sovereign Pool
         liquidityQuote.quoteFromPoolReserves = true;
-        liquidityQuote.amountOut = amountOut;
-        // In exact input swaps, the entire `amountInMinusFee` will be consumed in `computeSwapStep`,
-        // and we also need to add the previously computed swap fee portion
-        liquidityQuote.amountInFilled = amountIn;
-
-        // Update State Variables
-        sqrtSpotPriceX96 = sqrtPriceNextX96;
     }
 
     function _solverSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes memory _externalContext,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal {
+    ) internal returns (uint160 sqrtSpotPriceNewX96) {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(_externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
@@ -445,6 +468,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             lastProcessedFeeMin: sot.feeMin,
             lastProcessedFeeMax: sot.feeMax
         });
-        sqrtSpotPriceX96 = sot.sqrtSpotPriceX96New;
+        sqrtSpotPriceNewX96 = sot.sqrtSpotPriceX96New;
     }
 }
