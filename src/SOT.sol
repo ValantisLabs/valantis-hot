@@ -296,10 +296,94 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
+
+    function _getAMMSwapFee() private pure returns (uint16) {
+        // uint32 fee = uint32(lastProcessedFeeGrowth) * (block.timestamp - lastProcessedSignatureTimestamp);
+        // // Add minimum fee
+        // fee += uint32(lastProcessedFeeMin);
+        // // Cap fee if necessary
+        // if (fee > uint32(lastProcessedFeeMax)) {
+        //     fee = uint32(lastProcessedFeeMax);
+        // }
+
+        return uint16(0);
+    }
+
+    function _getEffectiveLiquidity(
+        uint160 sqrtRatioX96Cache,
+        uint160 sqrtRatioAX96Cache,
+        uint160 sqrtRatioBX96Cache
+    ) private view returns (uint128 effectiveLiquidity) {
+        // Query current reserves
+        // This already excludes poolManager and protocol fees
+        (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
+
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96Cache, sqrtRatioBX96Cache, reserve0);
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
+
+        if (liquidity0 < liquidity1) {
+            effectiveLiquidity = liquidity0;
+        } else {
+            effectiveLiquidity = liquidity1;
+        }
+    }
+
     function _ammSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal {}
+    ) internal {
+        // Cache sqrt spot price
+        uint160 sqrtPriceX96Cache = sqrtSpotPriceX96;
+        // Cache sqrt price lower bound
+        uint160 sqrtPriceLowX96Cache = sqrtPriceLowX96;
+        // Cache sqrt price upper bound
+        uint160 sqrtPriceHighX96Cache = sqrtPriceHighX96;
+
+        // Calculate liquidity available to be utilized in this swap
+        uint128 effectiveLiquidity = _getEffectiveLiquidity(
+            sqrtPriceX96Cache,
+            sqrtPriceLowX96Cache,
+            sqrtPriceHighX96Cache
+        );
+
+        // Calculate tokenIn amount minus swap fee
+        // Important: this assumes that pool applies 0 swap fee
+        // which can be done by not whitelisting a swap fee module,
+        // and keeping 0 as default constant fee
+        // Therefore, the dynamic swap fee is calculated inside this Liquidity Module
+        // via `_getAMMSwapFee()`
+        uint256 amountInMinusFee = Math.mulDiv(_almLiquidityQuoteInput.amountInMinusFee, 1e4 - _getAMMSwapFee(), 1e4);
+
+        uint160 sqrtPriceNextX96;
+        uint256 amountOut;
+        if (_almLiquidityQuoteInput.isZeroToOne) {
+            (sqrtPriceNextX96, , amountOut, ) = SwapMath.computeSwapStep(
+                sqrtPriceX96Cache,
+                sqrtPriceLowX96Cache, // TODO: Add limit price
+                effectiveLiquidity,
+                amountInMinusFee.toInt256(), // always exact input swap
+                0
+            ); // fees have already been deducted
+        } else {
+            (sqrtPriceNextX96, , amountOut, ) = SwapMath.computeSwapStep(
+                sqrtPriceX96Cache,
+                sqrtPriceHighX96Cache, // TODO: Add limit price
+                effectiveLiquidity,
+                amountInMinusFee.toInt256(), // always exact input swap
+                0
+            ); // fees have already been deducted
+        }
+
+        // Reserves are always kept in Sovereign Pool
+        liquidityQuote.quoteFromPoolReserves = true;
+        liquidityQuote.amountOut = amountOut;
+        // In exact input swaps, the entire `amountInMinusFee` will be consumed in `computeSwapStep`,
+        // and we also need to add the previously computed swap fee portion
+        liquidityQuote.amountInFilled = _almLiquidityQuoteInput.amountInMinusFee;
+
+        // Update State Variables
+        sqrtSpotPriceX96 = sqrtPriceNextX96;
+    }
 
     function _solverSwap(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
