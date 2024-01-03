@@ -386,7 +386,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         // and keeping 0 as default constant fee
         // Therefore, the dynamic swap fee is calculated inside this Liquidity Module
         // via `_getAMMSwapFee()`
-        uint256 amountInMinusFee = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, 1e4 - _getAMMSwapFee(), 1e4);
+        uint16 fee = _getAMMSwapFee();
+        uint256 amountInMinusFee = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, 1e4 - fee, 1e4);
 
         if (almLiquidityQuoteInput.isZeroToOne) {
             (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
@@ -407,6 +408,9 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         }
         // Reserves are always kept in Sovereign Pool
         liquidityQuote.quoteFromPoolReserves = true;
+
+        // Add fee to the amountInFilled
+        liquidityQuote.amountInFilled += fee;
     }
 
     function _solverSwap(
