@@ -42,6 +42,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     error SOT__onlyPool();
     error SOT__onlyManager();
     error SOT__onlyLiquidityProvider();
+    error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidMaxAmmFeeGrowth();
     error SOT__constructor_invalidMinAmmFeeGrowth();
@@ -63,14 +64,9 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     address public immutable pool;
 
     /**
-        @notice Address of pool's token0. 
+	    @notice Address of account which is meant to deposit & withdraw liquidity.
      */
-    address public immutable token0;
-
-    /**
-        @notice Address of pool's token1. 
-     */
-    address public immutable token1;
+    address public immutable liquidityProvider;
 
     /**
 	    @notice Maximum delay, in seconds, for acceptance of SOT quotes.
@@ -118,12 +114,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         @dev Can be updated by `manager`.
      */
     address public signer;
-
-    /**
-	    @notice Address of account which is meant to deposit & withdraw liquidity.
-        @dev Can be updated by `manager`.
-     */
-    address public liquidityProvider;
 
     /**
 	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
@@ -183,8 +173,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 
     constructor(
         address _pool,
-        address _token0,
-        address _token1,
+        address _liquidityProvider,
         uint32 _maxDelay,
         uint16 _solverMaxDiscountBips,
         uint16 _oraclePriceMaxDiffBips,
@@ -196,7 +185,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         address _feedToken1
     )
         EIP712('Valantis Solver Order Type', '1')
-        SOTOracle(_token0, _token1, _feedToken0, _feedToken1, _maxOracleUpdateDuration)
+        SOTOracle(
+            ISovereignPool(_pool).token0(),
+            ISovereignPool(_pool).token1(),
+            _feedToken0,
+            _feedToken1,
+            _maxOracleUpdateDuration
+        )
     {
         if (_pool == address(0)) {
             revert SOT__constructor_invalidSovereignPool();
@@ -204,16 +199,11 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 
         pool = _pool;
 
-        if (_token0 != ISovereignPool(pool).token0()) {
-            revert SOT__constructor_invalidToken0();
+        if (_liquidityProvider == address(0)) {
+            revert SOT__constructor_invalidLiquidityProvider();
         }
 
-        if (_token1 != ISovereignPool(pool).token1()) {
-            revert SOT__constructor_invalidToken1();
-        }
-
-        token0 = _token0;
-        token1 = _token1;
+        liquidityProvider = _liquidityProvider;
 
         if (_maxDelay > 10 minutes) {
             revert SOT__constructor_invalidMaxDelay();
@@ -310,11 +300,11 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         bytes memory /*_data*/
     ) external override onlyPool {
         if (_amount0 > 0) {
-            IERC20(token0).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
+            IERC20(ISovereignPool(pool).token0()).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
         }
 
         if (_amount1 > 0) {
-            IERC20(token1).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
+            IERC20(ISovereignPool(pool).token1()).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
         }
     }
 
