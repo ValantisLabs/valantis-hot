@@ -53,6 +53,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
     error SOT__getLiquidityQuote_invalidSignature();
+    error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
 
     /************************************************
      *  IMMUTABLES
@@ -266,6 +267,29 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
         maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
         maxToken1VolumeToQuote = _maxToken1VolumeToQuote;
+    }
+
+    /**
+        @notice Sets the AMM position's square-root upper and lower prince bounds
+        @param _sqrtPriceLowX96 New square-root lower price bound
+        @param _sqrtPriceHighX96 New square-root upper price bound
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price when setting new bounds
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price when setting new bounds
+        @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
+     */
+    function setPriceBounds(
+        uint160 _sqrtPriceLowX96,
+        uint160 _sqrtPriceHighX96,
+        uint160 _expectedSqrtSpotPriceUpperX96,
+        uint160 _expectedSqrtSpotPriceLowerX96
+    ) external onlyLiquidityProvider {
+        // Check that spot price has not been manipulated before updating price bounds
+        if (sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96) {
+            revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+        }
+        // TODO: add other necessary checks for updating price bounds
+        sqrtPriceLowX96 = _sqrtPriceLowX96;
+        sqrtPriceHighX96 = _sqrtPriceHighX96;
     }
 
     /************************************************
