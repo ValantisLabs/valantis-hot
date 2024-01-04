@@ -2,22 +2,18 @@
 pragma solidity 0.8.19;
 
 import { Test } from 'forge-std/Test.sol';
+import { console } from 'forge-std/console.sol';
 
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 contract TestTightPack is Test {
-    function testPackSlots() public {
-        uint160 a = 1;
-        uint160 b = 2;
-        uint160 c = 3;
-
+    function testPackSlotsUint160(uint160 a, uint160 b, uint160 c) public {
         (uint256 slot1, uint256 slot2) = TightPack.packSlots(a, b, c);
-        console.log('slot1: ', slot1);
-        console.log('slot2: ', slot2);
 
         (uint160 a2, uint160 b2, uint160 c2) = TightPack.unpackSlots(slot1, slot2);
-        console.log('a2: ', a2);
-        console.log('b2: ', b2);
-        console.log('c2: ', c2);
+
+        assertEq(a, a2, 'incorrect a value');
+        assertEq(b, b2, 'incorrect b value');
+        assertEq(c, c2, 'incorrect c value');
     }
 }

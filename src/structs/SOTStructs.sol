@@ -42,11 +42,11 @@ struct SwapState {
 
 /**
     @notice Packed sqrtSpotPriceX96, sqrtPriceLowX96, and sqrtPriceHighX96 values into 2 storage slots.
-            *spotLowSqrtPrice:
-                << 80 bytes of sqrtPriceLowX96 | 160 bytes of sqrtSpotPriceX96 >>
+            *lowSpotSqrtPrice:
+                <<  32 free bits | upper 64 bits of sqrtPriceLowX96 | 160 bits of sqrtSpotPriceX96 >>
 
             *lowHighSqrtPrice:
-                << 80 bytes of sqrtPriceLowX96 | 160 bytes of sqrtPriceHighX96 >>
+                << lower 96 bits of sqrtPriceLowX96 | 160 bits of sqrtPriceHighX96 >>
  */
 struct AMMState {
     uint256 lowSpotSqrtPrice;
