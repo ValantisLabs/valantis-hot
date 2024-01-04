@@ -18,6 +18,7 @@ import {
     ALMLiquidityQuoteInput
 } from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
+import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
 import { SOTHash } from 'src/libraries/SOTHash.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
@@ -29,7 +30,7 @@ import { SOTOracle } from 'src/SOTOracle.sol';
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM, EIP712, SOTOracle {
+contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -326,6 +327,42 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, liquidityProvider, '');
     }
 
+    function getSwapFeeInBips(
+        bool /**_isZeroToOne*/,
+        uint256 /**_amountIn*/,
+        address /**_user*/,
+        bytes memory /**_swapFeeModuleContext*/
+    ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
+        // TODO: add fee branch for SOT swaps using swapFeeModuleContext
+        SwapState memory swapStateCache = swapState;
+
+        uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
+            uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
+        // Add minimum fee
+        fee += uint32(swapStateCache.lastProcessedFeeMin);
+        // Cap fee if necessary
+        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
+            fee = uint32(swapStateCache.lastProcessedFeeMax);
+        }
+
+        swapFeeModuleData.feeInBips = fee;
+    }
+
+    function callbackOnSwapEnd(
+        uint256 /*_effectiveFee*/,
+        int24 /*_spotPriceTick*/,
+        uint256 /*_amountInUsed*/,
+        uint256 /*_amountOut*/,
+        SwapFeeModuleData memory /*_swapFeeModuleData*/
+    ) external {}
+
+    function callbackOnSwapEnd(
+        uint256 /*_effectiveFee*/,
+        uint256 /*_amountInUsed*/,
+        uint256 /*_amountOut*/,
+        SwapFeeModuleData memory /*_swapFeeModuleData*/
+    ) external {}
+
     function onDepositLiquidityCallback(
         uint256 _amount0,
         uint256 _amount1,
@@ -349,21 +386,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    function _getAMMSwapFee() private view returns (uint16) {
-        SwapState memory swapStateCache = swapState;
-
-        uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
-            uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
-        // Add minimum fee
-        fee += uint32(swapStateCache.lastProcessedFeeMin);
-        // Cap fee if necessary
-        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
-            fee = uint32(swapStateCache.lastProcessedFeeMax);
-        }
-
-        return uint16(fee);
-    }
 
     function _getEffectiveLiquidity(
         uint160 sqrtRatioX96Cache,
@@ -399,21 +421,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             sqrtPriceHighX96Cache
         );
 
-        // Calculate tokenIn amount minus swap fee
-        // Important: this assumes that pool applies 0 swap fee
-        // which can be done by not whitelisting a swap fee module,
-        // and keeping 0 as default constant fee
-        // Therefore, the dynamic swap fee is calculated inside this Liquidity Module
-        // via `_getAMMSwapFee()`
-        uint16 fee = _getAMMSwapFee();
-        uint256 amountInMinusFee = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, 1e4 - fee, 1e4);
-
+        // Calculate amountOut according to CPMM math
         if (almLiquidityQuoteInput.isZeroToOne) {
             (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceLowX96Cache,
                 effectiveLiquidity,
-                amountInMinusFee.toInt256(), // always exact input swap
+                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
                 0
             ); // fees have already been deducted
         } else {
@@ -421,15 +435,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
                 sqrtPriceX96Cache,
                 sqrtPriceHighX96Cache,
                 effectiveLiquidity,
-                amountInMinusFee.toInt256(), // always exact input swap
+                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
                 0
             ); // fees have already been deducted
         }
+
         // Reserves are always kept in Sovereign Pool
         liquidityQuote.quoteFromPoolReserves = true;
-
-        // Add fee to the amountInFilled
-        liquidityQuote.amountInFilled += fee;
     }
 
     function _solverSwap(
