@@ -39,3 +39,16 @@ struct SwapState {
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
 }
+
+/**
+    @notice Packed sqrtSpotPriceX96, sqrtPriceLowX96, and sqrtPriceHighX96 values into 2 storage slots.
+            *spotLowSqrtPrice:
+                << 80 bytes of sqrtPriceLowX96 | 160 bytes of sqrtSpotPriceX96 >>
+
+            *lowHighSqrtPrice:
+                << 80 bytes of sqrtPriceLowX96 | 160 bytes of sqrtPriceHighX96 >>
+ */
+struct AMMState {
+    uint256 lowSpotSqrtPrice;
+    uint256 lowHighSqrtPrice;
+}

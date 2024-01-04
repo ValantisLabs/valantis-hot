@@ -132,11 +132,12 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     uint160 public sqrtSpotPriceX96;
 
     /**
-        @notice AMM position's square-root low and upper price bounds, in Q96 format.
-        TODO: Use ticks to pack into one storage slot 
+        @notice AMM position's square-root low and upper price bounds, in Q64.64 format.
+        @dev Upper and Lower prices are stored as uint128, to tight pack into 1 storage slot.
+            They are converted to Q64.96 format before use.
      */
-    uint160 public sqrtPriceLowX96;
-    uint160 public sqrtPriceHighX96;
+    uint128 sqrtPriceLowX64;
+    uint128 sqrtPriceHighX64;
 
     /**
         @notice Contains state variables which get updated on swaps. 
@@ -278,8 +279,8 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
      */
     function setPriceBounds(
-        uint160 _sqrtPriceLowX96,
-        uint160 _sqrtPriceHighX96,
+        uint128 _sqrtPriceLowX64,
+        uint128 _sqrtPriceHighX64,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     ) external onlyLiquidityProvider {
@@ -287,9 +288,10 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         if (sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96) {
             revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
         }
+
         // TODO: add other necessary checks for updating price bounds
-        sqrtPriceLowX96 = _sqrtPriceLowX96;
-        sqrtPriceHighX96 = _sqrtPriceHighX96;
+        sqrtPriceLowX64 = _sqrtPriceLowX64;
+        sqrtPriceHighX64 = _sqrtPriceHighX64;
     }
 
     /************************************************
@@ -342,6 +344,10 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
+    function _convertPriceBoundsToX96(uint128 _sqrtPriceX64) private pure returns (uint160) {
+        return uint160(_sqrtPriceX64) << 32;
+    }
+
     function _getAMMSwapFee() private view returns (uint16) {
         SwapState memory swapStateCache = swapState;
 
@@ -383,9 +389,9 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         // Cache sqrt spot price
         uint160 sqrtPriceX96Cache = sqrtSpotPriceX96;
         // Cache sqrt price lower bound
-        uint160 sqrtPriceLowX96Cache = sqrtPriceLowX96;
+        uint160 sqrtPriceLowX96Cache = _convertPriceBoundsToX96(sqrtPriceLowX64);
         // Cache sqrt price upper bound
-        uint160 sqrtPriceHighX96Cache = sqrtPriceHighX96;
+        uint160 sqrtPriceHighX96Cache = _convertPriceBoundsToX96(sqrtPriceHighX64);
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
