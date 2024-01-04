@@ -9,3 +9,7 @@
 	path = lib/v3-core
 	url = https://github.com/Uniswap/v3-core
 	branch = 0.8
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+	branch = v1.7.4

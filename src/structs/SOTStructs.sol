@@ -5,7 +5,6 @@ struct SolverOrderType {
     uint256 amountInMax;
     uint256 amountOutMax;
     uint160 sqrtSpotPriceX96New;
-    uint256 expectedSqrtOraclePriceX96;
     uint32 signatureTimestamp;
     uint32 expiry;
     address authorizedSender;
