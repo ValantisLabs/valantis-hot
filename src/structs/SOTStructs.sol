@@ -46,9 +46,5 @@ struct SwapState {
                 <<  32 free bits | upper 64 bits of sqrtPriceLowX96 | 160 bits of sqrtSpotPriceX96 >>
 
             *lowHighSqrtPrice:
-                << lower 96 bits of sqrtPriceLowX96 | 160 bits of sqrtPriceHighX96 >>
+                << lower 96 bits  of sqrtPriceLowX96 | 160 bits of sqrtPriceHighX96 >>
  */
-struct AMMState {
-    uint256 lowSpotSqrtPrice;
-    uint256 lowHighSqrtPrice;
-}

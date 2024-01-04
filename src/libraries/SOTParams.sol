@@ -2,8 +2,11 @@
 pragma solidity 0.8.19;
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 library SOTParams {
+    using TightPack for TightPack.PackedState;
+
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     error SOTParams__validateBasicParams_invalidSignatureTimestamp();
@@ -76,15 +79,16 @@ library SOTParams {
     }
 
     function validatePriceBounds(
+        TightPack.PackedState storage ammState,
         uint160 sqrtSolverPriceX96,
-        uint160 sqrtSpotPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
-        uint160 sqrtPriceLowX96,
-        uint160 sqrtPriceHighX96,
         uint256 oraclePriceMaxDiffBips,
         uint256 solverMaxDiscountBips
-    ) internal pure {
+    ) internal view {
+        // Cache sqrt spot price, lower bound, and upper bound
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
+
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         uint256 solverAndSpotPriceNewAbsDiff = sqrtSolverPriceX96 > sqrtSpotPriceNewX96
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96

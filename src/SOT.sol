@@ -21,6 +21,7 @@ import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPoo
 
 import { SOTHash } from 'src/libraries/SOTHash.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
@@ -34,6 +35,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     using SignatureChecker for address;
     using SOTHash for SolverOrderType;
     using SafeERC20 for IERC20;
+    using TightPack for TightPack.PackedState;
 
     /************************************************
      *  CUSTOM ERRORS
@@ -126,18 +128,14 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     uint256 public maxToken1VolumeToQuote;
 
     /**
-	    @notice AMM square-root spot price, in Q96 format.
-        @dev It can only be updated on AMM swaps or after processing a valid SOT quote.
-     */
-    uint160 public sqrtSpotPriceX96;
+        @notice Tight packed storage slots for - 
+            * sqrtSpotPriceX96 (a): AMM square-root spot price, in Q64.96 format.
+            * sqrtPriceLowX96 (b): square-root lower price bound, in Q64.96 format.
+            * sqrtPriceHighX96 (c): square-root upper price bound, in Q64.96 format.
 
-    /**
-        @notice AMM position's square-root low and upper price bounds, in Q64.64 format.
-        @dev Upper and Lower prices are stored as uint128, to tight pack into 1 storage slot.
-            They are converted to Q64.96 format before use.
+        @dev sqrtSpotPriceX96 can only be updated on AMM swaps or after processing a valid SOT quote.
      */
-    uint128 sqrtPriceLowX64;
-    uint128 sqrtPriceHighX64;
+    TightPack.PackedState public ammState;
 
     /**
         @notice Contains state variables which get updated on swaps. 
@@ -279,19 +277,20 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
      */
     function setPriceBounds(
-        uint128 _sqrtPriceLowX64,
-        uint128 _sqrtPriceHighX64,
+        uint128 _sqrtPriceLowX96,
+        uint128 _sqrtPriceHighX96,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     ) external onlyLiquidityProvider {
+        uint160 sqrtSpotPriceX96 = ammState.getA();
+
         // Check that spot price has not been manipulated before updating price bounds
         if (sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96) {
             revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
         }
 
         // TODO: add other necessary checks for updating price bounds
-        sqrtPriceLowX64 = _sqrtPriceLowX64;
-        sqrtPriceHighX64 = _sqrtPriceHighX64;
+        ammState.setState(sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     /************************************************
@@ -305,10 +304,10 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     ) external override onlyPool returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // AMM Swap
-            sqrtSpotPriceX96 = _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
+            ammState.setA(_ammSwap(_almLiquidityQuoteInput, liquidityQuote));
         } else {
             // Solver Swap
-            sqrtSpotPriceX96 = _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
+            ammState.setA(_solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote));
         }
     }
 
@@ -343,10 +342,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    function _convertPriceBoundsToX96(uint128 _sqrtPriceX64) private pure returns (uint160) {
-        return uint160(_sqrtPriceX64) << 32;
-    }
 
     function _getAMMSwapFee() private view returns (uint16) {
         SwapState memory swapStateCache = swapState;
@@ -386,12 +381,9 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
     ) internal view returns (uint160 sqrtSpotPriceNewX96) {
-        // Cache sqrt spot price
-        uint160 sqrtPriceX96Cache = sqrtSpotPriceX96;
-        // Cache sqrt price lower bound
-        uint160 sqrtPriceLowX96Cache = _convertPriceBoundsToX96(sqrtPriceLowX64);
-        // Cache sqrt price upper bound
-        uint160 sqrtPriceHighX96Cache = _convertPriceBoundsToX96(sqrtPriceHighX64);
+        // Cache sqrt spot price, lower bound, and upper bound
+        (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
+            .unpackState();
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
@@ -437,7 +429,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal returns (uint160 sqrtSpotPriceNewX96) {
+    ) internal returns (uint160) {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
@@ -457,14 +449,12 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         SOTParams.validatePriceBounds(
+            ammState,
             almLiquidityQuoteInput.isZeroToOne
                 ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
                 : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
-            sqrtSpotPriceX96,
             sot.sqrtSpotPriceX96New,
             _getSqrtOraclePriceX96(),
-            sqrtPriceLowX96,
-            sqrtPriceHighX96,
             oraclePriceMaxDiffBips,
             solverMaxDiscountBips
         );
@@ -492,6 +482,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             lastProcessedFeeMin: sot.feeMin,
             lastProcessedFeeMax: sot.feeMax
         });
-        sqrtSpotPriceNewX96 = sot.sqrtSpotPriceX96New;
+
+        return sot.sqrtSpotPriceX96New;
     }
 }
