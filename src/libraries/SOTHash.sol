@@ -7,7 +7,7 @@ library SOTHash {
     bytes32 public constant SOT_TYPEHASH =
         keccak256(
             // solhint-disable-next-line max-line-length
-            'SolverOrderType(uint256 amountInMax,uint256 amountOutMax,uint160 sqrtSpotPriceX96New,uint160 expectedSqrtOraclePriceX96,uint32 signatureTimestamp,uint32 expiry,address authorizedSender,uint16 feeMin,uint16 feeMax,uint16 feeGrowth)'
+            'SolverOrderType(uint256 amountInMax,uint256 amountOutMax,uint160 sqrtSpotPriceX96New,uint32 signatureTimestamp,uint32 expiry,address authorizedSender,uint16 feeMin,uint16 feeMax,uint16 feeGrowth)'
         );
 
     function hashStruct(SolverOrderType memory sot) internal pure returns (bytes32) {

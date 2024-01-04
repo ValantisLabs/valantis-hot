@@ -5,7 +5,6 @@ struct SolverOrderType {
     uint256 amountInMax;
     uint256 amountOutMax;
     uint160 sqrtSpotPriceX96New;
-    uint256 expectedSqrtOraclePriceX96;
     uint32 signatureTimestamp;
     uint32 expiry;
     address authorizedSender;
@@ -39,12 +38,3 @@ struct SwapState {
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
 }
-
-/**
-    @notice Packed sqrtSpotPriceX96, sqrtPriceLowX96, and sqrtPriceHighX96 values into 2 storage slots.
-            *lowSpotSqrtPrice:
-                <<  32 free bits | upper 64 bits of sqrtPriceLowX96 | 160 bits of sqrtSpotPriceX96 >>
-
-            *lowHighSqrtPrice:
-                << lower 96 bits  of sqrtPriceLowX96 | 160 bits of sqrtPriceHighX96 >>
- */

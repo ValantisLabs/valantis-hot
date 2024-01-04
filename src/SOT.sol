@@ -132,6 +132,13 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
             * sqrtSpotPriceX96 (a): AMM square-root spot price, in Q64.96 format.
             * sqrtPriceLowX96 (b): square-root lower price bound, in Q64.96 format.
             * sqrtPriceHighX96 (c): square-root upper price bound, in Q64.96 format.
+        
+        @dev sqrtSpotPriceX96, sqrtPriceLowX96, and sqrtPriceHighX96 values are packed into 2 slots.
+            *slot1:
+                <<  32 free bits | upper 64 bits of sqrtPriceLowX96 | 160 bits of sqrtSpotPriceX96 >>
+            *slot2:
+                << lower 96 bits  of sqrtPriceLowX96 | 160 bits of sqrtPriceHighX96 >>
+ 
 
         @dev sqrtSpotPriceX96 can only be updated on AMM swaps or after processing a valid SOT quote.
      */
@@ -474,7 +481,6 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Update state
-        // TODO: try to pack into one slot
         swapState = SwapState({
             lastProcessedBlockTimestamp: uint32(block.timestamp),
             lastProcessedSignatureTimestamp: sot.signatureTimestamp,
