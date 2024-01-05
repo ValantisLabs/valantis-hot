@@ -64,7 +64,7 @@ abstract contract SOTOracle {
         feedToken1 = AggregatorV3Interface(_feedToken1);
     }
 
-    function _getSqrtOraclePriceX96() internal view returns (uint160 sqrtOraclePriceX96) {
+    function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
         (uint256 oraclePrice0USD, uint256 oracle0Base) = _getOraclePriceUSD(feedToken0);
         (uint256 oraclePrice1USD, uint256 oracle1Base) = _getOraclePriceUSD(feedToken1);
 

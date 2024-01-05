@@ -562,7 +562,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle, ReentrancyGuard {
                 ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
                 : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
             sot.sqrtSpotPriceX96New,
-            _getSqrtOraclePriceX96(),
+            getSqrtOraclePriceX96(),
             oraclePriceMaxDiffBips,
             solverMaxDiscountBips
         );
