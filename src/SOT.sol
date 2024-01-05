@@ -12,6 +12,7 @@ import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/uti
 import {
     SignatureChecker
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
+import { ReentrancyGuard } from 'valantis-core/lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol';
 import {
     ISovereignALM,
     ALMLiquidityQuote,
@@ -28,8 +29,9 @@ import { SOTOracle } from 'src/SOTOracle.sol';
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
+    // TODO: Remove unnecessary reentrancy guards if any
  */
-contract SOT is ISovereignALM, EIP712, SOTOracle {
+contract SOT is ISovereignALM, EIP712, SOTOracle, ReentrancyGuard {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -66,7 +68,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
 	    @notice Max manager fee that can be charged on the volume of any filled swap.
                 Currently set to: 1%
     */
-    uint16 MAX_MANAGER_FEE_IN_BIPS = 100;
+    uint16 public MAX_MANAGER_FEE_IN_BIPS = 100;
 
     /************************************************
      *  IMMUTABLES
@@ -367,6 +369,7 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         external
         onlyLiquidityProvider
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
+        nonReentrant
     {
         ISovereignPool(pool).depositLiquidity(_amount0, _amount1, liquidityProvider, '', '');
     }
@@ -380,11 +383,17 @@ contract SOT is ISovereignALM, EIP712, SOTOracle {
         external
         onlyLiquidityProvider
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
+        nonReentrant
     {
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, liquidityProvider, '');
     }
 
-    function claimManagerFee() external onlyManager returns (uint64 managerFeeToken0, uint64 managerFeeToken1) {
+    function claimManagerFee()
+        external
+        onlyManager
+        nonReentrant
+        returns (uint64 managerFeeToken0, uint64 managerFeeToken1)
+    {
         SwapState memory swapStateCache = swapState;
 
         managerFeeToken0 = swapStateCache.unclaimedManagerFeeToken0;
