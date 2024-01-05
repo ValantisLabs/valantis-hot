@@ -175,6 +175,30 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         _;
     }
 
+    /**
+        @notice Checks that the current AMM spot price is within the expected range.
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price.
+        @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
+             then no check is performed.
+        @dev this modifier is used to prevent price manipulation attacks against critical liquidity functions
+
+     */
+    modifier onlySpotPriceRange(uint160 _expectedSqrtSpotPriceUpperX96, uint160 _expectedSqrtSpotPriceLowerX96) {
+        if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
+            uint160 sqrtSpotPriceX96 = ammState.getA();
+
+            // Check that spot price has not been manipulated before updating price bounds
+            if (
+                sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
+            ) {
+                revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+            }
+        }
+
+        _;
+    }
+
     /************************************************
      *  CONSTRUCTOR
      ***********************************************/
@@ -289,16 +313,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint128 _sqrtPriceHighX96,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
-    ) external onlyLiquidityProvider {
-        uint160 sqrtSpotPriceX96 = ammState.getA();
-
-        // Check that spot price has not been manipulated before updating price bounds
-        if (sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96) {
-            revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
-        }
-
+    )
+        external
+        onlyLiquidityProvider
+        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
+    {
         // TODO: add other necessary checks for updating price bounds
-        ammState.setState(sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
+        ammState.setState(ammState.getA(), _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     /************************************************
@@ -319,11 +340,29 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    function depositLiquidity(uint256 _amount0, uint256 _amount1) external onlyLiquidityProvider {
+    function depositLiquidity(
+        uint256 _amount0,
+        uint256 _amount1,
+        uint160 _expectedSqrtSpotPriceUpperX96,
+        uint160 _expectedSqrtSpotPriceLowerX96
+    )
+        external
+        onlyLiquidityProvider
+        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
+    {
         ISovereignPool(pool).depositLiquidity(_amount0, _amount1, liquidityProvider, '', '');
     }
 
-    function withdrawLiquidity(uint256 _amount0, uint256 _amount1) external onlyLiquidityProvider {
+    function withdrawLiquidity(
+        uint256 _amount0,
+        uint256 _amount1,
+        uint160 _expectedSqrtSpotPriceUpperX96,
+        uint160 _expectedSqrtSpotPriceLowerX96
+    )
+        external
+        onlyLiquidityProvider
+        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
+    {
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, liquidityProvider, '');
     }
 
