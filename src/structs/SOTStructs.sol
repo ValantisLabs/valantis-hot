@@ -30,15 +30,6 @@ struct SolverOrderType {
 
             *lastProcessedFeeMax:
                 Maximum AMM fee according to the last Solver Order Type which has been successfully processed.
-
-            *managerFeeInBips:
-                Manager fee charged on all volume in basis points
-
-            *unclaimedManagerFeeToken0:
-                Unclaimed manager fee in token0 
-            
-            *unclaimedManagerFeeToken1:
-                Unclaimed manager fee in token1
  */
 struct SwapState {
     uint32 lastProcessedBlockTimestamp;
@@ -46,7 +37,4 @@ struct SwapState {
     uint16 lastProcessedFeeGrowth;
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
-    uint16 managerFeeInBips;
-    uint64 unclaimedManagerFeeToken0;
-    uint64 unclaimedManagerFeeToken1;
 }
