@@ -59,6 +59,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__constructor_invalidToken1();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
+    error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
 
@@ -353,6 +354,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         onlyLiquidityProvider
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
     {
+        // Check that lower bound is smaller than upper bound, and both are not 0
+        if (_sqrtPriceLowX96 > _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
+            revert SOT__setPriceBounds_invalidPriceBounds();
+        }
         // TODO: add other necessary checks for updating price bounds
         ammState.setState(ammState.getA(), _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
