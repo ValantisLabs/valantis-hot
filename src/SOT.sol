@@ -538,10 +538,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         SOTParams.validateBasicParams(
             sot.authorizedSender,
+            sot.authorizedRecipient,
             sot.amountInMax,
             sot.amountOutMax,
             sot.signatureTimestamp,
             sot.expiry,
+            almLiquidityQuoteInput.recipient,
             almLiquidityQuoteInput.amountInMinusFee,
             almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
             swapStateCache.lastProcessedBlockTimestamp,

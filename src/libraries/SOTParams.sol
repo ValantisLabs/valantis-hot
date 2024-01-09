@@ -13,6 +13,7 @@ library SOTParams {
     error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
+    error SOTParams__validateBasicParams_unauthorizedRecipient();
     error SOTParams__validateFeeParams_insufficientFee();
     error SOTParams__validateFeeParams_invalidFeeGrowth();
     error SOTParams__validateFeeParams_invalidFeeMax();
@@ -31,10 +32,12 @@ library SOTParams {
 
     function validateBasicParams(
         address authorizedSender,
+        address authorizedRecipient,
         uint256 amountInMax,
         uint256 amountOutMax,
         uint32 signatureTimestamp,
         uint32 expiry,
+        address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 lastProcessedBlockTimestamp,
@@ -43,6 +46,8 @@ library SOTParams {
         // TODO: Might need to use tx.origin to authenticate solvers,
         // since CowSwap contract will be msg.sender to the pool
         if (authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
+
+        if (authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
 
         if (amountIn > amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
 

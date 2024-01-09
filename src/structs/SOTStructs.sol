@@ -5,9 +5,10 @@ struct SolverOrderType {
     uint256 amountInMax;
     uint256 amountOutMax;
     uint160 sqrtSpotPriceX96New;
+    address authorizedSender;
+    address authorizedRecipient;
     uint32 signatureTimestamp;
     uint32 expiry;
-    address authorizedSender;
     uint16 feeMin;
     uint16 feeMax;
     uint16 feeGrowth;
