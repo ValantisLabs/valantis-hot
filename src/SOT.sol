@@ -287,6 +287,19 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     }
 
     /************************************************
+     *  GETTER FUNCTIONS
+     ***********************************************/
+
+    /**
+        @notice Returns the AMM reserves assuming some AMM spot price
+        @dev this is a temporary implementation of the function.
+        // TODO: add correct reserves calculation.
+     */
+    function getReservesAtPrice(uint160) external view returns (uint256 reserve0, uint256 reserve1) {
+        (reserve0, reserve1) = ISovereignPool(pool).getReserves();
+    }
+
+    /************************************************
      *  SETTER FUNCTIONS
      ***********************************************/
 
