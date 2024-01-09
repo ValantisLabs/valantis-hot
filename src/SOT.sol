@@ -32,7 +32,7 @@ import { SOTOracle } from 'src/SOTOracle.sol';
     @notice Valantis Sovereign Liquidity Module.
     // TODO: Remove unnecessary reentrancy guards if any
  */
-contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
+contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracle {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -57,8 +57,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
+    error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
+    error SOT__setSolverFeeInBips_invalidSolverFee();
+
+    /************************************************
+     *  CONSTANTS
+     ***********************************************/
+    /**
+        @notice Maximum allowed solver fee, in basis-points.
+      */
+    uint16 constant MAX_SOLVER_FEE_IN_BIPS = 100;
 
     /************************************************
      *  IMMUTABLES
@@ -303,6 +313,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     /**
+        @notice Changes the standard fee charged on all solver swaps ( To be protected by timelock )
+     */
+    function setSolverFeeInBips(uint16 _solverFeeInBips) external onlyManager {
+        if (_solverFeeInBips > MAX_SOLVER_FEE_IN_BIPS) {
+            revert SOT__setSolverFeeInBips_invalidSolverFee();
+        }
+        swapState.solverFeeInBips = _solverFeeInBips;
+    }
+
+    /**
         @notice Sets the AMM position's square-root upper and lower prince bounds
         @param _sqrtPriceLowX96 New square-root lower price bound
         @param _sqrtPriceHighX96 New square-root upper price bound
@@ -374,21 +394,27 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bool /**_isZeroToOne*/,
         uint256 /**_amountIn*/,
         address /**_user*/,
-        bytes memory /**_swapFeeModuleContext*/
+        bytes memory _swapFeeModuleContext
     ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
-        // TODO: add fee branch for SOT swaps using swapFeeModuleContext
-        SwapState memory swapStateCache = swapState;
+        if (_swapFeeModuleContext.length != 0) {
+            // Solver Branch
+            // Solver Branch is verified during the getLiquidityQuote call
+            swapFeeModuleData.feeInBips = swapState.solverFeeInBips;
+        } else {
+            // TODO: add fee branch for SOT swaps using swapFeeModuleContext
+            SwapState memory swapStateCache = swapState;
 
-        uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
-            uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
-        // Add minimum fee
-        fee += uint32(swapStateCache.lastProcessedFeeMin);
-        // Cap fee if necessary
-        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
-            fee = uint32(swapStateCache.lastProcessedFeeMax);
+            uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
+                uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
+            // Add minimum fee
+            fee += uint32(swapStateCache.lastProcessedFeeMin);
+            // Cap fee if necessary
+            if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
+                fee = uint32(swapStateCache.lastProcessedFeeMax);
+            }
+
+            swapFeeModuleData.feeInBips = fee;
         }
-
-        swapFeeModuleData.feeInBips = fee;
     }
 
     function callbackOnSwapEnd(
@@ -521,6 +547,19 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             solverMaxDiscountBips
         );
 
+        // Check that the fee path chosen in the swap is valid
+        // TODO: Test for precision issues here. ( this might need to allow for a diff of 1)
+        if (
+            almLiquidityQuoteInput.amountInMinusFee !=
+            Math.mulDiv(
+                almLiquidityQuoteInput.amountInMinusFee + almLiquidityQuoteInput.fee,
+                1e4,
+                1e4 + swapStateCache.solverFeeInBips
+            )
+        ) {
+            revert SOT__getLiquidityQuote_invalidFeePath();
+        }
+
         bytes32 sotHash = sot.hashStruct();
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
@@ -541,7 +580,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             lastProcessedSignatureTimestamp: sot.signatureTimestamp,
             lastProcessedFeeGrowth: sot.feeGrowth,
             lastProcessedFeeMin: sot.feeMin,
-            lastProcessedFeeMax: sot.feeMax
+            lastProcessedFeeMax: sot.feeMax,
+            solverFeeInBips: swapStateCache.solverFeeInBips
         });
 
         return sot.sqrtSpotPriceX96New;

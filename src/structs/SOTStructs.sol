@@ -37,4 +37,5 @@ struct SwapState {
     uint16 lastProcessedFeeGrowth;
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
+    uint16 solverFeeInBips;
 }
