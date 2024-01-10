@@ -59,6 +59,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__constructor_invalidToken1();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
+    error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
     error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
@@ -615,10 +616,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 lastProcessedFeeGrowth: sot.feeGrowth,
                 lastProcessedFeeMin: sot.feeMin,
                 lastProcessedFeeMax: sot.feeMax,
-                solverFeeInBips: swapStateCache.solverFeeInBips
+                solverFeeInBips: swapStateCache.solverFeeInBips,
+                lastProcessedBlockQuoteCount: 1
             });
 
             ammState.setA(sot.sqrtSpotPriceX96New);
+        } else {
+            if (swapStateCache.lastProcessedBlockQuoteCount + 1 > SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
+                revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+            }
+            swapState.lastProcessedBlockQuoteCount = swapStateCache.lastProcessedBlockQuoteCount + 1;
         }
     }
 }

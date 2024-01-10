@@ -40,4 +40,6 @@ struct SwapState {
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
     uint16 solverFeeInBips;
+    uint8 lastProcessedBlockQuoteCount;
+    // 120 free bits
 }

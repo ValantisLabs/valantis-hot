@@ -35,4 +35,6 @@ library SOTConstants {
     uint256 public constant SOLVER_MAX_DISCOUNT = 5_000;
 
     uint256 public constant MAX_ORACLE_PRICE_DIFF = 5_000;
+
+    uint256 public constant MAX_SOT_QUOTES_IN_BLOCK = 3;
 }
