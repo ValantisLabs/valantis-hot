@@ -563,8 +563,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
-        bool isFirstSolver = swapStateCache.lastProcessedBlockTimestamp < block.timestamp;
-        uint256 solverPriceX96 = isFirstSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
+        // A solver only updates state if -
+        // 1. It is the first solver quote in the block
+        // 2. It was signed after the last processed signature timestamp
+        bool isDiscountedSolver = (swapStateCache.lastProcessedBlockTimestamp < block.timestamp) &&
+            (swapStateCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
+
+        uint256 solverPriceX96 = isDiscountedSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
@@ -603,7 +608,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Only update the pool state, if this is the first solver quote in the block
-        if (isFirstSolver) {
+        if (isDiscountedSolver) {
             swapState = SwapState({
                 lastProcessedBlockTimestamp: (block.timestamp).toUint32(),
                 lastProcessedSignatureTimestamp: sot.signatureTimestamp,
