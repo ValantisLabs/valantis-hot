@@ -260,19 +260,19 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         oraclePriceMaxDiffBips = _oraclePriceMaxDiffBips;
 
-        if (_minAmmFeeGrowth > SOTConstants.E4) {
+        if (_minAmmFeeGrowth > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMinAmmFeeGrowth();
         }
 
         minAmmFeeGrowth = _minAmmFeeGrowth;
 
-        if (_maxAmmFeeGrowth > SOTConstants.E4) {
+        if (_maxAmmFeeGrowth > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMaxAmmFeeGrowth();
         }
 
         maxAmmFeeGrowth = _maxAmmFeeGrowth;
 
-        if (_minAmmFee > SOTConstants.E4) {
+        if (_minAmmFee > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMinAmmFee();
         }
 
@@ -348,7 +348,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
     {
         // Check that lower bound is smaller than upper bound, and both are not 0
-        if (_sqrtPriceLowX96 > _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
+        if (_sqrtPriceLowX96 >= _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 

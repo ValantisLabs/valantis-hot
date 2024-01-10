@@ -67,10 +67,10 @@ library SOTParams {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
-        if (sot.feeMin > sot.feeMax || sot.feeMin > SOTConstants.E4)
+        if (sot.feeMin > sot.feeMax || sot.feeMin > SOTConstants.BIPS)
             revert SOTParams__validateFeeParams_invalidFeeMin();
 
-        if (sot.feeMax > SOTConstants.E4) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMax > SOTConstants.BIPS) revert SOTParams__validateFeeParams_invalidFeeMax();
     }
 
     function validatePriceBounds(
@@ -89,7 +89,7 @@ library SOTParams {
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96
             : sqrtSpotPriceNewX96 - sqrtSolverPriceX96;
 
-        if (solverAndSpotPriceNewAbsDiff * SOTConstants.E4 > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
+        if (solverAndSpotPriceNewAbsDiff * SOTConstants.BIPS > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
             revert SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
         }
 
@@ -98,7 +98,7 @@ library SOTParams {
             ? sqrtSpotPriceX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceX96;
 
-        if (spotPriceAndOracleAbsDiff * SOTConstants.E4 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
         }
 
@@ -108,7 +108,7 @@ library SOTParams {
             ? sqrtSpotPriceNewX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
 
-        if (spotPriceNewAndOracleAbsDiff * SOTConstants.E4 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceNewAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
         }
 
