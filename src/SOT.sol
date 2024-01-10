@@ -21,9 +21,9 @@ import {
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
 import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOTHash } from 'src/libraries/SOTHash.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
@@ -36,7 +36,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
-    using SOTHash for SolverOrderType;
     using SOTParams for SolverOrderType;
     using SafeERC20 for IERC20;
     using TightPack for TightPack.PackedState;
@@ -63,14 +62,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
-
-    /************************************************
-     *  CONSTANTS
-     ***********************************************/
-    /**
-        @notice Maximum allowed solver fee, in basis-points.
-      */
-    uint16 constant MAX_SOLVER_FEE_IN_BIPS = 100;
 
     /************************************************
      *  IMMUTABLES
@@ -257,31 +248,31 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         maxDelay = _maxDelay;
 
-        if (_solverMaxDiscountBips > 5_000) {
+        if (_solverMaxDiscountBips > SOTConstants.SOLVER_MAX_DISCOUNT) {
             revert SOT__constructor_invalidSolverDiscount();
         }
 
         solverMaxDiscountBips = _solverMaxDiscountBips;
 
-        if (_oraclePriceMaxDiffBips > 5_000) {
+        if (_oraclePriceMaxDiffBips > SOTConstants.MAX_ORACLE_PRICE_DIFF) {
             revert SOT__constructor_invalidOracleMaxDiff();
         }
 
         oraclePriceMaxDiffBips = _oraclePriceMaxDiffBips;
 
-        if (_minAmmFeeGrowth > 10_000) {
+        if (_minAmmFeeGrowth > SOTConstants.E4) {
             revert SOT__constructor_invalidMinAmmFeeGrowth();
         }
 
         minAmmFeeGrowth = _minAmmFeeGrowth;
 
-        if (_maxAmmFeeGrowth > 10_000) {
+        if (_maxAmmFeeGrowth > SOTConstants.E4) {
             revert SOT__constructor_invalidMaxAmmFeeGrowth();
         }
 
         maxAmmFeeGrowth = _maxAmmFeeGrowth;
 
-        if (_minAmmFee > 10_000) {
+        if (_minAmmFee > SOTConstants.E4) {
             revert SOT__constructor_invalidMinAmmFee();
         }
 
@@ -331,7 +322,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         @notice Changes the standard fee charged on all solver swaps ( To be protected by timelock )
      */
     function setSolverFeeInBips(uint16 _solverFeeInBips) external onlyManager {
-        if (_solverFeeInBips > MAX_SOLVER_FEE_IN_BIPS) {
+        if (_solverFeeInBips > SOTConstants.MAX_SOLVER_FEE_IN_BIPS) {
             revert SOT__setSolverFeeInBips_invalidSolverFee();
         }
 
@@ -362,7 +353,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         }
 
         // Check that the price bounds are within the MAX and MIN sqrt prices
-        if (_sqrtPriceLowX96 < SOTParams.MIN_SQRT_PRICE || _sqrtPriceHighX96 > SOTParams.MAX_SQRT_PRICE) {
+        if (_sqrtPriceLowX96 < SOTConstants.MIN_SQRT_PRICE || _sqrtPriceHighX96 > SOTConstants.MAX_SQRT_PRICE) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 
@@ -595,21 +586,26 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             solverMaxDiscountBips
         );
 
-        bytes32 sotHash = sot.hashStruct();
+        bytes32 sotHash = sot.hashParams();
+
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
-        // TODO: Create clean constant for Q96
-        liquidityQuote.amountOut = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX96, 2 ** 96);
+        // Calculate the amountOut according to the quoted price
+        liquidityQuote.amountOut = Math.mulDiv(
+            almLiquidityQuoteInput.amountInMinusFee,
+            solverPriceX96,
+            SOTConstants.Q96
+        );
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
+        // Only update the pool state, if this is the first solver quote in the block
         if (isFirstSolver) {
-            // Update state
             swapState = SwapState({
-                lastProcessedBlockTimestamp: uint32(block.timestamp),
+                lastProcessedBlockTimestamp: (block.timestamp).toUint32(),
                 lastProcessedSignatureTimestamp: sot.signatureTimestamp,
                 lastProcessedFeeGrowth: sot.feeGrowth,
                 lastProcessedFeeMin: sot.feeMin,

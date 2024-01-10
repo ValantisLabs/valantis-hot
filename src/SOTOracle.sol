@@ -8,6 +8,7 @@ import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/m
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 abstract contract SOTOracle {
     using SafeCast for int256;
@@ -70,7 +71,7 @@ abstract contract SOTOracle {
 
         sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(oraclePrice0USD, oraclePrice1USD, oracle0Base, oracle1Base);
 
-        if (sqrtOraclePriceX96 < SOTParams.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTParams.MAX_SQRT_PRICE) {
+        if (sqrtOraclePriceX96 < SOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTConstants.MAX_SQRT_PRICE) {
             revert SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
         }
     }

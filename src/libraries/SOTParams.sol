@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 library SOTParams {
     using TightPack for TightPack.PackedState;
@@ -23,13 +24,6 @@ library SOTParams {
     error SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
     error SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
     error SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
-
-    /**
-        @notice Min and max sqrt price bounds.
-        @dev Same bounds as in https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol.
-     */
-    uint160 public constant MIN_SQRT_PRICE = 4295128739;
-    uint160 public constant MAX_SQRT_PRICE = 1461446703485210103287273052203988822378723970342;
 
     function validateBasicParams(
         SolverOrderType memory sot,
@@ -56,7 +50,7 @@ library SOTParams {
 
         if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
 
-        if (Math.mulDiv(amountIn, solverPriceX96, 2 ** 96) > tokenOutMaxBound)
+        if (Math.mulDiv(amountIn, solverPriceX96, SOTConstants.Q96) > tokenOutMaxBound)
             revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     }
 
@@ -73,9 +67,10 @@ library SOTParams {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
-        if (sot.feeMin > sot.feeMax || sot.feeMin > 10_000) revert SOTParams__validateFeeParams_invalidFeeMin();
+        if (sot.feeMin > sot.feeMax || sot.feeMin > SOTConstants.E4)
+            revert SOTParams__validateFeeParams_invalidFeeMin();
 
-        if (sot.feeMax > 10_000) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMax > SOTConstants.E4) revert SOTParams__validateFeeParams_invalidFeeMax();
     }
 
     function validatePriceBounds(
@@ -94,7 +89,7 @@ library SOTParams {
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96
             : sqrtSpotPriceNewX96 - sqrtSolverPriceX96;
 
-        if (solverAndSpotPriceNewAbsDiff * 10_000 > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
+        if (solverAndSpotPriceNewAbsDiff * SOTConstants.E4 > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
             revert SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
         }
 
@@ -103,7 +98,7 @@ library SOTParams {
             ? sqrtSpotPriceX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceX96;
 
-        if (spotPriceAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceAndOracleAbsDiff * SOTConstants.E4 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
         }
 
@@ -113,7 +108,7 @@ library SOTParams {
             ? sqrtSpotPriceNewX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
 
-        if (spotPriceNewAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceNewAndOracleAbsDiff * SOTConstants.E4 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
         }
 
@@ -123,5 +118,9 @@ library SOTParams {
         }
 
         // TODO: double check if expectedOraclePrice check is needed
+    }
+
+    function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
+        return keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sot));
     }
 }
