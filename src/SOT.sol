@@ -37,6 +37,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     using SafeCast for uint256;
     using SignatureChecker for address;
     using SOTHash for SolverOrderType;
+    using SOTParams for SolverOrderType;
     using SafeERC20 for IERC20;
     using TightPack for TightPack.PackedState;
 
@@ -373,10 +374,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     ) external override onlyPool returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // AMM Swap
-            ammState.setA(_ammSwap(_almLiquidityQuoteInput, liquidityQuote));
+            _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
             // Solver Swap
-            ammState.setA(_solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote));
+            _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
     }
 
@@ -419,19 +420,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             // Solver Branch is verified during the getLiquidityQuote call
             swapFeeModuleData.feeInBips = swapState.solverFeeInBips;
         } else {
-            // TODO: add fee branch for SOT swaps using swapFeeModuleContext
-            SwapState memory swapStateCache = swapState;
-
-            uint32 fee = uint32(swapStateCache.lastProcessedFeeGrowth) *
-                uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
-            // Add minimum fee
-            fee += uint32(swapStateCache.lastProcessedFeeMin);
-            // Cap fee if necessary
-            if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
-                fee = uint32(swapStateCache.lastProcessedFeeMax);
-            }
-
-            swapFeeModuleData.feeInBips = fee;
+            swapFeeModuleData.feeInBips = _getAMMFee();
         }
     }
 
@@ -474,6 +463,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
+    function _getAMMFee() private view returns (uint32 fee) {
+        // TODO: add fee branch for SOT swaps using swapFeeModuleContext
+        SwapState memory swapStateCache = swapState;
+
+        fee =
+            uint32(swapStateCache.lastProcessedFeeGrowth) *
+            uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
+        // Add minimum fee
+        fee += uint32(swapStateCache.lastProcessedFeeMin);
+        // Cap fee if necessary
+        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
+            fee = uint32(swapStateCache.lastProcessedFeeMax);
+        }
+    }
+
     function _getEffectiveLiquidity(
         uint160 sqrtRatioX96Cache,
         uint160 sqrtRatioAX96Cache,
@@ -496,7 +500,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     function _ammSwap(
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal view returns (uint160 sqrtSpotPriceNewX96) {
+    ) internal view {
+        // Check that the fee path was chosen correctly
+        almLiquidityQuoteInput.feeInBips = _getAMMFee();
+
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
             .unpackState();
@@ -507,6 +514,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
         );
+
+        // Check that the fee path chosen in the swap is valid
+        // TODO: Test for precision issues here. ( this might need to allow for a diff of 1)
+        if (
+            almLiquidityQuoteInput.amountInMinusFee !=
+            Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee + almLiquidityQuoteInput.fee, 1e4, 1e4 + _getAMMFee())
+        ) {
+            revert SOT__getLiquidityQuote_invalidFeePath();
+        }
+
+        uint160 sqrtSpotPriceNewX96;
 
         // Calculate amountOut according to CPMM math
         if (almLiquidityQuoteInput.isZeroToOne) {
@@ -529,56 +547,47 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         // Reserves are always kept in Sovereign Pool
         liquidityQuote.quoteFromPoolReserves = true;
+
+        ammState.setA(sqrtSpotPriceNewX96);
     }
 
     function _solverSwap(
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal returns (uint160) {
+    ) internal {
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
         SwapState memory swapStateCache = swapState;
 
-        SOTParams.validateBasicParams(
-            sot.authorizedSender,
-            sot.authorizedRecipient,
-            sot.amountInMax,
-            sot.amountOutMax,
-            sot.signatureTimestamp,
-            sot.expiry,
+        // Check that the fee path was chosen correctly
+        if (almLiquidityQuoteInput.feeInBips != swapStateCache.solverFeeInBips) {
+            revert SOT__getLiquidityQuote_invalidFeePath();
+        }
+
+        bool isFirstSolver = swapStateCache.lastProcessedBlockTimestamp < block.timestamp;
+        uint160 solverPriceX96 = isFirstSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
+
+        sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
+
+        sot.validateBasicParams(
+            solverPriceX96,
             almLiquidityQuoteInput.recipient,
             almLiquidityQuoteInput.amountInMinusFee,
-            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
-            swapStateCache.lastProcessedBlockTimestamp,
-            swapStateCache.lastProcessedSignatureTimestamp
+            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote
+            // swapStateCache.lastProcessedBlockTimestamp,
+            // swapStateCache.lastProcessedSignatureTimestamp
         );
-        SOTParams.validateFeeParams(sot.feeMin, sot.feeGrowth, sot.feeMax, minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         SOTParams.validatePriceBounds(
             ammState,
-            almLiquidityQuoteInput.isZeroToOne
-                ? Math.mulDiv(sot.amountOutMax, 1 << 192, sot.amountInMax).sqrt().toUint160()
-                : Math.mulDiv(sot.amountInMax, 1 << 192, sot.amountOutMax).sqrt().toUint160(),
+            solverPriceX96.sqrt().toUint160(),
             sot.sqrtSpotPriceX96New,
             getSqrtOraclePriceX96(),
             oraclePriceMaxDiffBips,
             solverMaxDiscountBips
         );
-
-        // Check that the fee path chosen in the swap is valid
-        // TODO: Test for precision issues here. ( this might need to allow for a diff of 1)
-        if (
-            almLiquidityQuoteInput.amountInMinusFee !=
-            Math.mulDiv(
-                almLiquidityQuoteInput.amountInMinusFee + almLiquidityQuoteInput.fee,
-                1e4,
-                1e4 + swapStateCache.solverFeeInBips
-            )
-        ) {
-            revert SOT__getLiquidityQuote_invalidFeePath();
-        }
 
         bytes32 sotHash = sot.hashStruct();
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
@@ -587,23 +596,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         // Always true, since reserves must be stored in the pool
         liquidityQuote.quoteFromPoolReserves = true;
-        liquidityQuote.amountOut = Math.mulDiv(
-            almLiquidityQuoteInput.amountInMinusFee,
-            sot.amountOutMax,
-            sot.amountInMax
-        );
+        // TODO: Create clean constant for Q96
+        liquidityQuote.amountOut = Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX96, 2 ** 96);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        // Update state
-        swapState = SwapState({
-            lastProcessedBlockTimestamp: uint32(block.timestamp),
-            lastProcessedSignatureTimestamp: sot.signatureTimestamp,
-            lastProcessedFeeGrowth: sot.feeGrowth,
-            lastProcessedFeeMin: sot.feeMin,
-            lastProcessedFeeMax: sot.feeMax,
-            solverFeeInBips: swapStateCache.solverFeeInBips
-        });
-
-        return sot.sqrtSpotPriceX96New;
+        if (isFirstSolver) {
+            // Update state
+            swapState = SwapState({
+                lastProcessedBlockTimestamp: uint32(block.timestamp),
+                lastProcessedSignatureTimestamp: sot.signatureTimestamp,
+                lastProcessedFeeGrowth: sot.feeGrowth,
+                lastProcessedFeeMin: sot.feeMin,
+                lastProcessedFeeMax: sot.feeMax,
+                solverFeeInBips: swapStateCache.solverFeeInBips
+            });
+            ammState.setA(sot.sqrtSpotPriceNewX96);
+        }
     }
 }

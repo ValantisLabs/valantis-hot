@@ -3,14 +3,15 @@ pragma solidity 0.8.19;
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 library SOTParams {
     using TightPack for TightPack.PackedState;
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
-    error SOTParams__validateBasicParams_invalidSignatureTimestamp();
-    error SOTParams__validateBasicParams_quoteAlreadyProcessed();
+    // error SOTParams__validateBasicParams_invalidSignatureTimestamp();
+    // error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
     error SOTParams__validateBasicParams_unauthorizedRecipient();
@@ -31,56 +32,51 @@ library SOTParams {
     uint160 public constant MAX_SQRT_PRICE = 1461446703485210103287273052203988822378723970342;
 
     function validateBasicParams(
-        address authorizedSender,
-        address authorizedRecipient,
-        uint256 amountInMax,
-        uint256 amountOutMax,
-        uint32 signatureTimestamp,
-        uint32 expiry,
+        SolverOrderType memory sot,
+        uint160 solverPriceX96,
         address recipient,
         uint256 amountIn,
-        uint256 tokenOutMaxBound,
-        uint32 lastProcessedBlockTimestamp,
-        uint32 lastProcessedSignatureTimestamp
-    ) internal view {
-        // TODO: Might need to use tx.origin to authenticate solvers,
-        // since CowSwap contract will be msg.sender to the pool
-        if (authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
+        uint256 tokenOutMaxBound // uint32 lastProcessedBlockTimestamp,
+    ) internal view // uint32 lastProcessedSignatureTimestamp
+    {
+        if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
-        if (authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
+        if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
 
-        if (amountIn > amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
+        if (amountIn > sot.amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
 
-        if (block.timestamp == lastProcessedBlockTimestamp) {
-            revert SOTParams__validateBasicParams_quoteAlreadyProcessed();
-        }
+        // TODO: verify if removing these checks is safe for multiple quotes
+        // TODO: check if any additional checks are needed for multiple quotes
+        // if (block.timestamp == lastProcessedBlockTimestamp) {
+        //     revert SOTParams__validateBasicParams_quoteAlreadyProcessed();
+        // }
 
-        if (signatureTimestamp <= lastProcessedSignatureTimestamp) {
-            revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
-        }
+        // if (sot.signatureTimestamp <= lastProcessedSignatureTimestamp) {
+        //     revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
+        // }
 
-        if (block.timestamp > signatureTimestamp + expiry) revert SOTParams__validateBasicParams_quoteExpired();
+        if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
 
-        if (amountOutMax > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+        if (Math.mulDiv(amountIn, solverPriceX96, 2 ** 96) > tokenOutMaxBound)
+            revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     }
 
+    // TODO: convert all constant value to constant variables in a separate contract
     function validateFeeParams(
-        uint16 feeMin,
-        uint16 feeGrowth,
-        uint16 feeMax,
+        SolverOrderType memory sot,
         uint16 feeMinBound,
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
     ) internal pure {
-        if (feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
+        if (sot.feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
 
-        if (feeGrowth < feeGrowthMinBound || feeGrowth > feeGrowthMaxBound) {
+        if (sot.feeGrowth < feeGrowthMinBound || sot.feeGrowth > feeGrowthMaxBound) {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
-        if (feeMin > feeMax || feeMin > 10_000) revert SOTParams__validateFeeParams_invalidFeeMin();
+        if (sot.feeMin > sot.feeMax || sot.feeMin > 10_000) revert SOTParams__validateFeeParams_invalidFeeMin();
 
-        if (feeMax > 10_000) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMax > 10_000) revert SOTParams__validateFeeParams_invalidFeeMax();
     }
 
     function validatePriceBounds(

@@ -3,7 +3,8 @@ pragma solidity 0.8.19;
 
 struct SolverOrderType {
     uint256 amountInMax;
-    uint256 amountOutMax;
+    uint160 solverPriceX96Discounted; // Price for the first solver
+    uint160 solverPriceX96Base; // Price for all subsequent solvers
     uint160 sqrtSpotPriceX96New;
     address authorizedSender;
     address authorizedRecipient;
