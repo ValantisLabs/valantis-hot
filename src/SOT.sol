@@ -504,7 +504,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     function _ammSwap(
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
-    ) internal view {
+    ) internal {
         // Check that the fee path was chosen correctly
         if (almLiquidityQuoteInput.feeInBips != _getAMMFee()) {
             revert SOT__getLiquidityQuote_invalidFeePath();
@@ -521,11 +521,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             sqrtPriceHighX96Cache
         );
 
-        uint160 sqrtSpotPriceNewX96;
+        uint160 sqrtSpotPriceX96New;
 
         // Calculate amountOut according to CPMM math
         if (almLiquidityQuoteInput.isZeroToOne) {
-            (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceLowX96Cache,
                 effectiveLiquidity,
@@ -533,7 +533,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 0
             ); // fees have already been deducted
         } else {
-            (sqrtSpotPriceNewX96, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
+            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
                 sqrtPriceX96Cache,
                 sqrtPriceHighX96Cache,
                 effectiveLiquidity,
@@ -545,7 +545,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         // Reserves are always kept in Sovereign Pool
         liquidityQuote.quoteFromPoolReserves = true;
 
-        ammState.setA(sqrtSpotPriceNewX96);
+        ammState.setA(sqrtSpotPriceX96New);
     }
 
     function _solverSwap(
@@ -564,7 +564,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         }
 
         bool isFirstSolver = swapStateCache.lastProcessedBlockTimestamp < block.timestamp;
-        uint160 solverPriceX96 = isFirstSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
+        uint256 solverPriceX96 = isFirstSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
@@ -613,7 +613,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 solverFeeInBips: swapStateCache.solverFeeInBips
             });
 
-            ammState.setA(sot.sqrtSpotPriceNewX96);
+            ammState.setA(sot.sqrtSpotPriceX96New);
         }
     }
 }

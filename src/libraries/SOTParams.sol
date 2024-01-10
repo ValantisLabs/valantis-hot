@@ -27,7 +27,7 @@ library SOTParams {
 
     function validateBasicParams(
         SolverOrderType memory sot,
-        uint160 solverPriceX96,
+        uint256 solverPriceX96,
         address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
