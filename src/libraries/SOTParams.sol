@@ -36,9 +36,8 @@ library SOTParams {
         uint160 solverPriceX96,
         address recipient,
         uint256 amountIn,
-        uint256 tokenOutMaxBound // uint32 lastProcessedBlockTimestamp,
-    ) internal view // uint32 lastProcessedSignatureTimestamp
-    {
+        uint256 tokenOutMaxBound // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
+    ) internal view {
         if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();

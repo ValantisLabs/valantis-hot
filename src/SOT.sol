@@ -334,6 +334,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (_solverFeeInBips > MAX_SOLVER_FEE_IN_BIPS) {
             revert SOT__setSolverFeeInBips_invalidSolverFee();
         }
+
         swapState.solverFeeInBips = _solverFeeInBips;
     }
 
@@ -359,7 +360,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (_sqrtPriceLowX96 > _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
-        // TODO: add other necessary checks for updating price bounds
+
+        // Check that the price bounds are within the MAX and MIN sqrt prices
+        if (_sqrtPriceLowX96 < SOTParams.MIN_SQRT_PRICE || _sqrtPriceHighX96 > SOTParams.MAX_SQRT_PRICE) {
+            revert SOT__setPriceBounds_invalidPriceBounds();
+        }
+
         ammState.setState(ammState.getA(), _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
@@ -430,14 +436,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         uint256 /*_amountInUsed*/,
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
-    ) external {}
+    ) external {
+        // Fee Module callback for Universal Pool ( not needed here)
+    }
 
     function callbackOnSwapEnd(
         uint256 /*_effectiveFee*/,
         uint256 /*_amountInUsed*/,
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
-    ) external {}
+    ) external {
+        // Fee Module callback for Sovereign Pool ( not needed here)
+    }
 
     function onDepositLiquidityCallback(
         uint256 _amount0,
@@ -457,24 +467,27 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         bool /*_isZeroToOne*/,
         uint256 /*_amountIn*/,
         uint256 /*_amountOut*/
-    ) external override onlyPool {}
+    ) external override onlyPool {
+        // Liquidity QUote callback by Sovereign Pool ( not needed here)
+    }
 
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
-    function _getAMMFee() private view returns (uint32 fee) {
-        // TODO: add fee branch for SOT swaps using swapFeeModuleContext
+    function _getAMMFee() private view returns (uint32 feeInBips) {
+        // TODO: Test if all the calculations are in bips.
+        // TODO: Add some min and max bounds to AMM fee.
         SwapState memory swapStateCache = swapState;
 
-        fee =
+        feeInBips =
             uint32(swapStateCache.lastProcessedFeeGrowth) *
             uint32(block.timestamp - swapStateCache.lastProcessedSignatureTimestamp);
         // Add minimum fee
-        fee += uint32(swapStateCache.lastProcessedFeeMin);
+        feeInBips += uint32(swapStateCache.lastProcessedFeeMin);
         // Cap fee if necessary
-        if (fee > uint32(swapStateCache.lastProcessedFeeMax)) {
-            fee = uint32(swapStateCache.lastProcessedFeeMax);
+        if (feeInBips > uint32(swapStateCache.lastProcessedFeeMax)) {
+            feeInBips = uint32(swapStateCache.lastProcessedFeeMax);
         }
     }
 
@@ -502,7 +515,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         ALMLiquidityQuote memory liquidityQuote
     ) internal view {
         // Check that the fee path was chosen correctly
-        almLiquidityQuoteInput.feeInBips = _getAMMFee();
+        if (almLiquidityQuoteInput.feeInBips != _getAMMFee()) {
+            revert SOT__getLiquidityQuote_invalidFeePath();
+        }
 
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
@@ -514,15 +529,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
         );
-
-        // Check that the fee path chosen in the swap is valid
-        // TODO: Test for precision issues here. ( this might need to allow for a diff of 1)
-        if (
-            almLiquidityQuoteInput.amountInMinusFee !=
-            Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee + almLiquidityQuoteInput.fee, 1e4, 1e4 + _getAMMFee())
-        ) {
-            revert SOT__getLiquidityQuote_invalidFeePath();
-        }
 
         uint160 sqrtSpotPriceNewX96;
 
@@ -610,6 +616,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 lastProcessedFeeMax: sot.feeMax,
                 solverFeeInBips: swapStateCache.solverFeeInBips
             });
+
             ammState.setA(sot.sqrtSpotPriceNewX96);
         }
     }
