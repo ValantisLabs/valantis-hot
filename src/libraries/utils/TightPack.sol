@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 /**
-    @notice Helper library for tight packing multiplke uint160 values into minimum amount of uint256 slots.
+    @notice Helper library for tight packing multiple uint160 values into minimum amount of uint256 slots.
  */
 library TightPack {
     struct PackedState {

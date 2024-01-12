@@ -23,6 +23,7 @@ import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-mo
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SolverOrderType, SwapState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
@@ -39,6 +40,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     using SOTParams for SolverOrderType;
     using SafeERC20 for IERC20;
     using TightPack for TightPack.PackedState;
+    using AlternatingNonceBitmap for uint64;
 
     /************************************************
      *  CUSTOM ERRORS
@@ -587,7 +589,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             almLiquidityQuoteInput.recipient,
             almLiquidityQuoteInput.amountInMinusFee,
             almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
-            maxDelay
+            maxDelay,
+            swapStateCache.alternatingNonceBitmap
             // swapStateCache.lastProcessedBlockTimestamp,
             // swapStateCache.lastProcessedSignatureTimestamp
         );
@@ -616,7 +619,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 lastProcessedFeeMin: sot.feeMin,
                 lastProcessedFeeMax: sot.feeMax,
                 solverFeeInBips: swapStateCache.solverFeeInBips,
-                lastProcessedBlockQuoteCount: 1
+                lastProcessedBlockQuoteCount: 1,
+                alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
 
             ammState.setA(sot.sqrtSpotPriceX96New);

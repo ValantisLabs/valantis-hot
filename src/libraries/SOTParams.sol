@@ -3,15 +3,18 @@ pragma solidity 0.8.19;
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 library SOTParams {
     using TightPack for TightPack.PackedState;
+    using AlternatingNonceBitmap for uint64;
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     error SOTParams__validateBasicParams_excessiveExpiryTime();
+    error SOTParams__validateBasicParams_replayedQuote();
     // error SOTParams__validateBasicParams_invalidSignatureTimestamp();
     // error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
@@ -32,7 +35,8 @@ library SOTParams {
         address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound,
-        uint32 maxDelay // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
+        uint32 maxDelay,
+        uint64 alternatingNonceBitmap // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
     ) internal view {
         if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
@@ -46,6 +50,10 @@ library SOTParams {
 
         // TODO: Remove if this check is redundant.
         if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+
+        if (!alternatingNonceBitmap.checkNonce(sot.nonce, sot.expectedFlag)) {
+            revert SOTParams__validateBasicParams_replayedQuote();
+        }
     }
 
     function validateFeeParams(

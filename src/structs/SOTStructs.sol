@@ -13,6 +13,8 @@ struct SolverOrderType {
     uint16 feeMin;
     uint16 feeMax;
     uint16 feeGrowth;
+    uint8 nonce;
+    uint8 expectedFlag;
 }
 
 /**
@@ -41,5 +43,6 @@ struct SwapState {
     uint16 lastProcessedFeeMax;
     uint16 solverFeeInBips;
     uint8 lastProcessedBlockQuoteCount;
+    uint64 alternatingNonceBitmap;
     // 120 free bits
 }
