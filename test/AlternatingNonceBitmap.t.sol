@@ -40,14 +40,15 @@ contract TestAlternatingNonceBitmap is Test {
     function test__checkNonce_exceedingNonceValue() public {
         uint64 bitmap = 8; // 1000
 
-        vm.expectRevert('ANB: nonce out of bounds');
+        vm.expectRevert(AlternatingNonceBitmap.AlternatingNonceBitmap__checkNonce_nonceOutOfBounds.selector);
         AlternatingNonceBitmap.checkNonce(bitmap, 64, 1);
     }
 
     function test__checkNonce_incorrectExpectedValue() public {
         uint64 bitmap = 8; // 1000
 
-        vm.expectRevert('ANB: expectedFlag must be 0 or 1');
+        vm.expectRevert(AlternatingNonceBitmap.AlternatingNonceBitmap__checkNonce_expectedFlagInvalid.selector);
+
         AlternatingNonceBitmap.checkNonce(bitmap, 4, 2);
     }
 
@@ -61,13 +62,13 @@ contract TestAlternatingNonceBitmap is Test {
     function test__flipNonce_exceedingNonceValue() public {
         uint64 bitmap = 8; // 1000
 
-        vm.expectRevert('ANB: nonce out of bounds');
+        vm.expectRevert(AlternatingNonceBitmap.AlternatingNonceBitmap__flipNonce_nonceOutOfBounds.selector);
         AlternatingNonceBitmap.flipNonce(bitmap, 64);
     }
 
     function test__flipNonce_fuzz(uint64 bitmap, uint8 nonce) public {
         if (nonce >= 64) {
-            vm.expectRevert('ANB: nonce out of bounds');
+            vm.expectRevert(AlternatingNonceBitmap.AlternatingNonceBitmap__flipNonce_nonceOutOfBounds.selector);
         }
         // If the same nonce is flipped twice, we should get back the same bitmap.
         assertEq(

@@ -591,8 +591,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
             maxDelay,
             swapStateCache.alternatingNonceBitmap
-            // swapStateCache.lastProcessedBlockTimestamp,
-            // swapStateCache.lastProcessedSignatureTimestamp
         );
 
         SOTParams.validatePriceBounds(
@@ -610,7 +608,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
-        // Only update the pool state, if this is the first solver quote in the block
+        // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
             swapState = SwapState({
                 lastProcessedBlockTimestamp: (block.timestamp).toUint32(),

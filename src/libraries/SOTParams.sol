@@ -36,7 +36,7 @@ library SOTParams {
         uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
-        uint64 alternatingNonceBitmap // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
+        uint64 alternatingNonceBitmap
     ) internal view {
         if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
@@ -48,7 +48,6 @@ library SOTParams {
 
         if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
 
-        // TODO: Remove if this check is redundant.
         if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
 
         if (!alternatingNonceBitmap.checkNonce(sot.nonce, sot.expectedFlag)) {
