@@ -3,16 +3,23 @@ pragma solidity 0.8.19;
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 library SOTParams {
     using TightPack for TightPack.PackedState;
+    using AlternatingNonceBitmap for uint64;
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
-    error SOTParams__validateBasicParams_invalidSignatureTimestamp();
-    error SOTParams__validateBasicParams_quoteAlreadyProcessed();
+    error SOTParams__validateBasicParams_excessiveExpiryTime();
+    error SOTParams__validateBasicParams_replayedQuote();
+    // error SOTParams__validateBasicParams_invalidSignatureTimestamp();
+    // error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
+    error SOTParams__validateBasicParams_unauthorizedRecipient();
     error SOTParams__validateFeeParams_insufficientFee();
     error SOTParams__validateFeeParams_invalidFeeGrowth();
     error SOTParams__validateFeeParams_invalidFeeMax();
@@ -22,60 +29,48 @@ library SOTParams {
     error SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
     error SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
 
-    /**
-        @notice Min and max sqrt price bounds.
-        @dev Same bounds as in https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol.
-     */
-    uint160 public constant MIN_SQRT_PRICE = 4295128739;
-    uint160 public constant MAX_SQRT_PRICE = 1461446703485210103287273052203988822378723970342;
-
     function validateBasicParams(
-        address authorizedSender,
-        uint256 amountInMax,
-        uint256 amountOutMax,
-        uint32 signatureTimestamp,
-        uint32 expiry,
+        SolverOrderType memory sot,
+        uint256 amountOut,
+        address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound,
-        uint32 lastProcessedBlockTimestamp,
-        uint32 lastProcessedSignatureTimestamp
+        uint32 maxDelay,
+        uint64 alternatingNonceBitmap
     ) internal view {
-        // TODO: Might need to use tx.origin to authenticate solvers,
-        // since CowSwap contract will be msg.sender to the pool
-        if (authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
+        if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
-        if (amountIn > amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
+        if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
 
-        if (block.timestamp == lastProcessedBlockTimestamp) {
-            revert SOTParams__validateBasicParams_quoteAlreadyProcessed();
+        if (amountIn > sot.amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
+
+        if (sot.expiry > maxDelay) revert SOTParams__validateBasicParams_excessiveExpiryTime();
+
+        if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
+
+        if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+
+        if (!alternatingNonceBitmap.checkNonce(sot.nonce, sot.expectedFlag)) {
+            revert SOTParams__validateBasicParams_replayedQuote();
         }
-
-        if (signatureTimestamp <= lastProcessedSignatureTimestamp) {
-            revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
-        }
-
-        if (block.timestamp > signatureTimestamp + expiry) revert SOTParams__validateBasicParams_quoteExpired();
-
-        if (amountOutMax > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     }
 
     function validateFeeParams(
-        uint16 feeMin,
-        uint16 feeGrowth,
-        uint16 feeMax,
+        SolverOrderType memory sot,
         uint16 feeMinBound,
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
     ) internal pure {
-        if (feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
+        if (sot.feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
 
-        if (feeGrowth < feeGrowthMinBound || feeGrowth > feeGrowthMaxBound) {
+        if (sot.feeGrowth < feeGrowthMinBound || sot.feeGrowth > feeGrowthMaxBound) {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
-        if (feeMin > feeMax || feeMin > 10_000) revert SOTParams__validateFeeParams_invalidFeeMin();
+        if (sot.feeMin > sot.feeMax || sot.feeMin > SOTConstants.BIPS)
+            revert SOTParams__validateFeeParams_invalidFeeMin();
 
-        if (feeMax > 10_000) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMax > SOTConstants.BIPS) revert SOTParams__validateFeeParams_invalidFeeMax();
     }
 
     function validatePriceBounds(
@@ -94,7 +89,7 @@ library SOTParams {
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96
             : sqrtSpotPriceNewX96 - sqrtSolverPriceX96;
 
-        if (solverAndSpotPriceNewAbsDiff * 10_000 > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
+        if (solverAndSpotPriceNewAbsDiff * SOTConstants.BIPS > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
             revert SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
         }
 
@@ -103,7 +98,7 @@ library SOTParams {
             ? sqrtSpotPriceX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceX96;
 
-        if (spotPriceAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
         }
 
@@ -113,7 +108,7 @@ library SOTParams {
             ? sqrtSpotPriceNewX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
 
-        if (spotPriceNewAndOracleAbsDiff * 10_000 > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
+        if (spotPriceNewAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
         }
 
@@ -123,5 +118,9 @@ library SOTParams {
         }
 
         // TODO: double check if expectedOraclePrice check is needed
+    }
+
+    function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
+        return keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sot));
     }
 }

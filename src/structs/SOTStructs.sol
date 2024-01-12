@@ -3,14 +3,18 @@ pragma solidity 0.8.19;
 
 struct SolverOrderType {
     uint256 amountInMax;
-    uint256 amountOutMax;
+    uint256 solverPriceX192Discounted; // Price for the first solver
+    uint256 solverPriceX192Base; // Price for all subsequent solvers
     uint160 sqrtSpotPriceX96New;
+    address authorizedSender;
+    address authorizedRecipient;
     uint32 signatureTimestamp;
     uint32 expiry;
-    address authorizedSender;
     uint16 feeMin;
     uint16 feeMax;
     uint16 feeGrowth;
+    uint8 nonce;
+    uint8 expectedFlag;
 }
 
 /**
@@ -37,4 +41,8 @@ struct SwapState {
     uint16 lastProcessedFeeGrowth;
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
+    uint16 solverFeeInBips;
+    uint8 lastProcessedBlockQuoteCount;
+    uint64 alternatingNonceBitmap;
+    // 120 free bits
 }

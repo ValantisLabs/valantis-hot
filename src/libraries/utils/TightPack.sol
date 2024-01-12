@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 /**
-    @notice Helper library for tight packing multiplke uint160 values into minimum amount of uint256 slots.
+    @notice Helper library for tight packing multiple uint160 values into minimum amount of uint256 slots.
  */
 library TightPack {
     struct PackedState {
@@ -101,16 +101,4 @@ library TightPack {
         state.slot1 = tempState.slot1;
         state.slot2 = tempState.slot2;
     }
-
-    // /**
-    //     @notice Extracts the full uint160 value from a uint256 slot. ( A or C, depending on slot )
-    //     @param slot uint256 value containing a uint160 value.
-    //     @return val uint160 value extracted from slot.
-    //     @dev slot: << 96 mixed bits | all 160 bits of full val >>
-    //  */
-    // function getFullVar(uint256 slot) internal pure returns (uint160 val) {
-    //     assembly {
-    //         val := shr(96, shl(96, slot))
-    //     }
-    // }
 }
