@@ -243,7 +243,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         liquidityProvider = _liquidityProvider;
 
-        if (_maxDelay > 10 minutes) {
+        if (_maxDelay > SOTConstants.MAX_DELAY_ALLOWED) {
             revert SOT__constructor_invalidMaxDelay();
         }
 
@@ -570,22 +570,31 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         bool isDiscountedSolver = (swapStateCache.lastProcessedBlockTimestamp < block.timestamp) &&
             (swapStateCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
 
-        uint256 solverPriceX96 = isDiscountedSolver ? sot.solverPriceX96Discounted : sot.solverPriceX96Base;
+        uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
+
+        // Always true, since reserves must be stored in the pool
+        liquidityQuote.quoteFromPoolReserves = true;
+        // Calculate the amountOut according to the quoted price
+        liquidityQuote.amountOut = almLiquidityQuoteInput.isZeroToOne
+            ? Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX192, SOTConstants.Q192)
+            : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
+        liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         sot.validateBasicParams(
-            solverPriceX96,
+            liquidityQuote.amountOut,
             almLiquidityQuoteInput.recipient,
             almLiquidityQuoteInput.amountInMinusFee,
-            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote
+            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
+            maxDelay
             // swapStateCache.lastProcessedBlockTimestamp,
             // swapStateCache.lastProcessedSignatureTimestamp
         );
 
         SOTParams.validatePriceBounds(
             ammState,
-            solverPriceX96.sqrt().toUint160(),
+            solverPriceX192.sqrt().toUint160(),
             sot.sqrtSpotPriceX96New,
             getSqrtOraclePriceX96(),
             oraclePriceMaxDiffBips,
@@ -597,16 +606,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
-
-        // Always true, since reserves must be stored in the pool
-        liquidityQuote.quoteFromPoolReserves = true;
-        // Calculate the amountOut according to the quoted price
-        liquidityQuote.amountOut = Math.mulDiv(
-            almLiquidityQuoteInput.amountInMinusFee,
-            solverPriceX96,
-            SOTConstants.Q96
-        );
-        liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Only update the pool state, if this is the first solver quote in the block
         if (isDiscountedSolver) {

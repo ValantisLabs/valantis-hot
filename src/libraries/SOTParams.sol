@@ -11,6 +11,7 @@ library SOTParams {
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+    error SOTParams__validateBasicParams_excessiveExpiryTime();
     // error SOTParams__validateBasicParams_invalidSignatureTimestamp();
     // error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
@@ -27,10 +28,11 @@ library SOTParams {
 
     function validateBasicParams(
         SolverOrderType memory sot,
-        uint256 solverPriceX96,
+        uint256 amountOut,
         address recipient,
         uint256 amountIn,
-        uint256 tokenOutMaxBound // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
+        uint256 tokenOutMaxBound,
+        uint32 maxDelay // uint32 lastProcessedBlockTimestamp, // uint32 lastProcessedSignatureTimestamp
     ) internal view {
         if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
@@ -38,23 +40,14 @@ library SOTParams {
 
         if (amountIn > sot.amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
 
-        // TODO: verify if removing these checks is safe for multiple quotes
-        // TODO: check if any additional checks are needed for multiple quotes
-        // if (block.timestamp == lastProcessedBlockTimestamp) {
-        //     revert SOTParams__validateBasicParams_quoteAlreadyProcessed();
-        // }
-
-        // if (sot.signatureTimestamp <= lastProcessedSignatureTimestamp) {
-        //     revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
-        // }
+        if (sot.expiry > maxDelay) revert SOTParams__validateBasicParams_excessiveExpiryTime();
 
         if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
 
-        if (Math.mulDiv(amountIn, solverPriceX96, SOTConstants.Q96) > tokenOutMaxBound)
-            revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+        // TODO: Remove if this check is redundant.
+        if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     }
 
-    // TODO: convert all constant value to constant variables in a separate contract
     function validateFeeParams(
         SolverOrderType memory sot,
         uint16 feeMinBound,

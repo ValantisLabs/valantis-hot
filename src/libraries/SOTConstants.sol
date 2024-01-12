@@ -26,11 +26,16 @@ library SOTConstants {
     uint256 public constant Q96 = 0x1000000000000000000000000;
 
     /**
+        @notice The constant value 2**192
+     */
+    uint256 public constant Q192 = 0x1000000000000000000000000000000000000000000000000;
+
+    /**
         @notice The constant value 10_000
      */
     uint256 public constant BIPS = 10_000;
 
-    uint256 public constant MAX_DELAY = 10 minutes;
+    uint256 public constant MAX_DELAY_ALLOWED = 10 minutes;
 
     uint256 public constant SOLVER_MAX_DISCOUNT = 5_000;
 
