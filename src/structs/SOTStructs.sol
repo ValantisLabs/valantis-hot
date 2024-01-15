@@ -36,13 +36,28 @@ struct SolverOrderType {
                 Maximum AMM fee according to the last Solver Order Type which has been successfully processed.
  */
 struct SwapState {
-    uint32 lastProcessedBlockTimestamp;
-    uint32 lastProcessedSignatureTimestamp;
+    bool isPaused;
+    uint8 lastProcessedBlockQuoteCount;
     uint16 lastProcessedFeeGrowth;
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
     uint16 solverFeeInBips;
-    uint8 lastProcessedBlockQuoteCount;
+    uint32 lastProcessedBlockTimestamp;
+    uint32 lastProcessedSignatureTimestamp;
     uint64 alternatingNonceBitmap;
-    // 120 free bits
+    // 12 free bits
+}
+
+struct SOTConstructorArgs {
+    address pool;
+    address liquidityProvider;
+    address feedToken0;
+    address feedToken1;
+    uint32 maxDelay;
+    uint32 maxOracleUpdateDuration;
+    uint16 solverMaxDiscountBips;
+    uint16 oraclePriceMaxDiffBips;
+    uint16 minAmmFeeGrowth;
+    uint16 maxAmmFeeGrowth;
+    uint16 minAmmFee;
 }
