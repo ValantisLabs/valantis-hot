@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 import {
     SovereignPoolDeployer,
     ProtocolFactory,
@@ -32,8 +34,5 @@ contract SOTDeployer {
                 abi.encode(sotArgs)
             )
         );
-
-        sovereignPool.setALM(address(sot));
-        sovereignPool.setSwapFeeModule(address(sot));
     }
 }

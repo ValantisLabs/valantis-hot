@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 import { Base } from 'valantis-core/test/base/Base.sol';
 
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
 
-import { SovereignPool } from 'valantis-core/src/pools/SovereignPool.sol';
-import { SovereignPoolBase, SovereignPoolConstructorArgs } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
+import {
+    SovereignPool,
+    SovereignPoolBase,
+    SovereignPoolConstructorArgs
+} from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SOT } from 'src/SOT.sol';
 import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 
@@ -26,8 +31,14 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         feedToken0.appendAnswer(2000e18);
         feedToken0.appendAnswer(1e18);
 
+        SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
+        pool = this.deploySovereignPool(poolArgs);
+        sot = deployAndSetDefaultSOT(pool);
+    }
+
+    function deployAndSetDefaultSOT(SovereignPool _pool) public returns (SOT _sot) {
         SOTConstructorArgs memory args = SOTConstructorArgs({
-            pool: address(pool),
+            pool: address(_pool),
             liquidityProvider: address(this),
             feedToken0: address(feedToken0),
             feedToken1: address(feedToken1),
@@ -40,10 +51,11 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             minAmmFee: 1 // 0.01%
         });
 
-        SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
-
-        pool = this.deploySovereignPool(poolArgs);
-        sot = this.deploySOT(pool, args);
+        vm.startPrank(_pool.poolManager());
+        _sot = this.deploySOT(_pool, args);
+        _pool.setALM(address(_sot));
+        _pool.setSwapFeeModule(address(_sot));
+        vm.stopPrank();
     }
 
     function deployChainlinkOracles(
