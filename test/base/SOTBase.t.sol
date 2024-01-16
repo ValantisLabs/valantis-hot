@@ -5,20 +5,20 @@ import { Base } from 'valantis-core/test/base/Base.sol';
 
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
 
-import { SovereignPool, SovereignPoolConstructorArgs } from 'valantis-core/src/pools/SovereignPool.sol';
+import { SovereignPool } from 'valantis-core/src/pools/SovereignPool.sol';
+import { SovereignPoolBase, SovereignPoolConstructorArgs } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SOT } from 'src/SOT.sol';
 import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 
-contract SOTBase is Base, SOTDeployer {
-    SovereignPool public pool;
+contract SOTBase is SovereignPoolBase, SOTDeployer {
     SOT public sot;
 
     MockChainlinkOracle public feedToken0;
     MockChainlinkOracle public feedToken1;
 
-    function setUp() public {
+    function setUp() public override {
         _setupBase();
 
         (feedToken0, feedToken1) = deployChainlinkOracles(18, 18);
@@ -40,10 +40,10 @@ contract SOTBase is Base, SOTDeployer {
             minAmmFee: 1 // 0.01%
         });
 
-        // TODO: set correct poolArgs
-        // SovereignPoolConstructorArgs calldata poolArgs;
+        SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
 
-        // (pool, sot) = this.deploySOT(poolArgs, args);
+        pool = this.deploySovereignPool(poolArgs);
+        sot = this.deploySOT(pool, args);
     }
 
     function deployChainlinkOracles(

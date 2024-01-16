@@ -54,9 +54,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidMaxAmmFeeGrowth();
     error SOT__constructor_invalidMinAmmFeeGrowth();
-    error SOT__constructor_invalidMaxDelay();
-    error SOT__constructor_invalidOracleMaxDiff();
-    error SOT__constructor_invalidSolverDiscount();
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
@@ -243,21 +240,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         liquidityProvider = _args.liquidityProvider;
 
-        if (_args.maxDelay > SOTConstants.MAX_DELAY_ALLOWED) {
-            revert SOT__constructor_invalidMaxDelay();
-        }
-
         maxDelay = _args.maxDelay;
 
-        if (_args.solverMaxDiscountBips > SOTConstants.SOLVER_MAX_DISCOUNT) {
-            revert SOT__constructor_invalidSolverDiscount();
-        }
-
         solverMaxDiscountBips = _args.solverMaxDiscountBips;
-
-        if (_args.oraclePriceMaxDiffBips > SOTConstants.MAX_ORACLE_PRICE_DIFF) {
-            revert SOT__constructor_invalidOracleMaxDiff();
-        }
 
         oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
 
@@ -630,7 +615,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
             ammState.setA(sot.sqrtSpotPriceX96New);
         } else {
-            if (swapStateCache.lastProcessedBlockQuoteCount + 1 > SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
+            if (swapStateCache.lastProcessedBlockQuoteCount == SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
                 revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
             }
             swapState.lastProcessedBlockQuoteCount = swapStateCache.lastProcessedBlockQuoteCount + 1;

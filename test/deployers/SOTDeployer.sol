@@ -12,18 +12,7 @@ import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 import { SOTFactory } from 'src/factories/SOTFactory.sol';
 import { SOT } from 'src/SOT.sol';
 
-contract SOTDeployer is SovereignPoolDeployer {
-    function deploySOT(
-        SovereignPoolConstructorArgs calldata _poolArgs,
-        SOTConstructorArgs memory _sotArgs
-    ) public returns (SovereignPool pool, SOT sot) {
-        ProtocolFactory protocolFactory = deployProtocolFactory();
-
-        pool = deploySovereignPool(protocolFactory, _poolArgs);
-
-        sot = _deploySOT(protocolFactory, pool, _sotArgs);
-    }
-
+contract SOTDeployer {
     function deploySOT(SovereignPool _sovereignPool, SOTConstructorArgs memory _sotArgs) public returns (SOT sot) {
         sot = _deploySOT(ProtocolFactory(_sovereignPool.protocolFactory()), _sovereignPool, _sotArgs);
     }
