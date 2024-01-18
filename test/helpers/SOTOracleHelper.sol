@@ -13,7 +13,7 @@ contract SOTOracleHelper is SOTOracle {
         uint32 _maxOracleUpdateDuration
     ) SOTOracle(_token0, _token1, _feedToken0, _feedToken1, _maxOracleUpdateDuration) {}
 
-    function getOraclePriceUSD(AggregatorV3Interface feed) public returns (uint256) {
+    function getOraclePriceUSD(AggregatorV3Interface feed) public view returns (uint256) {
         return _getOraclePriceUSD(feed);
     }
 
@@ -24,7 +24,7 @@ contract SOTOracleHelper is SOTOracle {
         uint256 oracle1Base,
         uint256 _token0Base,
         uint256 _token1Base
-    ) public view returns (uint160) {
+    ) public pure returns (uint160) {
         return
             _calculateSqrtOraclePriceX96(
                 oraclePrice0USD,

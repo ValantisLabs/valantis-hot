@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
@@ -15,8 +17,6 @@ library SOTParams {
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     error SOTParams__validateBasicParams_excessiveExpiryTime();
     error SOTParams__validateBasicParams_replayedQuote();
-    // error SOTParams__validateBasicParams_invalidSignatureTimestamp();
-    // error SOTParams__validateBasicParams_quoteAlreadyProcessed();
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
     error SOTParams__validateBasicParams_unauthorizedRecipient();
@@ -67,10 +67,10 @@ library SOTParams {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
-        if (sot.feeMin > sot.feeMax || sot.feeMin > SOTConstants.BIPS)
-            revert SOTParams__validateFeeParams_invalidFeeMin();
+        // feeMax should be strictly less than 100%
+        if (sot.feeMax >= SOTConstants.BIPS) revert SOTParams__validateFeeParams_invalidFeeMax();
 
-        if (sot.feeMax > SOTConstants.BIPS) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMin > sot.feeMax) revert SOTParams__validateFeeParams_invalidFeeMin();
     }
 
     function validatePriceBounds(

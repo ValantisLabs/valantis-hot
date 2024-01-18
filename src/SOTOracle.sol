@@ -104,7 +104,7 @@ contract SOTOracle {
         uint256 oracle1Base,
         uint256 _token0Base,
         uint256 _token1Base
-    ) internal view returns (uint160) {
+    ) internal pure returns (uint160) {
         // We are given two price feeds: token0 / USD and token1 / USD.
         // In order to compare token0 and token1 amounts, we need to convert
         // them both into USD:

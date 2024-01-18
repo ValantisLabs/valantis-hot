@@ -109,13 +109,13 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             solverPriceX192Discounted: 1980 << 192, // 1% discount to first solver
             solverPriceX192Base: 2000 << 192,
             sqrtSpotPriceX96New: 45 << 96, // AMM spot price 2025
-            authorizedSender: msg.sender,
+            authorizedSender: address(this),
             authorizedRecipient: makeAddr('RECIPIENT'),
             signatureTimestamp: (block.timestamp).toUint32(),
             expiry: 24, // 2 Blocks
-            feeMin: 10,
-            feeMax: 100,
-            feeGrowth: 5,
+            feeMin: 10, // 0.1%
+            feeMax: 100, // 1%
+            feeGrowth: 5, // 5 Bips per second
             nonce: 1,
             expectedFlag: 1
         });
