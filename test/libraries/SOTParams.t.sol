@@ -6,37 +6,19 @@ import { console } from 'forge-std/console.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
-contract TestSOTParams is Test {
+contract TestSOTParams is SOTBase {
     using SafeCast for uint256;
 
     // Default Contract Storage
-    uint256 tokenOutMaxBound = 1000e18;
-    uint32 maxDelay = 36; // 3 Blocks
-    uint64 alternatingNonceBitmap = 2; // 0b10
+    uint256 public tokenOutMaxBound = 1000e18;
+    uint32 public maxDelay = 36; // 3 Blocks
+    uint64 public alternatingNonceBitmap = 2; // 0b10
 
-    function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {
-        // Sensible Defaults
-        sotParams = SolverOrderType({
-            amountInMax: 100e18,
-            solverPriceX192Discounted: 1980 << 192, // 1% discount to first solver
-            solverPriceX192Base: 2000 << 192,
-            sqrtSpotPriceX96New: 45 << 96, // AMM spot price 2025
-            authorizedSender: msg.sender,
-            authorizedRecipient: makeAddr('RECIPIENT'),
-            signatureTimestamp: (block.timestamp).toUint32(),
-            expiry: 24, // 2 Blocks
-            feeMin: 10,
-            feeMax: 100,
-            feeGrowth: 5,
-            nonce: 1,
-            expectedFlag: 1
-        });
-    }
-
-    function setUp() public {
+    function setUp() public override {
         vm.warp(1e6);
     }
 

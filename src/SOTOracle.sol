@@ -12,19 +12,12 @@ import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interfac
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
-abstract contract SOTOracle {
+contract SOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___getOraclePriceUSD_stalePrice();
-
-    /**
-	    @notice Decimals for token{0,1}.
-        @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
-     */
-    uint8 public immutable token0Decimals;
-    uint8 public immutable token1Decimals;
 
     /**
 	    @notice Base unit for token{0,1}.
@@ -33,6 +26,14 @@ abstract contract SOTOracle {
      */
     uint256 public immutable token0Base;
     uint256 public immutable token1Base;
+
+    /**
+	    @notice Base unit for feedToken{0,1}.
+          For example: feedToken0Base = 10 ** feedToken0Decimals;
+        @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
+     */
+    uint256 public immutable feedToken0Base;
+    uint256 public immutable feedToken1Base;
 
     /**
 	    @notice Maximum allowed duration for each oracle update, in seconds.
@@ -55,32 +56,35 @@ abstract contract SOTOracle {
         address _feedToken1,
         uint32 _maxOracleUpdateDuration
     ) {
-        token0Decimals = IERC20Metadata(_token0).decimals();
-        token1Decimals = IERC20Metadata(_token1).decimals();
-
-        token0Base = 10 ** token0Decimals;
-        token1Base = 10 ** token1Decimals;
+        token0Base = 10 ** IERC20Metadata(_token0).decimals();
+        token1Base = 10 ** IERC20Metadata(_token1).decimals();
 
         maxOracleUpdateDuration = _maxOracleUpdateDuration;
 
         feedToken0 = AggregatorV3Interface(_feedToken0);
         feedToken1 = AggregatorV3Interface(_feedToken1);
+
+        feedToken0Base = 10 ** feedToken0.decimals();
+        feedToken1Base = 10 ** feedToken1.decimals();
     }
 
     function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
-        (uint256 oraclePrice0USD, uint256 oracle0Base) = _getOraclePriceUSD(feedToken0);
-        (uint256 oraclePrice1USD, uint256 oracle1Base) = _getOraclePriceUSD(feedToken1);
+        uint256 oraclePrice0USD = _getOraclePriceUSD(feedToken0);
+        uint256 oraclePrice1USD = _getOraclePriceUSD(feedToken1);
 
-        sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(oraclePrice0USD, oraclePrice1USD, oracle0Base, oracle1Base);
+        sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(
+            oraclePrice0USD,
+            oraclePrice1USD,
+            feedToken0Base,
+            feedToken1Base
+        );
 
         if (sqrtOraclePriceX96 < SOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTConstants.MAX_SQRT_PRICE) {
             revert SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
         }
     }
 
-    function _getOraclePriceUSD(
-        AggregatorV3Interface feed
-    ) private view returns (uint256 oraclePriceUSD, uint256 oracleBase) {
+    function _getOraclePriceUSD(AggregatorV3Interface feed) private view returns (uint256 oraclePriceUSD) {
         (, int256 oraclePriceUSDInt, , uint256 updatedAt, ) = feed.latestRoundData();
 
         if (block.timestamp - updatedAt > maxOracleUpdateDuration) {
@@ -91,8 +95,6 @@ abstract contract SOTOracle {
 
         // TODO: Maybe unsafe uint256 conversion can be used
         oraclePriceUSD = oraclePriceUSDInt.toUint256();
-        // TODO: Maybe those can be cached as immutables
-        oracleBase = 10 ** (feed.decimals());
     }
 
     function _calculateSqrtOraclePriceX96(
@@ -113,10 +115,16 @@ abstract contract SOTOracle {
         // oraclePriceX128 = sqrt(amount1USD / amount0USD) * 2 ** 96
         // solhint-disable-next-line max-line-length
         // = sqrt(oraclePrice0USD * token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * token0Base * oracle0Base)) * 2 ** 48
-
+        console.log(
+            (Math.sqrt(
+                ((oraclePrice0USD * feedToken1Base * token1Base) << 96) /
+                    (oraclePrice1USD * feedToken0Base * token0Base)
+            ) << 48)
+        );
         return
             (Math.sqrt(
-                ((oraclePrice0USD * oracle1Base * token1Base) << 96) / (oraclePrice1USD * oracle0Base * token0Base)
+                ((oraclePrice0USD * feedToken1Base * token1Base) << 96) /
+                    (oraclePrice1USD * feedToken0Base * token0Base)
             ) << 48).toUint160();
     }
 }

@@ -80,7 +80,7 @@ contract MockChainlinkOracle is AggregatorV3Interface {
         roundData[_roundData.roundId] = _roundData;
     }
 
-    function appendAnswer(int256 _answer) public {
+    function updateAnswer(int256 _answer) public {
         latestRoundId++;
         roundData[latestRoundId].roundId = latestRoundId;
         roundData[latestRoundId].answer = _answer;
