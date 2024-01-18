@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { console } from 'forge-std/console.sol';
-
 import {
     IERC20Metadata
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
@@ -76,7 +74,9 @@ contract SOTOracle {
             oraclePrice0USD,
             oraclePrice1USD,
             feedToken0Base,
-            feedToken1Base
+            feedToken1Base,
+            token0Base,
+            token1Base
         );
 
         if (sqrtOraclePriceX96 < SOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTConstants.MAX_SQRT_PRICE) {
@@ -84,7 +84,7 @@ contract SOTOracle {
         }
     }
 
-    function _getOraclePriceUSD(AggregatorV3Interface feed) private view returns (uint256 oraclePriceUSD) {
+    function _getOraclePriceUSD(AggregatorV3Interface feed) internal view returns (uint256 oraclePriceUSD) {
         (, int256 oraclePriceUSDInt, , uint256 updatedAt, ) = feed.latestRoundData();
 
         if (block.timestamp - updatedAt > maxOracleUpdateDuration) {
@@ -101,7 +101,9 @@ contract SOTOracle {
         uint256 oraclePrice0USD,
         uint256 oraclePrice1USD,
         uint256 oracle0Base,
-        uint256 oracle1Base
+        uint256 oracle1Base,
+        uint256 _token0Base,
+        uint256 _token1Base
     ) internal view returns (uint160) {
         // We are given two price feeds: token0 / USD and token1 / USD.
         // In order to compare token0 and token1 amounts, we need to convert
@@ -115,16 +117,10 @@ contract SOTOracle {
         // oraclePriceX128 = sqrt(amount1USD / amount0USD) * 2 ** 96
         // solhint-disable-next-line max-line-length
         // = sqrt(oraclePrice0USD * token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * token0Base * oracle0Base)) * 2 ** 48
-        console.log(
-            (Math.sqrt(
-                ((oraclePrice0USD * feedToken1Base * token1Base) << 96) /
-                    (oraclePrice1USD * feedToken0Base * token0Base)
-            ) << 48)
-        );
+
         return
             (Math.sqrt(
-                ((oraclePrice0USD * feedToken1Base * token1Base) << 96) /
-                    (oraclePrice1USD * feedToken0Base * token0Base)
+                ((oraclePrice0USD * oracle1Base * _token1Base) << 96) / (oraclePrice1USD * oracle0Base * _token0Base)
             ) << 48).toUint160();
     }
 }

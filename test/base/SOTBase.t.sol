@@ -15,6 +15,7 @@ import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
 import { SOT } from 'src/SOT.sol';
 import { SOTConstructorArgs, SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
+import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
@@ -78,6 +79,21 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         uint32 _maxOracleUpdateDuration
     ) public returns (SOTOracle oracle) {
         oracle = new SOTOracle(
+            address(pool.token0()),
+            address(pool.token1()),
+            address(_feedToken0),
+            address(_feedToken1),
+            _maxOracleUpdateDuration
+        );
+    }
+
+    /// @dev This is only used for testing, during deployment SOTOracle is inherited by SOT
+    function deploySOTOracleHelper(
+        MockChainlinkOracle _feedToken0,
+        MockChainlinkOracle _feedToken1,
+        uint32 _maxOracleUpdateDuration
+    ) public returns (SOTOracleHelper oracle) {
+        oracle = new SOTOracleHelper(
             address(pool.token0()),
             address(pool.token1()),
             address(_feedToken0),
