@@ -114,7 +114,7 @@ contract SOTOracle {
         //
         // Following SOT and sqrt spot price definition:
         //
-        // oraclePriceX128 = sqrt(amount1USD / amount0USD) * 2 ** 96
+        // sqrtOraclePriceX96 = sqrt(amount1USD / amount0USD) * 2 ** 96
         // solhint-disable-next-line max-line-length
         // = sqrt(oraclePrice0USD * token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * token0Base * oracle0Base)) * 2 ** 48
 

@@ -12,7 +12,7 @@ library AlternatingNonceBitmap {
 
     function checkNonce(uint64 bitmap, uint8 nonce, uint8 expectedFlag) internal pure returns (bool) {
         if (nonce >= 64) revert AlternatingNonceBitmap__checkNonce_nonceOutOfBounds();
-        if (expectedFlag != 0 && expectedFlag != 1) revert AlternatingNonceBitmap__checkNonce_expectedFlagInvalid();
+        if (expectedFlag > 1) revert AlternatingNonceBitmap__checkNonce_expectedFlagInvalid();
 
         return ((bitmap & (1 << nonce)) >> nonce) == expectedFlag;
     }
