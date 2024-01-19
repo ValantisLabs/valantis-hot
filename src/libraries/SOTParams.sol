@@ -32,13 +32,14 @@ library SOTParams {
     function validateBasicParams(
         SolverOrderType memory sot,
         uint256 amountOut,
+        address sender,
         address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint64 alternatingNonceBitmap
     ) internal view {
-        if (sot.authorizedSender != msg.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
+        if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
 

@@ -12,6 +12,7 @@ contract SOTParamsHelper {
     function validateBasicParams(
         SolverOrderType memory sot,
         uint256 amountOut,
+        address sender,
         address recipient,
         uint256 amountIn,
         uint256 tokenOutMaxBound,
@@ -21,6 +22,7 @@ contract SOTParamsHelper {
         SOTParams.validateBasicParams(
             sot,
             amountOut,
+            sender,
             recipient,
             amountIn,
             tokenOutMaxBound,
@@ -34,7 +36,7 @@ contract SOTParamsHelper {
         uint16 feeMinBound,
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
-    ) public view {
+    ) public pure {
         SOTParams.validateFeeParams(sot, feeMinBound, feeGrowthMinBound, feeGrowthMaxBound);
     }
 

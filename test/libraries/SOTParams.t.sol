@@ -31,6 +31,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: _getSensibleSOTParams(),
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -46,6 +47,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -62,6 +64,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -78,6 +81,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('WRONG_RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -87,17 +91,16 @@ contract TestSOTParams is SOTBase {
 
         // Incorrect Sender
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedSender.selector);
-        vm.startPrank(makeAddr('WRONG_SENDER'));
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: makeAddr('WRONG_SENDER'),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
         });
-        vm.stopPrank();
     }
 
     function test_validateBasicParams_excessiveTokenAmounts() public {
@@ -107,6 +110,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 101e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -118,6 +122,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 1000e18 + 1,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
@@ -134,6 +139,7 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
+            sender: address(this),
             recipient: makeAddr('RECIPIENT'),
             amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
