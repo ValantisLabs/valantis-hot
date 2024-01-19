@@ -6,6 +6,7 @@ import {
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
@@ -14,6 +15,8 @@ contract SOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
+    error SOTOracle__constructor_invalidFeedToken0();
+    error SOTOracle__constructor_invalidFeedToken1();
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___getOraclePriceUSD_stalePrice();
 
@@ -24,14 +27,6 @@ contract SOTOracle {
      */
     uint256 public immutable token0Base;
     uint256 public immutable token1Base;
-
-    /**
-	    @notice Base unit for feedToken{0,1}.
-          For example: feedToken0Base = 10 ** feedToken0Decimals;
-        @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
-     */
-    uint256 public immutable feedToken0Base;
-    uint256 public immutable feedToken1Base;
 
     /**
 	    @notice Maximum allowed duration for each oracle update, in seconds.
@@ -57,13 +52,19 @@ contract SOTOracle {
         token0Base = 10 ** IERC20Metadata(_token0).decimals();
         token1Base = 10 ** IERC20Metadata(_token1).decimals();
 
+        // TODO: Enforce sensible bound
         maxOracleUpdateDuration = _maxOracleUpdateDuration;
+
+        if (_feedToken0 == address(0)) {
+            revert SOTOracle__constructor_invalidFeedToken0();
+        }
+
+        if (_feedToken1 == address(0)) {
+            revert SOTOracle__constructor_invalidFeedToken1();
+        }
 
         feedToken0 = AggregatorV3Interface(_feedToken0);
         feedToken1 = AggregatorV3Interface(_feedToken1);
-
-        feedToken0Base = 10 ** feedToken0.decimals();
-        feedToken1Base = 10 ** feedToken1.decimals();
     }
 
     function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
@@ -73,8 +74,8 @@ contract SOTOracle {
         sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(
             oraclePrice0USD,
             oraclePrice1USD,
-            feedToken0Base,
-            feedToken1Base,
+            10 ** feedToken0.decimals(),
+            10 ** feedToken1.decimals(),
             token0Base,
             token1Base
         );
@@ -93,7 +94,6 @@ contract SOTOracle {
 
         // TODO: Add checks for L2 sequencer uptime
 
-        // TODO: Maybe unsafe uint256 conversion can be used
         oraclePriceUSD = oraclePriceUSDInt.toUint256();
     }
 
@@ -118,9 +118,11 @@ contract SOTOracle {
         // solhint-disable-next-line max-line-length
         // = sqrt(oraclePrice0USD * token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * token0Base * oracle0Base)) * 2 ** 48
 
-        return
-            (Math.sqrt(
-                ((oraclePrice0USD * oracle1Base * _token1Base) << 96) / (oraclePrice1USD * oracle0Base * _token0Base)
-            ) << 48).toUint160();
+        uint256 oraclePriceX96 = Math.mulDiv(
+            oraclePrice0USD * oracle1Base * _token1Base,
+            1 << 96,
+            oraclePrice1USD * oracle0Base * _token0Base
+        );
+        return (Math.sqrt(oraclePriceX96) << 48).toUint160();
     }
 }

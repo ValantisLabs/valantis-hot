@@ -69,6 +69,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     ) public returns (MockChainlinkOracle _feedToken0, MockChainlinkOracle _feedToken1) {
         _feedToken0 = new MockChainlinkOracle(feedToken0Decimals);
         _feedToken1 = new MockChainlinkOracle(feedToken1Decimals);
+
         return (_feedToken0, _feedToken1);
     }
 
