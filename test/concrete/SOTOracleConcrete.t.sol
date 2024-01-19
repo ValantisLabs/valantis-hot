@@ -143,7 +143,8 @@ contract SOTOracleConcrete is SOTBase {
     }
 
     function test_getSqrtOraclePriceX96_priceOutOfBounds() public {
-        feedToken0.updateAnswer(350256786836388094070642339899681172762);
+        // 1208903099295063476464878.59531099144682633284710852807764469
+        feedToken0.updateAnswer(350275971719517849889060729823552339968);
         feedToken1.updateAnswer(1e8);
 
         vm.expectRevert(SOTOracle.SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
