@@ -128,5 +128,15 @@ contract SOTOracleConcrete is SOTBase {
         // Check error if price is below minimum bound
         vm.expectRevert(SOTOracle.SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
         oracle.getSqrtOraclePriceX96();
+
+        // sqrt(MAX_SQRT_PRICE) = 1208903099295063476464878.59531099144682633284710852807764469
+        // floor(sqrt(MAX_SQRT_PRICE) = 1208903099295063476464878
+        // floor(sqrt(MAX_SQRT_PRICE)) * 2**48 = 340275971719517849889060729823552339968
+        feedToken0.updateAnswer(340275971719517849889060729823552339968e8);
+        feedToken1.updateAnswer(1e8);
+
+        // Check error if price is above minimum bound
+        vm.expectRevert(SOTOracle.SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
+        oracle.getSqrtOraclePriceX96();
     }
 }
