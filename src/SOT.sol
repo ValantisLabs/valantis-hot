@@ -384,13 +384,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
         onlyUnpaused
         nonReentrant
+        returns (uint256 amount0Deposited, uint256 amount1Deposited)
     {
-        ISovereignPool(pool).depositLiquidity(_amount0, _amount1, liquidityProvider, '', '');
+        (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
+            _amount0,
+            _amount1,
+            liquidityProvider,
+            '',
+            ''
+        );
     }
 
     function withdrawLiquidity(
         uint256 _amount0,
         uint256 _amount1,
+        address _recipient,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     )
@@ -399,7 +407,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
         nonReentrant
     {
-        ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, liquidityProvider, '');
+        ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
     }
 
     function getSwapFeeInBips(
@@ -621,6 +629,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
             }
             swapState.lastProcessedBlockQuoteCount = swapStateCache.lastProcessedBlockQuoteCount + 1;
+            swapState.alternatingNonceBitmap = swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce);
         }
     }
 }

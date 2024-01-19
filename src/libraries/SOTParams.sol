@@ -116,8 +116,6 @@ library SOTParams {
         if (sqrtSpotPriceNewX96 < sqrtPriceLowX96 || sqrtSpotPriceNewX96 > sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
-
-        // TODO: double check if expectedOraclePrice check is needed
     }
 
     function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
