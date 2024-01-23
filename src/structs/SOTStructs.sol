@@ -42,10 +42,10 @@ struct SwapState {
     uint16 lastProcessedFeeMin;
     uint16 lastProcessedFeeMax;
     uint16 solverFeeInBips;
-    uint32 lastProcessedBlockTimestamp;
+    uint32 lastStateUpdateTimestamp;
+    uint32 lastProcessedQuoteTimestamp;
     uint32 lastProcessedSignatureTimestamp;
     uint64 alternatingNonceBitmap;
-    // 12 free bits
 }
 
 struct SOTConstructorArgs {

@@ -574,11 +574,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         }
 
         // An SOT only updates state if:
-        // 1. It is the first SOT in the block.
+        // 1. It is the first SOT that updates state in the block.
         // 2. It was signed after the last processed signature timestamp.
-        bool isFirstQuoteInBlock = block.timestamp > swapStateCache.lastProcessedBlockTimestamp;
-        bool isDiscountedSolver = isFirstQuoteInBlock &&
+        bool isDiscountedSolver = block.timestamp > swapStateCache.lastStateUpdateTimestamp &&
             (swapStateCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
+
+        uint8 updatedBlockQuoteCount = block.timestamp > swapStateCache.lastProcessedQuoteTimestamp
+            ? 1
+            : swapStateCache.lastProcessedBlockQuoteCount + 1;
 
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
 
@@ -619,12 +622,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (isDiscountedSolver) {
             swapState = SwapState({
                 isPaused: swapStateCache.isPaused,
-                lastProcessedBlockQuoteCount: 1,
+                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
                 lastProcessedFeeGrowth: sot.feeGrowth,
                 lastProcessedFeeMin: sot.feeMin,
                 lastProcessedFeeMax: sot.feeMax,
                 solverFeeInBips: swapStateCache.solverFeeInBips,
-                lastProcessedBlockTimestamp: block.timestamp.toUint32(),
+                lastStateUpdateTimestamp: block.timestamp.toUint32(),
+                lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
                 lastProcessedSignatureTimestamp: sot.signatureTimestamp,
                 alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
@@ -637,12 +641,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
             swapState = SwapState({
                 isPaused: swapStateCache.isPaused,
-                lastProcessedBlockQuoteCount: isFirstQuoteInBlock ? 1 : swapStateCache.lastProcessedBlockQuoteCount + 1,
+                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
                 lastProcessedFeeGrowth: swapStateCache.lastProcessedFeeGrowth,
                 lastProcessedFeeMin: swapStateCache.lastProcessedFeeMin,
                 lastProcessedFeeMax: swapStateCache.lastProcessedFeeMax,
                 solverFeeInBips: swapStateCache.solverFeeInBips,
-                lastProcessedBlockTimestamp: block.timestamp.toUint32(),
+                lastStateUpdateTimestamp: swapStateCache.lastStateUpdateTimestamp,
+                lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
                 lastProcessedSignatureTimestamp: swapStateCache.lastProcessedSignatureTimestamp,
                 alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
