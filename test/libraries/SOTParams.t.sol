@@ -22,14 +22,19 @@ contract TestSOTParams is SOTBase {
     uint64 public alternatingNonceBitmap = 2; // 0b10
 
     function setUp() public override {
+        super.setUp();
+
         vm.warp(1e6);
         sotParamsHelper = new SOTParamsHelper();
     }
 
     function test_validateBasicParams() public {
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+
+        sotParams.expectedFlag = 1;
         // Correct Case
         sotParamsHelper.validateBasicParams({
-            sot: _getSensibleSOTParams(),
+            sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),

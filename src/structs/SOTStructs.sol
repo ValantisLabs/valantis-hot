@@ -50,6 +50,8 @@ struct SwapState {
 
 struct SOTConstructorArgs {
     address pool;
+    address manager;
+    address signer;
     address liquidityProvider;
     address feedToken0;
     address feedToken1;

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import 'forge-std/console.sol';
+
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
@@ -82,6 +84,12 @@ library SOTParams {
     ) internal view {
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
+
+        console.log('SwapParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
+        console.log('SwapParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);
+        console.log('SwapParams.validatePriceConsistency: sqrtPriceHighX96Cache = ', sqrtPriceHighX96);
+        console.log('SwapParams.validatePriceConsistency: sqrtSpotPriceNewX96 = ', sqrtSpotPriceNewX96);
+
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         uint256 solverAndSpotPriceNewAbsDiff = sqrtSolverPriceX96 > sqrtSpotPriceNewX96
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96

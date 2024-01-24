@@ -54,9 +54,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__onlyUnpaused();
     error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
+    error SOT__constructor_invalidManager();
     error SOT__constructor_invalidMaxAmmFeeGrowth();
     error SOT__constructor_invalidMinAmmFeeGrowth();
     error SOT__constructor_invalidOraclePriceMaxDiffBips();
+    error SOT__constructor_invalidSigner();
     error SOT__constructor_invalidSolverMaxDiscountBips();
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
@@ -238,6 +240,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         pool = _args.pool;
 
+        if (_args.manager == address(0)) {
+            revert SOT__constructor_invalidManager();
+        }
+
+        manager = _args.manager;
+
+        if (_args.signer == address(0)) {
+            revert SOT__constructor_invalidSigner();
+        }
+
+        signer = _args.signer;
+
         if (_args.liquidityProvider == address(0)) {
             revert SOT__constructor_invalidLiquidityProvider();
         }
@@ -387,15 +401,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         bytes calldata /*_verifierData*/
     ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
-            console.log('getLiquidtyQuote: AMM Swap');
+            console.log('getLiquidityQuote: AMM Swap');
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
-            console.log('getLiquidtyQuote: Solver Swap');
+            console.log('getLiquidityQuote: Solver Swap');
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
-        console.log('getLiquidtyQuote: sqrtSpotPriceNewX96 = ', ammState.getA());
+        console.log('getLiquidityQuote: sqrtSpotPriceNewX96 = ', ammState.getA());
     }
 
     function depositLiquidity(
@@ -612,6 +626,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
+        console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
+
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
         sot.validateBasicParams(
@@ -623,6 +639,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             maxDelay,
             swapStateCache.alternatingNonceBitmap
         );
+
+        console.log('_solverSwap: sqrtOraclePriceX96 = ', getSqrtOraclePriceX96());
 
         SOTParams.validatePriceConsistency(
             ammState,
