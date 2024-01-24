@@ -53,6 +53,9 @@ struct SOTConstructorArgs {
     address liquidityProvider;
     address feedToken0;
     address feedToken1;
+    uint160 sqrtSpotPriceX96;
+    uint160 sqrtPriceLowX96;
+    uint160 sqrtPriceHighX96;
     uint32 maxDelay;
     uint32 maxOracleUpdateDuration;
     uint16 solverMaxDiscountBips;

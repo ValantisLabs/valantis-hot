@@ -72,7 +72,7 @@ library SOTParams {
         if (sot.feeMin > sot.feeMax) revert SOTParams__validateFeeParams_invalidFeeMin();
     }
 
-    function validatePriceBounds(
+    function validatePriceConsistency(
         TightPack.PackedState storage ammState,
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
@@ -82,7 +82,6 @@ library SOTParams {
     ) internal view {
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
-
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         uint256 solverAndSpotPriceNewAbsDiff = sqrtSolverPriceX96 > sqrtSpotPriceNewX96
             ? sqrtSolverPriceX96 - sqrtSpotPriceNewX96
@@ -111,8 +110,16 @@ library SOTParams {
             revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
         }
 
-        // New AMM sqrt spot price cannot exceed lower nor upper AMM position's bounds
-        if (sqrtSpotPriceNewX96 < sqrtPriceLowX96 || sqrtSpotPriceNewX96 > sqrtPriceHighX96) {
+        validatePriceBounds(sqrtSpotPriceNewX96, sqrtPriceLowX96, sqrtPriceHighX96);
+    }
+
+    function validatePriceBounds(
+        uint160 sqrtSpotPriceX96,
+        uint160 sqrtPriceLowX96,
+        uint160 sqrtPriceHighX96
+    ) public pure {
+        // sqrt spot price cannot exceed lower nor upper AMM position's bounds
+        if (sqrtSpotPriceX96 < sqrtPriceLowX96 || sqrtSpotPriceX96 > sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
     }

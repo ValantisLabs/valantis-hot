@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import 'forge-std/console.sol';
+
 import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 
@@ -274,6 +276,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         }
 
         minAmmFee = _args.minAmmFee;
+
+        SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
+
+        ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
     }
 
     /************************************************
@@ -333,6 +339,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         swapState.isPaused = !swapState.isPaused;
     }
 
+    function initializeAMMPrice() external onlyManager {}
+
     /**
         @notice Sets the AMM position's square-root upper and lower prince bounds
         @param _sqrtPriceLowX96 New square-root lower price bound
@@ -342,8 +350,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
      */
     function setPriceBounds(
-        uint128 _sqrtPriceLowX96,
-        uint128 _sqrtPriceHighX96,
+        uint160 _sqrtPriceLowX96,
+        uint160 _sqrtPriceHighX96,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     )
@@ -361,7 +369,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 
-        ammState.setState(ammState.getA(), _sqrtPriceLowX96, _sqrtPriceHighX96);
+        uint160 sqrtSpotPriceX96Cache = ammState.getA();
+
+        // Check that new price bounds don't exclude current spot price
+        SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
+        ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     /************************************************
@@ -374,12 +387,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         bytes calldata /*_verifierData*/
     ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
+            console.log('getLiquidtyQuote: AMM Swap');
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
+            console.log('getLiquidtyQuote: Solver Swap');
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
+        console.log('getLiquidtyQuote: sqrtSpotPriceNewX96 = ', ammState.getA());
     }
 
     function depositLiquidity(
@@ -505,6 +521,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
 
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96Cache, sqrtRatioBX96Cache, reserve0);
+
         uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
 
         if (liquidity0 < liquidity1) {
@@ -526,6 +543,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
             .unpackState();
+
+        console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
+        console.log('_ammSwap: sqrtPriceLowX96Cache = ', sqrtPriceLowX96Cache);
+        console.log('_ammSwap: sqrtPriceHighX96Cache = ', sqrtPriceHighX96Cache);
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
@@ -603,7 +624,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             swapStateCache.alternatingNonceBitmap
         );
 
-        SOTParams.validatePriceBounds(
+        SOTParams.validatePriceConsistency(
             ammState,
             solverPriceX192.sqrt().toUint160(),
             sot.sqrtSpotPriceX96New,

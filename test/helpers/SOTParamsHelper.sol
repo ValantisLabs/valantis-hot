@@ -40,7 +40,7 @@ contract SOTParamsHelper {
         SOTParams.validateFeeParams(sot, feeMinBound, feeGrowthMinBound, feeGrowthMaxBound);
     }
 
-    function validatePriceBounds(
+    function validatePriceConsistency(
         TightPack.PackedState memory ammState,
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
@@ -49,7 +49,7 @@ contract SOTParamsHelper {
         uint256 solverMaxDiscountBips
     ) public {
         ammStateStorage = ammState;
-        SOTParams.validatePriceBounds(
+        SOTParams.validatePriceConsistency(
             ammStateStorage,
             sqrtSolverPriceX96,
             sqrtSpotPriceNewX96,
