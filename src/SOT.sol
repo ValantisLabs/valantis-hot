@@ -293,8 +293,44 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         @dev this is a temporary implementation of the function.
         // TODO: add correct reserves calculation.
      */
-    function getReservesAtPrice(uint160) external view returns (uint256 reserve0, uint256 reserve1) {
+    function getReservesAtPrice(uint160 sqrtPriceX96New) external view returns (uint256 reserve0, uint256 reserve1) {
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
+
+        (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
+            .unpackState();
+
+        // Calculate liquidity available to be utilized in this swap
+        uint128 effectiveLiquidity = _getEffectiveLiquidity(
+            sqrtPriceX96Cache,
+            sqrtPriceLowX96Cache,
+            sqrtPriceHighX96Cache
+        );
+
+        (uint256 activeAmount0, uint256 activeAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtPriceX96Cache,
+            sqrtPriceLowX96Cache,
+            sqrtPriceHighX96Cache,
+            effectiveLiquidity
+        );
+
+        console.log('getReservesAtPrice: activeAmount0 = ', activeAmount0);
+        console.log('getReservesAtPrice: activeAmount1 = ', activeAmount1);
+
+        uint256 passiveAmount0 = reserve0 - activeAmount0;
+        uint256 passiveAmount1 = reserve1 - activeAmount1;
+
+        (uint256 postSwapActiveAmount0, uint256 postSwapActiveAmount1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtPriceX96New,
+            sqrtPriceLowX96Cache,
+            sqrtPriceHighX96Cache,
+            effectiveLiquidity
+        );
+
+        console.log('getReservesAtPrice: postSwapActiveAmount0 = ', postSwapActiveAmount0);
+        console.log('getReservesAtPrice: postSwapActiveAmount1 = ', postSwapActiveAmount1);
+
+        reserve0 = passiveAmount0 + postSwapActiveAmount0;
+        reserve1 = passiveAmount1 + postSwapActiveAmount1;
     }
 
     function domainSeparatorV4() external view returns (bytes32) {
@@ -510,6 +546,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (feeInBips > uint32(swapStateCache.lastProcessedFeeMax)) {
             feeInBips = uint32(swapStateCache.lastProcessedFeeMax);
         }
+
+        console.log('_getAMMFee: feeInBips = ', feeInBips);
     }
 
     function _getEffectiveLiquidity(
