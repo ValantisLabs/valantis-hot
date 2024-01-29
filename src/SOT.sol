@@ -127,26 +127,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
      ***********************************************/
 
     /**
-		@notice Account that manages all access controls to this liquidity module.
-     */
-    address public manager;
-
-    /**
-	    @notice Address of account which is meant to validate SOT quote signatures.
-        @dev Can be updated by `manager`.
-     */
-    address public signer;
-
-    /**
-	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
-        @dev Can be updated by `manager`.
-	    @dev Since there can only be one SOT per block, this is also a maximum
-             allowed SOT quote volume per block.
-     */
-    uint256 public maxToken0VolumeToQuote;
-    uint256 public maxToken1VolumeToQuote;
-
-    /**
         @notice Tight packed storage slots for - 
             * sqrtSpotPriceX96 (a): AMM square-root spot price, in Q64.96 format.
             * sqrtPriceLowX96 (b): square-root lower price bound, in Q64.96 format.
@@ -168,35 +148,47 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
      */
     SwapState public swapState;
 
+    /**
+		@notice Account that manages all access controls to this liquidity module.
+     */
+    address public manager;
+
+    /**
+	    @notice Address of account which is meant to validate SOT quote signatures.
+        @dev Can be updated by `manager`.
+     */
+    address public signer;
+
+    /**
+	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
+        @dev Can be updated by `manager`.
+	    @dev Since there can only be one SOT per block, this is also a maximum
+             allowed SOT quote volume per block.
+     */
+    uint256 public maxToken0VolumeToQuote;
+    uint256 public maxToken1VolumeToQuote;
+
     /************************************************
      *  MODIFIERS
      ***********************************************/
 
     modifier onlyPool() {
-        if (msg.sender != pool) {
-            revert SOT__onlyPool();
-        }
+        _onlyPool();
         _;
     }
 
     modifier onlyManager() {
-        if (msg.sender != manager) {
-            revert SOT__onlyManager();
-        }
+        _onlyManager();
         _;
     }
 
     modifier onlyLiquidityProvider() {
-        if (msg.sender != liquidityProvider) {
-            revert SOT__onlyLiquidityProvider();
-        }
+        _onlyLiquidtyProvider();
         _;
     }
 
     modifier onlyUnpaused() {
-        if (swapState.isPaused) {
-            revert SOT__onlyUnpaused();
-        }
+        _onlyUnpaused();
         _;
     }
 
@@ -210,17 +202,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
      */
     modifier onlySpotPriceRange(uint160 _expectedSqrtSpotPriceUpperX96, uint160 _expectedSqrtSpotPriceLowerX96) {
-        if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
-            uint160 sqrtSpotPriceX96 = ammState.getA();
-
-            // Check that spot price has not been manipulated before updating price bounds
-            if (
-                sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
-            ) {
-                revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
-            }
-        }
-
+        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
         _;
     }
 
@@ -506,11 +488,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         }
     }
 
-    function onSwapCallback(
-        bool /*_isZeroToOne*/,
-        uint256 /*_amountIn*/,
-        uint256 /*_amountOut*/
-    ) external override onlyPool {
+    function onSwapCallback(bool /*_isZeroToOne*/, uint256 /*_amountIn*/, uint256 /*_amountOut*/) external override {
         // Liquidity Quote callback by Sovereign Pool ( not needed here)
     }
 
@@ -518,7 +496,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
-    function _getAMMFee() private view returns (uint32 feeInBips) {
+    function _getAMMFee() internal view returns (uint32 feeInBips) {
         // TODO: Test if all the calculations are in bips.
         // TODO: Add some min and max bounds to AMM fee.
         SwapState memory swapStateCache = swapState;
@@ -538,7 +516,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         uint160 sqrtRatioX96Cache,
         uint160 sqrtRatioAX96Cache,
         uint160 sqrtRatioBX96Cache
-    ) private view returns (uint128 effectiveLiquidity) {
+    ) internal view returns (uint128 effectiveLiquidity) {
         // Query current reserves
         // This already excludes poolManager and protocol fees
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
@@ -700,6 +678,50 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
                 lastProcessedSignatureTimestamp: swapStateCache.lastProcessedSignatureTimestamp,
                 alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
+        }
+    }
+
+    /************************************************
+     *  PRIVATE FUNCTIONS
+     ***********************************************/
+
+    function _onlySpotPriceRange(
+        uint160 _expectedSqrtSpotPriceUpperX96,
+        uint160 _expectedSqrtSpotPriceLowerX96
+    ) private view {
+        if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
+            uint160 sqrtSpotPriceX96 = ammState.getA();
+
+            // Check that spot price has not been manipulated before updating price bounds
+            if (
+                sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
+            ) {
+                revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+            }
+        }
+    }
+
+    function _onlyPool() private view {
+        if (msg.sender != pool) {
+            revert SOT__onlyPool();
+        }
+    }
+
+    function _onlyManager() private view {
+        if (msg.sender != manager) {
+            revert SOT__onlyManager();
+        }
+    }
+
+    function _onlyUnpaused() private view {
+        if (swapState.isPaused) {
+            revert SOT__onlyUnpaused();
+        }
+    }
+
+    function _onlyLiquidtyProvider() private view {
+        if (msg.sender != liquidityProvider) {
+            revert SOT__onlyLiquidityProvider();
         }
     }
 }
