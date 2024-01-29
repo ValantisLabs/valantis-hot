@@ -33,7 +33,13 @@ import { SOTOracle } from 'src/SOTOracle.sol';
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
-    // TODO: Remove unnecessary reentrancy guards if any
+    TODO: Remove unnecessary reentrancy guards if any
+    TODO: Add checks for state of Sovereign Pool like - 
+            * feeModule should be set to SOT
+            * no sovereign vault/ no verifier module/
+            * both tokens are as expected
+            * state of rebase tokens
+            * alm is set correctly
  */
 contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracle {
     using Math for uint256;
@@ -309,6 +315,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
     }
 
+    function domainSeparatorV4() external view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
     /************************************************
      *  SETTER FUNCTIONS
      ***********************************************/
@@ -348,15 +358,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
     /**
         @notice Toggles the pause flag which instantly pauses all critical functions except withdrawals
+        // TODO: Add boolean value, so that timelock can allow quick pausing, and slow unpausing
      */
     function togglePause() external onlyManager {
         swapState.isPaused = !swapState.isPaused;
     }
 
-    function initializeAMMPrice() external onlyManager {}
-
     /**
-        @notice Sets the AMM position's square-root upper and lower prince bounds
+        @notice Sets the AMM position's square-root upper and lower price bounds
         @param _sqrtPriceLowX96 New square-root lower price bound
         @param _sqrtPriceHighX96 New square-root upper price bound
         @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price when setting new bounds
@@ -652,6 +661,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         );
 
         // Verify SOT quote signature
+        // @audit: Verify that this is a safe way to check signatures
         bytes32 sotHash = sot.hashParams();
         if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();

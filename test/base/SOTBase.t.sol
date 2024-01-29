@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { console } from 'forge-std/console.sol';
+import 'forge-std/console.sol';
 
 import {
     SovereignPool,
@@ -15,6 +15,7 @@ import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 import { SOT } from 'src/SOT.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SOTConstructorArgs, SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
@@ -26,6 +27,9 @@ import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/m
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;
+
+    uint256 public EOASignerPrivateKey = 0x12345;
+    address public EOASigner = vm.addr(EOASignerPrivateKey);
 
     SOT public sot;
 
@@ -155,5 +159,24 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
 
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();
+    }
+
+    function getEOASignedQuote(
+        SolverOrderType memory sotParams,
+        uint256 privateKey
+    ) public view returns (bytes memory signedQuoteExternalContext) {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                sot.domainSeparatorV4(),
+                keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        bytes memory signature = abi.encodePacked(r, s, bytes1(v));
+
+        signedQuoteExternalContext = abi.encode(sotParams, signature);
     }
 }

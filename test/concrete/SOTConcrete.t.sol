@@ -52,9 +52,8 @@ contract SOTConcreteTest is SOTBase {
         pool.swap(params);
     }
 
-    function test_swap_solver() public {
-        // 3543191142285914205921978078449369088
-        // 3543191142285914096597660073984
+    function test_swap_solver_contractSigner() public {
+        // Test Swap with Contract Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
             externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
             verifierContext: bytes(''),
@@ -74,4 +73,76 @@ contract SOTConcreteTest is SOTBase {
         });
         pool.swap(params);
     }
+
+    function test_swap_solver_EOASigner() public {
+        sot.setSigner(EOASigner);
+
+        // Test Swap with EOA Signer
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        uint256 gasUsed = gasleft();
+        pool.swap(params);
+        gasUsed = gasUsed - gasleft();
+        console.log('gas: ', gasUsed);
+    }
 }
+
+/**
+    Test Cases:
+
+    ==> Solver Swap 
+        * All types of signatures, failure and edge cases
+        * Multiple quotes in the same block 
+            - Discounted/Non-Discounted
+            - Valid/Invalid
+            - Replay Protection
+            - Effects on liquidity
+        * AMM Spot Price Updates
+            - Frontrun attacks
+            - Solver swap combined with AMM swap
+            - Pool Liquidity should be calculated correctly after update
+        * Reentrancy Protection
+        * Interactions with Oracle
+            - High deviation should revert
+        * Valid/Invalid fee paths
+        * Effects on amm fee
+        * Calculation of Manager Fee
+        * Correct amountIn and out calculations
+        * Solver fee in BIPS is applied correctly
+
+    ==> AMM Swap
+        * Valid/Invalid fee paths
+        * AMM Math is as expected
+        * Liquidity is calculated correctly
+        * Set price bounds shifts liquidity correctly
+        * Fee growth is correct, pool is soft locked before solver swap
+        * No AMM swap is every able to change Swap State
+    
+    ==> General Ops
+        * Pause/Unpause works as expected
+        * Constructor sets all values correctly
+        * Get Reserves at Price function is correct
+        * All important functions are reentrancy protected
+        * Manager is able to withdraw fee from Sovereign Pool
+        * Critical Manager operations are timelocked
+    
+    ==> Gas
+        * Prepare setup for correct gas reports
+        * Solvers should do maximum 2 storage writes in SOT
+*/
