@@ -83,44 +83,44 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     /**
 	    @notice Sovereign Pool to which this Liquidity Module is bound.
     */
-    address public immutable pool;
+    address immutable pool;
 
     /**
 	    @notice Address of account which is meant to deposit & withdraw liquidity.
      */
-    address public immutable liquidityProvider;
+    address immutable liquidityProvider;
 
     /**
 	    @notice Maximum delay, in seconds, for acceptance of SOT quotes.
     */
-    uint32 public immutable maxDelay;
+    uint32 immutable maxDelay;
 
     /**
 	    @notice Maximum price discount allowed for SOT quotes,
                 expressed in basis-points.
     */
-    uint16 public immutable solverMaxDiscountBips;
+    uint16 immutable solverMaxDiscountBips;
 
     /**
 	    @notice Maximum allowed relative deviation
                 between spot price and oracle price,
                 expressed in basis-points.
      */
-    uint16 public immutable oraclePriceMaxDiffBips;
+    uint16 immutable oraclePriceMaxDiffBips;
 
     /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
 					as time increases between last processed quote.
         @dev SOT reverts if feeGrowth exceeds these bounds.
      */
-    uint16 public immutable minAmmFeeGrowth;
-    uint16 public immutable maxAmmFeeGrowth;
+    uint16 immutable minAmmFeeGrowth;
+    uint16 immutable maxAmmFeeGrowth;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
 	    @dev SOT reverts if feeMin is below this value.
      */
-    uint16 public immutable minAmmFee;
+    uint16 immutable minAmmFee;
 
     /************************************************
      *  STORAGE
