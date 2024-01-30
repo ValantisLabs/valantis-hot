@@ -28,7 +28,7 @@ contract SOTConcreteTest is SOTBase {
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
-        vm.prank(sot.manager());
+        vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
     }
 
