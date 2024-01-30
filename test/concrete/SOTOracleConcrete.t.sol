@@ -28,8 +28,6 @@ contract SOTOracleConcrete is SOTBase {
         assertEq(address(oracle.feedToken0()), address(feedToken0));
         assertEq(address(oracle.feedToken1()), address(feedToken1));
         assertEq(oracle.maxOracleUpdateDuration(), 10 minutes);
-        assertEq(oracle.token0Base(), 10 ** ERC20(pool.token0()).decimals());
-        assertEq(oracle.token1Base(), 10 ** ERC20(pool.token1()).decimals());
     }
 
     function test__getOraclePriceUSD() public {

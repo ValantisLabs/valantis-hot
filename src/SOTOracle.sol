@@ -25,8 +25,8 @@ contract SOTOracle {
           For example: token0Base = 10 ** token0Decimals;
         @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
      */
-    uint256 public immutable token0Base;
-    uint256 public immutable token1Base;
+    uint256 immutable token0Base;
+    uint256 immutable token1Base;
 
     /**
 	    @notice Maximum allowed duration for each oracle update, in seconds.

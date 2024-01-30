@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import 'forge-std/console.sol';
+// import 'forge-std/console.sol';
 
 import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
@@ -313,8 +313,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             effectiveLiquidity
         );
 
-        console.log('getReservesAtPrice: activeAmount0 = ', activeAmount0);
-        console.log('getReservesAtPrice: activeAmount1 = ', activeAmount1);
+        // console.log('getReservesAtPrice: activeAmount0 = ', activeAmount0);
+        // console.log('getReservesAtPrice: activeAmount1 = ', activeAmount1);
 
         uint256 passiveAmount0 = reserve0 - activeAmount0;
         uint256 passiveAmount1 = reserve1 - activeAmount1;
@@ -326,8 +326,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             effectiveLiquidity
         );
 
-        console.log('getReservesAtPrice: postSwapActiveAmount0 = ', postSwapActiveAmount0);
-        console.log('getReservesAtPrice: postSwapActiveAmount1 = ', postSwapActiveAmount1);
+        // console.log('getReservesAtPrice: postSwapActiveAmount0 = ', postSwapActiveAmount0);
+        // console.log('getReservesAtPrice: postSwapActiveAmount1 = ', postSwapActiveAmount1);
 
         reserve0 = passiveAmount0 + postSwapActiveAmount0;
         reserve1 = passiveAmount1 + postSwapActiveAmount1;
@@ -376,10 +376,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
     /**
         @notice Toggles the pause flag which instantly pauses all critical functions except withdrawals
-        // TODO: Add boolean value, so that timelock can allow quick pausing, and slow unpausing
      */
-    function togglePause() external onlyManager {
-        swapState.isPaused = !swapState.isPaused;
+    function togglePause(bool _value) external onlyManager {
+        swapState.isPaused = _value;
     }
 
     /**
@@ -428,15 +427,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         bytes calldata /*_verifierData*/
     ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
-            console.log('getLiquidityQuote: AMM Swap');
+            // console.log('getLiquidityQuote: AMM Swap');
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
-            console.log('getLiquidityQuote: Solver Swap');
+            // console.log('getLiquidityQuote: Solver Swap');
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
-        console.log('getLiquidityQuote: sqrtSpotPriceNewX96 = ', ammState.getA());
+        // console.log('getLiquidityQuote: sqrtSpotPriceNewX96 = ', ammState.getA());
     }
 
     function depositLiquidity(
@@ -547,7 +546,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             feeInBips = uint32(swapStateCache.lastProcessedFeeMax);
         }
 
-        console.log('_getAMMFee: feeInBips = ', feeInBips);
+        // console.log('_getAMMFee: feeInBips = ', feeInBips);
     }
 
     function _getEffectiveLiquidity(
@@ -583,9 +582,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
             .unpackState();
 
-        console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
-        console.log('_ammSwap: sqrtPriceLowX96Cache = ', sqrtPriceLowX96Cache);
-        console.log('_ammSwap: sqrtPriceHighX96Cache = ', sqrtPriceHighX96Cache);
+        // console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
+        // console.log('_ammSwap: sqrtPriceLowX96Cache = ', sqrtPriceLowX96Cache);
+        // console.log('_ammSwap: sqrtPriceHighX96Cache = ', sqrtPriceHighX96Cache);
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
@@ -651,7 +650,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
+        // console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 
@@ -665,7 +664,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             swapStateCache.alternatingNonceBitmap
         );
 
-        console.log('_solverSwap: sqrtOraclePriceX96 = ', getSqrtOraclePriceX96());
+        // console.log('_solverSwap: sqrtOraclePriceX96 = ', getSqrtOraclePriceX96());
 
         SOTParams.validatePriceConsistency(
             ammState,

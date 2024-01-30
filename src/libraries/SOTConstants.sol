@@ -5,7 +5,7 @@ library SOTConstants {
     /**
         @notice Maximum allowed solver fee, in basis-points.
       */
-    uint16 constant MAX_SOLVER_FEE_IN_BIPS = 100;
+    uint16 public constant MAX_SOLVER_FEE_IN_BIPS = 100;
 
     /**
         @notice Min and max sqrt price bounds.

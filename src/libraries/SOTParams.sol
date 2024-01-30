@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import 'forge-std/console.sol';
+// import 'forge-std/console.sol';
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
@@ -38,7 +38,7 @@ library SOTParams {
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint64 alternatingNonceBitmap
-    ) internal view {
+    ) public view {
         if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
@@ -61,7 +61,7 @@ library SOTParams {
         uint16 feeMinBound,
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
-    ) internal pure {
+    ) public pure {
         if (sot.feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
 
         if (sot.feeGrowth < feeGrowthMinBound || sot.feeGrowth > feeGrowthMaxBound) {
@@ -81,14 +81,14 @@ library SOTParams {
         uint160 sqrtOraclePriceX96,
         uint256 oraclePriceMaxDiffBips,
         uint256 solverMaxDiscountBips
-    ) internal view {
+    ) public view {
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
 
-        console.log('SOTParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
-        console.log('SOTParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);
-        console.log('SOTParams.validatePriceConsistency: sqrtPriceHighX96Cache = ', sqrtPriceHighX96);
-        console.log('SOTParams.validatePriceConsistency: sqrtSpotPriceNewX96 = ', sqrtSpotPriceNewX96);
+        // console.log('SOTParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
+        // console.log('SOTParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);
+        // console.log('SOTParams.validatePriceConsistency: sqrtPriceHighX96Cache = ', sqrtPriceHighX96);
+        // console.log('SOTParams.validatePriceConsistency: sqrtSpotPriceNewX96 = ', sqrtSpotPriceNewX96);
 
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         uint256 solverAndSpotPriceNewAbsDiff = sqrtSolverPriceX96 > sqrtSpotPriceNewX96
@@ -125,14 +125,14 @@ library SOTParams {
         uint160 sqrtSpotPriceX96,
         uint160 sqrtPriceLowX96,
         uint160 sqrtPriceHighX96
-    ) internal pure {
+    ) public pure {
         // sqrt spot price cannot exceed lower nor upper AMM position's bounds
         if (sqrtSpotPriceX96 < sqrtPriceLowX96 || sqrtSpotPriceX96 > sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
     }
 
-    function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
+    function hashParams(SolverOrderType memory sot) public pure returns (bytes32) {
         return keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sot));
     }
 }
