@@ -11,3 +11,6 @@ solc = "0.8.19"
 [fuzz]
 max_test_rejects = 2_147_483_648
 runs = 128
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
