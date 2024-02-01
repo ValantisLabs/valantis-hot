@@ -12,7 +12,9 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 import {
     SovereignPool,
     SovereignPoolBase,
-    SovereignPoolConstructorArgs
+    SovereignPoolConstructorArgs,
+    SovereignPoolSwapParams,
+    SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { MockToken } from 'test/helpers/MockToken.sol';
@@ -25,6 +27,8 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint('SEPOLIA_PRIVATE_KEY');
         vm.startBroadcast(deployerPrivateKey);
+
+        address signer = vm.envAddress('SEPOLIA_PUBLIC_KEY');
 
         MockToken token0 = new MockToken('Wrapped ETH', 'WETH', 18);
         MockToken token1 = new MockToken('USD Coin', 'USDC', 6);
@@ -70,10 +74,20 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
             minAmmFee: 1 // 0.01%
         });
 
-        // SOT sot = this.deploySOT(pool, sotArgs);
         SOT sot = new SOT(sotArgs);
 
+        pool.setALM(address(sot));
+        pool.setSwapFeeModule(address(sot));
+
         console.log('SOT deployed at: ', address(sot));
+
+        sot.setMaxTokenVolumes(100e18, 20_000e6);
+        token0.mint(address(liquidityProvider), 100e18);
+        token1.mint(address(liquidityProvider), 20_000e6);
+        token0.mint(address(signer), 10_000e18);
+        token1.mint(address(signer), 2_000_000e6);
+
+        liquidityProvider.setSOT(address(sot));
 
         vm.stopBroadcast();
     }

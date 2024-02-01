@@ -5,14 +5,13 @@ import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { SOT } from 'src/SOT.sol';
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
+import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
 
 contract SOTLiquidityProvider {
     using SafeERC20 for IERC20;
 
     address public owner;
     SOT public sot;
-    IERC20 public token0;
-    IERC20 public token1;
 
     constructor() {
         owner = msg.sender;
@@ -38,8 +37,11 @@ contract SOTLiquidityProvider {
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     ) public onlyOwner {
-        token0.safeApprove(_pool, _amount0);
-        token1.safeApprove(_pool, _amount1);
+        IERC20 token0 = IERC20(ISovereignPool(_pool).token0());
+        IERC20 token1 = IERC20(ISovereignPool(_pool).token1());
+
+        token0.approve(address(sot), _amount0);
+        token1.approve(address(sot), _amount1);
 
         sot.depositLiquidity(_amount0, _amount1, _expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
     }
