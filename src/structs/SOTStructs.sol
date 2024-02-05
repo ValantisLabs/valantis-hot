@@ -10,9 +10,12 @@ struct SolverOrderType {
     address authorizedRecipient;
     uint32 signatureTimestamp;
     uint32 expiry;
-    uint16 feeMin;
-    uint16 feeMax;
-    uint16 feeGrowth;
+    uint16 feeMinToken0;
+    uint16 feeMaxToken0;
+    uint16 feeGrowthToken0;
+    uint16 feeMinToken1;
+    uint16 feeMaxToken1;
+    uint16 feeGrowthToken1;
     uint8 nonce;
     uint8 expectedFlag;
 }
@@ -35,17 +38,26 @@ struct SolverOrderType {
             *lastProcessedFeeMax:
                 Maximum AMM fee according to the last Solver Order Type which has been successfully processed.
  */
-struct SwapState {
-    bool isPaused;
+// Slot Packed
+struct SolverWriteSlot {
     uint8 lastProcessedBlockQuoteCount;
-    uint16 lastProcessedFeeGrowth;
-    uint16 lastProcessedFeeMin;
-    uint16 lastProcessedFeeMax;
-    uint16 solverFeeInBips;
+    uint16 feeGrowthToken0;
+    uint16 feeMaxToken0;
+    uint16 feeMinToken0;
+    uint16 feeGrowthToken1;
+    uint16 feeMaxToken1;
+    uint16 feeMinToken1;
     uint32 lastStateUpdateTimestamp;
     uint32 lastProcessedQuoteTimestamp;
     uint32 lastProcessedSignatureTimestamp;
-    uint64 alternatingNonceBitmap;
+    uint56 alternatingNonceBitmap;
+}
+
+struct SolverReadSlot {
+    uint8 maxAllowedQuotes;
+    uint16 solverFeeBipsToken0;
+    uint16 solverFeeBipsToken1;
+    address signer;
 }
 
 struct SOTConstructorArgs {

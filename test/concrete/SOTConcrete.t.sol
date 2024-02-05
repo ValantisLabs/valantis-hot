@@ -32,7 +32,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
     }
 
-    function getPreSwapState() public {
+    function getPreSolverWriteSlot() public {
         (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
         (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
         // (uint160 sqrtPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();

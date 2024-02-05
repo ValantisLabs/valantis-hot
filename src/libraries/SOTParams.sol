@@ -11,7 +11,7 @@ import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 library SOTParams {
     using TightPack for TightPack.PackedState;
-    using AlternatingNonceBitmap for uint64;
+    using AlternatingNonceBitmap for uint56;
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
@@ -37,7 +37,7 @@ library SOTParams {
         uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
-        uint64 alternatingNonceBitmap
+        uint56 alternatingNonceBitmap
     ) public view {
         if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
@@ -62,16 +62,24 @@ library SOTParams {
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
     ) public pure {
-        if (sot.feeMin < feeMinBound) revert SOTParams__validateFeeParams_insufficientFee();
+        if (sot.feeMinToken0 < feeMinBound || sot.feeMinToken1 < feeMinBound)
+            revert SOTParams__validateFeeParams_insufficientFee();
 
-        if (sot.feeGrowth < feeGrowthMinBound || sot.feeGrowth > feeGrowthMaxBound) {
+        if (
+            sot.feeGrowthToken0 < feeGrowthMinBound ||
+            sot.feeGrowthToken1 < feeGrowthMinBound ||
+            sot.feeGrowthToken0 > feeGrowthMaxBound ||
+            sot.feeGrowthToken1 > feeGrowthMaxBound
+        ) {
             revert SOTParams__validateFeeParams_invalidFeeGrowth();
         }
 
         // feeMax should be strictly less than 100%
-        if (sot.feeMax >= SOTConstants.BIPS) revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (sot.feeMaxToken0 >= SOTConstants.BIPS || sot.feeMaxToken1 >= SOTConstants.BIPS)
+            revert SOTParams__validateFeeParams_invalidFeeMax();
 
-        if (sot.feeMin > sot.feeMax) revert SOTParams__validateFeeParams_invalidFeeMin();
+        if (sot.feeMinToken0 > sot.feeMaxToken0 || sot.feeMinToken1 > sot.feeMaxToken1)
+            revert SOTParams__validateFeeParams_invalidFeeMin();
     }
 
     function validatePriceConsistency(
@@ -83,7 +91,7 @@ library SOTParams {
         uint256 solverMaxDiscountBips
     ) public view {
         // Cache sqrt spot price, lower bound, and upper bound
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
+        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
 
         // console.log('SOTParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
         // console.log('SOTParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);

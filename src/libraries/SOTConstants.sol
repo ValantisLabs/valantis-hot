@@ -35,5 +35,5 @@ library SOTConstants {
      */
     uint256 public constant BIPS = 10_000;
 
-    uint256 public constant MAX_SOT_QUOTES_IN_BLOCK = 3;
+    uint256 public constant MAX_SOT_QUOTES_IN_BLOCK = 32;
 }

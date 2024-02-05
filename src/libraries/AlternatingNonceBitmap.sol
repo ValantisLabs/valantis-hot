@@ -10,16 +10,16 @@ library AlternatingNonceBitmap {
     error AlternatingNonceBitmap__checkNonce_expectedFlagInvalid();
     error AlternatingNonceBitmap__flipNonce_nonceOutOfBounds();
 
-    function checkNonce(uint64 bitmap, uint8 nonce, uint8 expectedFlag) internal pure returns (bool) {
-        if (nonce >= 64) revert AlternatingNonceBitmap__checkNonce_nonceOutOfBounds();
+    function checkNonce(uint56 bitmap, uint8 nonce, uint8 expectedFlag) internal pure returns (bool) {
+        if (nonce >= 56) revert AlternatingNonceBitmap__checkNonce_nonceOutOfBounds();
         if (expectedFlag > 1) revert AlternatingNonceBitmap__checkNonce_expectedFlagInvalid();
 
         return ((bitmap & (1 << nonce)) >> nonce) == expectedFlag;
     }
 
-    function flipNonce(uint64 bitmap, uint8 nonce) internal pure returns (uint64) {
-        if (nonce >= 64) revert AlternatingNonceBitmap__flipNonce_nonceOutOfBounds();
+    function flipNonce(uint56 bitmap, uint8 nonce) internal pure returns (uint56) {
+        if (nonce >= 56) revert AlternatingNonceBitmap__flipNonce_nonceOutOfBounds();
 
-        return (bitmap ^ (1 << nonce)).toUint64();
+        return (bitmap ^ (1 << nonce)).toUint56();
     }
 }

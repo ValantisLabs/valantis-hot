@@ -14,7 +14,6 @@ import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/uti
 import {
     SignatureChecker
 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
-import { ReentrancyGuard } from 'valantis-core/lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol';
 import {
     ISovereignALM,
     ALMLiquidityQuote,
@@ -27,7 +26,7 @@ import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SolverOrderType, SwapState, SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
+import { SolverOrderType, SolverWriteSlot, SolverReadSlot, SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
 /**
@@ -41,14 +40,14 @@ import { SOTOracle } from 'src/SOTOracle.sol';
             * state of rebase tokens
             * alm is set correctly
  */
-contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracle {
+contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
     using SOTParams for SolverOrderType;
     using SafeERC20 for IERC20;
     using TightPack for TightPack.PackedState;
-    using AlternatingNonceBitmap for uint64;
+    using AlternatingNonceBitmap for uint56;
 
     /************************************************
      *  CUSTOM ERRORS
@@ -58,6 +57,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__onlyManager();
     error SOT__onlyLiquidityProvider();
     error SOT__onlyUnpaused();
+    error SOT__reentrant();
     error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidManager();
@@ -72,6 +72,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+    error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
@@ -146,18 +147,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     /**
         @notice Contains state variables which get updated on swaps. 
      */
-    SwapState public swapState;
-
-    /**
-		@notice Account that manages all access controls to this liquidity module.
-     */
-    address public manager;
+    SolverWriteSlot public solverWriteSlot;
 
     /**
 	    @notice Address of account which is meant to validate SOT quote signatures.
         @dev Can be updated by `manager`.
      */
-    address public signer;
+    SolverReadSlot public solverReadSlot;
+
+    /**
+		@notice Account that manages all access controls to this liquidity module.
+     */
+    address public manager;
 
     /**
 	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
@@ -190,6 +191,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     modifier onlyUnpaused() {
         _onlyUnpaused();
         _;
+    }
+
+    modifier nonReentrant() {
+        uint32 flags = ammState.getFlags();
+        // 1st bit of flags: ReentrancyLock
+        if ((flags & 0xfffffffd) == 0x2) {
+            revert SOT__reentrant();
+        }
+        ammState.setFlags(flags | 0x2);
+        _;
+
+        ammState.setFlags(flags);
     }
 
     /**
@@ -238,7 +251,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             revert SOT__constructor_invalidSigner();
         }
 
-        signer = _args.signer;
+        solverReadSlot.signer = _args.signer;
 
         if (_args.liquidityProvider == address(0)) {
             revert SOT__constructor_invalidLiquidityProvider();
@@ -281,7 +294,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
-        ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
+        // TODO: Should LM initially be paused?
+        ammState.setState(0, _args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
     }
 
     /************************************************
@@ -296,7 +310,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     function getReservesAtPrice(uint160 sqrtPriceX96New) external view returns (uint256 reserve0, uint256 reserve1) {
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
-        (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
+        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
             .unpackState();
 
         // Calculate liquidity available to be utilized in this swap
@@ -352,7 +366,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         @notice Changes the signer of the pool ( To be protected by timelock )
      */
     function setSigner(address _signer) external onlyManager {
-        signer = _signer;
+        solverReadSlot.signer = _signer;
     }
 
     /**
@@ -366,19 +380,32 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     /**
         @notice Changes the standard fee charged on all solver swaps ( To be protected by timelock )
      */
-    function setSolverFeeInBips(uint16 _solverFeeInBips) external onlyManager {
-        if (_solverFeeInBips > SOTConstants.MAX_SOLVER_FEE_IN_BIPS) {
+    function setSolverFeeInBips(uint16 _solverFeeBipsToken0, uint16 _solverFeeBipsToken1) external onlyManager {
+        if (
+            _solverFeeBipsToken0 > SOTConstants.MAX_SOLVER_FEE_IN_BIPS ||
+            _solverFeeBipsToken1 > SOTConstants.MAX_SOLVER_FEE_IN_BIPS
+        ) {
             revert SOT__setSolverFeeInBips_invalidSolverFee();
         }
 
-        swapState.solverFeeInBips = _solverFeeInBips;
+        solverReadSlot.solverFeeBipsToken0 = _solverFeeBipsToken0;
+        solverReadSlot.solverFeeBipsToken1 = _solverFeeBipsToken1;
+    }
+
+    function setMaxAllowedQuotes(uint8 _maxAllowedQuotes) external onlyManager {
+        if (_maxAllowedQuotes > SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
+            revert SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
+        }
+        solverReadSlot.maxAllowedQuotes = _maxAllowedQuotes;
     }
 
     /**
         @notice Toggles the pause flag which instantly pauses all critical functions except withdrawals
      */
-    function togglePause(bool _value) external onlyManager {
-        swapState.isPaused = _value;
+    function setPause(bool _value) external onlyManager {
+        uint32 flags = ammState.getFlags();
+
+        ammState.setFlags((flags & 0xfffffffe) | (_value ? 1 : 0));
     }
 
     /**
@@ -414,7 +441,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         // Check that new price bounds don't exclude current spot price
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
-        ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+        // TODO: Optimize
+        ammState.setState(ammState.getFlags(), sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     /************************************************
@@ -476,7 +504,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     }
 
     function getSwapFeeInBips(
-        bool /**_isZeroToOne*/,
+        bool _isZeroToOne,
         uint256 /**_amountIn*/,
         address /**_user*/,
         bytes memory _swapFeeModuleContext
@@ -484,9 +512,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
             // Solver Branch is verified during the getLiquidityQuote call
-            swapFeeModuleData.feeInBips = swapState.solverFeeInBips;
+            swapFeeModuleData.feeInBips = _getSolverFeeInBips(_isZeroToOne);
         } else {
-            swapFeeModuleData.feeInBips = _getAMMFee();
+            swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
         }
     }
 
@@ -531,22 +559,30 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
-    function _getAMMFee() internal view returns (uint32 feeInBips) {
+    function _getSolverFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
+        feeInBips = isZeroToOne ? solverReadSlot.solverFeeBipsToken0 : solverReadSlot.solverFeeBipsToken1;
+    }
+
+    function _getAMMFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
         // TODO: Test if all the calculations are in bips.
         // TODO: Add some min and max bounds to AMM fee.
-        SwapState memory swapStateCache = swapState;
+        SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
+
+        uint16 feeMin = isZeroToOne ? solverWriteSlotCache.feeMinToken0 : solverWriteSlotCache.feeMinToken1;
+        uint16 feeMax = isZeroToOne ? solverWriteSlotCache.feeMaxToken0 : solverWriteSlotCache.feeMaxToken1;
+        uint16 feeGrowth = isZeroToOne ? solverWriteSlotCache.feeGrowthToken0 : solverWriteSlotCache.feeGrowthToken1;
 
         feeInBips =
-            uint32(swapStateCache.lastProcessedFeeGrowth) *
-            (block.timestamp - swapStateCache.lastProcessedSignatureTimestamp).toUint32();
+            uint32(feeGrowth) *
+            (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp).toUint32();
         // Add minimum fee
-        feeInBips += uint32(swapStateCache.lastProcessedFeeMin);
+        feeInBips += uint32(feeMin);
         // Cap fee if necessary
-        if (feeInBips > uint32(swapStateCache.lastProcessedFeeMax)) {
-            feeInBips = uint32(swapStateCache.lastProcessedFeeMax);
+        if (feeInBips > uint32(feeMax)) {
+            feeInBips = uint32(feeMax);
         }
 
-        // console.log('_getAMMFee: feeInBips = ', feeInBips);
+        // console.log('_getAMMFeeInBips: feeInBips = ', feeInBips);
     }
 
     function _getEffectiveLiquidity(
@@ -574,12 +610,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
         // Check that the fee path was chosen correctly
-        if (almLiquidityQuoteInput.feeInBips != _getAMMFee()) {
+        if (almLiquidityQuoteInput.feeInBips != _getAMMFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
         // Cache sqrt spot price, lower bound, and upper bound
-        (uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
+        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = ammState
             .unpackState();
 
         // console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
@@ -625,22 +661,22 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
-        SwapState memory swapStateCache = swapState;
+        SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
         // Check that the fee path was chosen correctly
-        if (almLiquidityQuoteInput.feeInBips != swapStateCache.solverFeeInBips) {
+        if (almLiquidityQuoteInput.feeInBips != _getSolverFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
         // An SOT only updates state if:
         // 1. It is the first SOT that updates state in the block.
         // 2. It was signed after the last processed signature timestamp.
-        bool isDiscountedSolver = block.timestamp > swapStateCache.lastStateUpdateTimestamp &&
-            (swapStateCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
+        bool isDiscountedSolver = block.timestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
+            (solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
 
-        uint8 updatedBlockQuoteCount = block.timestamp > swapStateCache.lastProcessedQuoteTimestamp
+        uint8 updatedBlockQuoteCount = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
             ? 1
-            : swapStateCache.lastProcessedBlockQuoteCount + 1;
+            : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
 
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
 
@@ -661,7 +697,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
             almLiquidityQuoteInput.amountInMinusFee,
             almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
             maxDelay,
-            swapStateCache.alternatingNonceBitmap
+            solverWriteSlotCache.alternatingNonceBitmap
         );
 
         // console.log('_solverSwap: sqrtOraclePriceX96 = ', getSqrtOraclePriceX96());
@@ -678,42 +714,44 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
         // Verify SOT quote signature
         // @audit: Verify that this is a safe way to check signatures
         bytes32 sotHash = sot.hashParams();
-        if (!signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
+        if (!solverReadSlot.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
         // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
-            swapState = SwapState({
-                isPaused: swapStateCache.isPaused,
+            solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                lastProcessedFeeGrowth: sot.feeGrowth,
-                lastProcessedFeeMin: sot.feeMin,
-                lastProcessedFeeMax: sot.feeMax,
-                solverFeeInBips: swapStateCache.solverFeeInBips,
+                feeGrowthToken0: sot.feeGrowthToken0,
+                feeMaxToken0: sot.feeMaxToken0,
+                feeMinToken0: sot.feeMinToken0,
+                feeGrowthToken1: sot.feeGrowthToken1,
+                feeMaxToken1: sot.feeMaxToken1,
+                feeMinToken1: sot.feeMinToken1,
                 lastStateUpdateTimestamp: block.timestamp.toUint32(),
                 lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
                 lastProcessedSignatureTimestamp: sot.signatureTimestamp,
-                alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
+                alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
 
             ammState.setA(sot.sqrtSpotPriceX96New);
         } else {
-            if (swapStateCache.lastProcessedBlockQuoteCount == SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
+            if (solverWriteSlotCache.lastProcessedBlockQuoteCount == SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
                 revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
             }
 
-            swapState = SwapState({
-                isPaused: swapStateCache.isPaused,
+            solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                lastProcessedFeeGrowth: swapStateCache.lastProcessedFeeGrowth,
-                lastProcessedFeeMin: swapStateCache.lastProcessedFeeMin,
-                lastProcessedFeeMax: swapStateCache.lastProcessedFeeMax,
-                solverFeeInBips: swapStateCache.solverFeeInBips,
-                lastStateUpdateTimestamp: swapStateCache.lastStateUpdateTimestamp,
+                feeGrowthToken0: solverWriteSlotCache.feeGrowthToken0,
+                feeMaxToken0: solverWriteSlotCache.feeMaxToken0,
+                feeMinToken0: solverWriteSlotCache.feeMinToken0,
+                feeGrowthToken1: solverWriteSlotCache.feeGrowthToken1,
+                feeMaxToken1: solverWriteSlotCache.feeMaxToken1,
+                feeMinToken1: solverWriteSlotCache.feeMinToken1,
+                lastStateUpdateTimestamp: solverWriteSlotCache.lastStateUpdateTimestamp,
                 lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
-                lastProcessedSignatureTimestamp: swapStateCache.lastProcessedSignatureTimestamp,
-                alternatingNonceBitmap: swapStateCache.alternatingNonceBitmap.flipNonce(sot.nonce)
+                lastProcessedSignatureTimestamp: solverWriteSlotCache.lastProcessedSignatureTimestamp,
+                alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
         }
     }
@@ -751,7 +789,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, ReentrancyGuard, SOTOracl
     }
 
     function _onlyUnpaused() private view {
-        if (swapState.isPaused) {
+        // 0th bit of flags: Pause
+        if (ammState.getFlags() & 0xfffffffe == 1) {
             revert SOT__onlyUnpaused();
         }
     }

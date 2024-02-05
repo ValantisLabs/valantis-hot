@@ -17,7 +17,7 @@ contract SOTParamsHelper {
         uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
-        uint64 alternatingNonceBitmap
+        uint56 alternatingNonceBitmap
     ) public view {
         SOTParams.validateBasicParams(
             sot,
