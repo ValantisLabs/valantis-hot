@@ -12,7 +12,9 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 import {
     SovereignPool,
     SovereignPoolBase,
-    SovereignPoolConstructorArgs
+    SovereignPoolConstructorArgs,
+    SovereignPoolSwapParams,
+    SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { MockToken } from 'test/helpers/MockToken.sol';
@@ -21,7 +23,7 @@ import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoo
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 
-contract SepoliaSOTSetupScript is Script {
+contract SepoliaSOTSwapScript is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint('SEPOLIA_PRIVATE_KEY');
         vm.startBroadcast(deployerPrivateKey);
@@ -44,6 +46,7 @@ contract SepoliaSOTSetupScript is Script {
         token0.approve(address(pool), type(uint256).max);
         token1.approve(address(pool), type(uint256).max);
 
+        // AMM Swap
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
             externalContext: bytes(''),
             verifierContext: bytes(''),
@@ -56,10 +59,11 @@ contract SepoliaSOTSetupScript is Script {
             amountIn: 1e18,
             amountOutMin: 0,
             recipient: address(this),
-            deadline: block.timestamp + 5,
+            deadline: block.timestamp + 10,
             swapTokenOut: address(token1),
             swapContext: data
         });
+
         pool.swap(params);
 
         vm.stopBroadcast();

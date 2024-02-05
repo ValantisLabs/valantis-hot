@@ -55,7 +55,23 @@ contract SOTConcreteTest is SOTBase {
             swapTokenOut: address(token1),
             swapContext: data
         });
+        uint256 preGas = gasleft();
+
         pool.swap(params);
+        uint256 postGas = gasleft();
+        console.log('gas: ', preGas - postGas);
+
+        preGas = gasleft();
+
+        pool.swap(params);
+
+        postGas = gasleft();
+        console.log('gas: ', preGas - postGas);
+        preGas = gasleft();
+
+        pool.swap(params);
+        postGas = gasleft();
+        console.log('gas: ', preGas - postGas);
     }
 
     function test_swap_solver_contractSigner() public {
@@ -79,6 +95,8 @@ contract SOTConcreteTest is SOTBase {
         });
 
         pool.swap(params);
+
+        // pool.swap(params);
     }
 
     function test_swap_solver_EOASigner() public {
