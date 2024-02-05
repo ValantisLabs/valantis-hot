@@ -19,7 +19,7 @@ contract TestSOTParams is SOTBase {
     // Default Contract Storage
     uint256 public tokenOutMaxBound = 1000e18;
     uint32 public maxDelay = 36; // 3 Blocks
-    uint64 public alternatingNonceBitmap = 2; // 0b10
+    uint56 public alternatingNonceBitmap = 2; // 0b10
 
     function setUp() public override {
         super.setUp();
@@ -172,13 +172,13 @@ contract TestSOTParams is SOTBase {
         sotParamsHelper.validateFeeParams(sotParams, 11, 1, 10);
 
         // 3. Invalid Fee Max
-        sotParams.feeMax = 1e4;
+        sotParams.feeMaxToken0 = 1e4;
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMax.selector);
         sotParamsHelper.validateFeeParams(sotParams, 1, 1, 10);
 
         // 4. Invalid Fee Min
-        sotParams.feeMax = 1e2;
-        sotParams.feeMin = 1e2 + 1;
+        sotParams.feeMaxToken0 = 1e2;
+        sotParams.feeMinToken0 = 1e2 + 1;
 
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMin.selector);
         sotParamsHelper.validateFeeParams(sotParams, 1, 1, 10);

@@ -138,9 +138,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             authorizedRecipient: makeAddr('RECIPIENT'),
             signatureTimestamp: (block.timestamp).toUint32(),
             expiry: 24, // 2 Blocks
-            feeMin: 10, // 0.1%
-            feeMax: 100, // 1%
-            feeGrowth: 5, // 5 Bips per second
+            feeMinToken0: 10, // 0.1%
+            feeMaxToken0: 100, // 1%
+            feeGrowthToken0: 5, // 5 bips per second
+            feeMinToken1: 10,
+            feeMaxToken1: 100,
+            feeGrowthToken1: 5,
             nonce: 1,
             expectedFlag: 0
         });

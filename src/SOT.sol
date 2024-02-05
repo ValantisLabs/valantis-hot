@@ -453,7 +453,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
         bytes calldata /*_verifierData*/
-    ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
+    ) external override onlyPool onlyUnpaused nonReentrant returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // console.log('getLiquidityQuote: AMM Swap');
             // AMM Swap
