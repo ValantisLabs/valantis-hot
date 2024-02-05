@@ -50,8 +50,8 @@ library TightPack {
 
         assembly {
             flags := shr(224, slot1)
-            a := shr(96, shl(96, slot1))
-            c := shr(96, shl(96, slot2))
+            a := shr(96, shl(96, slot1)) // TODO: Add mask here
+            c := shr(96, shl(96, slot2)) // TODO: Add mask here
             b := or(shl(96, shr(160, slot1)), shr(160, slot2))
         }
     }
@@ -66,7 +66,7 @@ library TightPack {
     function getA(PackedState storage state) internal view returns (uint160 a) {
         uint256 slot1 = state.slot1;
         assembly {
-            a := shr(96, shl(96, slot1))
+            a := shr(96, shl(96, slot1)) // TODO: Add mask here
         }
     }
 
@@ -88,8 +88,7 @@ library TightPack {
     function setFlags(PackedState storage state, uint32 flags) internal {
         uint256 slot1 = state.slot1;
         assembly {
-            // TODO: This is incorrect and temporary.
-            slot1 := or(shl(32, slot1), flags)
+            slot1 := or(shl(224, flags), shr(32, shl(32, slot1)))
         }
         state.slot1 = slot1;
     }
