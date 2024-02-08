@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-// import 'forge-std/console.sol';
+import 'forge-std/console.sol';
 
 import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
@@ -205,20 +205,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         ammState.setFlags(flags);
     }
 
-    /**
-        @notice Checks that the current AMM spot price is within the expected range.
-        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
-        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price.
-        @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
-             then no check is performed.
-        @dev this modifier is used to prevent price manipulation attacks against critical liquidity functions
-
-     */
-    modifier onlySpotPriceRange(uint160 _expectedSqrtSpotPriceUpperX96, uint160 _expectedSqrtSpotPriceLowerX96) {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
-        _;
-    }
-
     /************************************************
      *  CONSTRUCTOR
      ***********************************************/
@@ -301,6 +287,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /************************************************
      *  GETTER FUNCTIONS
      ***********************************************/
+
+    function getSqrtSpotPriceX96() external view returns (uint160) {
+        return ammState.getA();
+    }
 
     /**
         @notice Returns the AMM reserves assuming some AMM spot price
@@ -421,11 +411,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint160 _sqrtPriceHighX96,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
-    )
-        external
-        onlyLiquidityProvider
-        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
-    {
+    ) external onlyLiquidityProvider {
+        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
         // Check that lower bound is smaller than upper bound, and both are not 0
         if (_sqrtPriceLowX96 >= _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
             revert SOT__setPriceBounds_invalidPriceBounds();
@@ -474,11 +461,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     )
         external
         onlyLiquidityProvider
-        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
         onlyUnpaused
         nonReentrant
         returns (uint256 amount0Deposited, uint256 amount1Deposited)
     {
+        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
             _amount0,
             _amount1,
@@ -494,12 +481,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         address _recipient,
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
-    )
-        external
-        onlyLiquidityProvider
-        onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96)
-        nonReentrant
-    {
+    ) external onlyLiquidityProvider nonReentrant {
+        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
     }
 
@@ -512,8 +495,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
             // Solver Branch is verified during the getLiquidityQuote call
+            console.log('getSwapFeeInBips: Solver Branch');
             swapFeeModuleData.feeInBips = _getSolverFeeInBips(_isZeroToOne);
         } else {
+            console.log('getSwapFeeInBips: AMM Branch');
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
         }
     }
@@ -663,6 +648,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Execute SOT swap
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
+        console.log('_solverSwap: almLiquidityQuoteInput.feeInBips = ', almLiquidityQuoteInput.feeInBips);
+
         // Check that the fee path was chosen correctly
         if (almLiquidityQuoteInput.feeInBips != _getSolverFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
             revert SOT__getLiquidityQuote_invalidFeePath();
@@ -689,6 +676,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
+
+        // console.log('_solverSwap: alternatingNonceBitmap = ', solverWriteSlot.alternatingNonceBitmap);
 
         sot.validateBasicParams(
             liquidityQuote.amountOut,
@@ -759,6 +748,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /************************************************
      *  PRIVATE FUNCTIONS
      ***********************************************/
+    /**
+        @notice Checks that the current AMM spot price is within the expected range.
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price.
+        @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
+             then no check is performed.
+      */
 
     function _onlySpotPriceRange(
         uint160 _expectedSqrtSpotPriceUpperX96,

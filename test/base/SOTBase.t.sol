@@ -16,7 +16,7 @@ import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SOTConstructorArgs, SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
@@ -25,8 +25,19 @@ import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/uti
 
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
+
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;
+    using TightPack for TightPack.PackedState;
+
+    struct PoolState {
+        uint160 spotPrice;
+        uint256 reserve0;
+        uint256 reserve1;
+        uint256 managerFee0;
+        uint256 managerFee1;
+    }
 
     uint256 public EOASignerPrivateKey = 0x12345;
     address public EOASigner = vm.addr(EOASignerPrivateKey);
@@ -181,5 +192,61 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         signedQuoteExternalContext = abi.encode(sotParams, signature);
+    }
+
+    function getPoolState() public view returns (PoolState memory state) {
+        (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
+        (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
+        uint160 sqrtSpotPriceX96 = sot.getSqrtSpotPriceX96();
+
+        state = PoolState({
+            spotPrice: sqrtSpotPriceX96,
+            reserve0: poolReserve0,
+            reserve1: poolReserve1,
+            managerFee0: managerFee0,
+            managerFee1: managerFee1
+        });
+    }
+
+    function checkPoolState(PoolState memory actual, PoolState memory expected) public {
+        assertEq(actual.reserve0, expected.reserve0, 'checkPoolState: reserve0');
+        assertEq(actual.reserve1, expected.reserve1, 'checkPoolState: reserve1');
+        assertEq(actual.spotPrice, expected.spotPrice, 'checkPoolState: spotPrice');
+        assertEq(actual.managerFee0, expected.managerFee0, 'checkPoolState: managerFee0');
+        assertEq(actual.managerFee1, expected.managerFee1, 'checkPoolState: managerFee1');
+    }
+
+    function checkSolverWriteSlot(SolverWriteSlot memory actual, SolverWriteSlot memory expected) public {
+        assertEq(
+            actual.lastProcessedBlockQuoteCount,
+            expected.lastProcessedBlockQuoteCount,
+            'checkSolverWriteSlot: lastProcessedBlockQuoteCount'
+        );
+        assertEq(actual.feeGrowthToken0, expected.feeGrowthToken0, 'checkSolverWriteSlot: feeGrowthToken0');
+        assertEq(actual.feeMaxToken0, expected.feeMaxToken0, 'checkSolverWriteSlot: feeMaxToken0');
+        assertEq(actual.feeMinToken0, expected.feeMinToken0, 'checkSolverWriteSlot: feeMinToken0');
+        assertEq(actual.feeGrowthToken1, expected.feeGrowthToken1, 'checkSolverWriteSlot: feeGrowthToken1');
+        assertEq(actual.feeMaxToken1, expected.feeMaxToken1, 'checkSolverWriteSlot: feeMaxToken1');
+        assertEq(actual.feeMinToken1, expected.feeMinToken1, 'checkSolverWriteSlot: feeMinToken1');
+        assertEq(
+            actual.lastStateUpdateTimestamp,
+            expected.lastStateUpdateTimestamp,
+            'checkSolverWriteSlot: lastStateUpdateTimestamp'
+        );
+        assertEq(
+            actual.lastProcessedQuoteTimestamp,
+            expected.lastProcessedQuoteTimestamp,
+            'checkSolverWriteSlot: lastProcessedQuoteTimestamp'
+        );
+        assertEq(
+            actual.lastProcessedSignatureTimestamp,
+            expected.lastProcessedSignatureTimestamp,
+            'checkSolverWriteSlot: lastProcessedSignatureTimestamp'
+        );
+        assertEq(
+            actual.alternatingNonceBitmap,
+            expected.alternatingNonceBitmap,
+            'checkSolverWriteSlot: alternatingNonceBitmap'
+        );
     }
 }

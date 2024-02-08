@@ -3,6 +3,9 @@ pragma solidity 0.8.19;
 
 import { console } from 'forge-std/console.sol';
 
+import { SOT } from 'src/SOT.sol';
+import { SOTParams } from 'src/libraries/SOTParams.sol';
+
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 import {
@@ -13,7 +16,7 @@ import {
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
-import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot } from 'src/structs/SOTStructs.sol';
 
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
@@ -32,19 +35,10 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
     }
 
-    function getPreSolverWriteSlot() public {
-        (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
-        (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
-        // (uint160 sqrtPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
-    }
-
     function test_swap_amm() public {
-        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: bytes(''),
-            verifierContext: bytes(''),
-            swapCallbackContext: bytes(''),
-            swapFeeModuleContext: bytes('')
-        });
+        PoolState memory preState = getPoolState();
+
+        SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: true,
@@ -61,17 +55,12 @@ contract SOTConcreteTest is SOTBase {
         uint256 postGas = gasleft();
         console.log('gas: ', preGas - postGas);
 
-        preGas = gasleft();
+        PoolState memory postState = getPoolState();
 
-        pool.swap(params);
-
-        postGas = gasleft();
-        console.log('gas: ', preGas - postGas);
-        preGas = gasleft();
-
-        pool.swap(params);
-        postGas = gasleft();
-        console.log('gas: ', preGas - postGas);
+        assertEq(postState.reserve0, preState.reserve0 + 1e18, 'reserve0');
+        // TODO: Math to check if this is the correct value?
+        // TODO: Use check pool state here
+        // assertEq(postState.reserve1, preState.reserve1 - 1e18 * 2000, 'reserve1');
     }
 
     function test_swap_solver_contractSigner() public {
@@ -80,8 +69,10 @@ contract SOTConcreteTest is SOTBase {
             externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
-            swapFeeModuleContext: bytes('')
+            swapFeeModuleContext: bytes('1')
         });
+
+        PoolState memory preState = getPoolState();
 
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
@@ -95,8 +86,17 @@ contract SOTConcreteTest is SOTBase {
         });
 
         pool.swap(params);
+        PoolState memory postState = getPoolState();
 
-        // pool.swap(params);
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + 1e18,
+            reserve1: preState.reserve1 - 1e18 * 1980,
+            spotPrice: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            managerFee0: 0,
+            managerFee1: 0
+        });
+
+        checkPoolState(expectedState, postState);
     }
 
     function test_swap_solver_EOASigner() public {
@@ -107,7 +107,7 @@ contract SOTConcreteTest is SOTBase {
             externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
-            swapFeeModuleContext: bytes('')
+            swapFeeModuleContext: bytes('1')
         });
 
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -127,8 +127,115 @@ contract SOTConcreteTest is SOTBase {
         console.log('gas: ', gasUsed);
     }
 
-    function test_getReservesAtPrice(uint256 priceToken0USD) public {
-        priceToken0USD = bound(priceToken0USD, 1900, 2100);
+    function test_swap_solver_invalidSignature() public {
+        sot.setSigner(vm.addr(0x111));
+
+        // Test Swap with EOA Signer
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidSignature.selector);
+        pool.swap(params);
+    }
+
+    function test_swap_solver_replayProtection() public {
+        sot.setSigner(EOASigner);
+
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        pool.swap(params);
+
+        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
+
+        pool.swap(params);
+    }
+
+    function test_swap_solver_baseSolver() public {
+        sot.setSigner(EOASigner);
+
+        // Test Swap with EOA Signer
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        pool.swap(params);
+
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        sotParams.expectedFlag = 1;
+        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+            2010 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+
+        PoolState memory preState = getPoolState();
+
+        params.swapContext.externalContext = getEOASignedQuote(sotParams, EOASignerPrivateKey);
+
+        pool.swap(params);
+
+        PoolState memory postState = getPoolState();
+
+        // Check that the spot price did not get updated to the new value
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + 1e18,
+            reserve1: preState.reserve1 - 1e18 * 2000,
+            spotPrice: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            managerFee0: 0,
+            managerFee1: 0
+        });
+
+        checkPoolState(expectedState, postState);
+        // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
+    }
+
+    function test_getReservesAtPrice() public /** uint256 priceToken0USD */ {
+        // uint256 priceToken0USD = bound(priceToken0USD, 1900, 2100);
+        uint256 priceToken0USD = 1950;
 
         (uint256 reserve0Pre, uint256 reserve1Pre) = sot.getReservesAtPrice(
             getSqrtPriceX96(2000 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
@@ -137,19 +244,20 @@ contract SOTConcreteTest is SOTBase {
         assertEq(reserve0Pre, 5e18, 'reserve0Pre');
         assertEq(reserve1Pre, 10_000e18, 'reserve1Pre');
 
-        (uint256 reserve0, uint256 reserve1) = sot.getReservesAtPrice(
+        // Check reserves at priceToken0USD
+        (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
 
-        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: bytes(''),
-            verifierContext: bytes(''),
-            swapCallbackContext: bytes(''),
-            swapFeeModuleContext: bytes('')
-        });
+        console.log(
+            'spotPrice for reserves: ',
+            getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
+        );
+
+        SovereignPoolSwapContextData memory data;
 
         bool isZeroToOne = priceToken0USD < 2000;
-        uint256 amountIn = isZeroToOne ? reserve0 - reserve0Pre : reserve1 - reserve1Pre;
+        uint256 amountIn = isZeroToOne ? reserve0Expected - reserve0Pre : reserve1Expected - reserve1Pre;
 
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
@@ -165,9 +273,16 @@ contract SOTConcreteTest is SOTBase {
 
         (uint256 reserve0Post, uint256 reserve1Post) = pool.getReserves();
 
-        assertApproxEqAbs(reserve0Post, reserve0, 1, 'reserve0Post');
-        assertApproxEqAbs(reserve1Post, reserve1, 1, 'reserve1Post');
+        assertApproxEqAbs(reserve0Post, reserve0Expected, 1, 'reserve0Post');
+        assertApproxEqAbs(reserve1Post, reserve1Expected, 1, 'reserve1Post');
 
+        uint160 spotPrice = sot.getSqrtSpotPriceX96();
+
+        console.log('spotPrice: ', spotPrice);
+        console.log('reserve0Pre: ', reserve0Pre);
+        console.log('reserve1Pre: ', reserve1Pre);
+        console.log('reserve0Expected: ', reserve0Expected);
+        console.log('reserve1Expected: ', reserve1Expected);
         console.log('reserve0Post: ', reserve0Post);
         console.log('reserve1Post: ', reserve1Post);
     }
