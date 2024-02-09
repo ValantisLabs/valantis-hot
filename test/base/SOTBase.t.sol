@@ -82,7 +82,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxDelay: 9 minutes,
             maxOracleUpdateDuration: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
-            oraclePriceMaxDiffBips: 50, // 0.5%
+            oraclePriceMaxDiffBips: 5000, // 50%
             minAmmFeeGrowth: 1,
             maxAmmFeeGrowth: 100,
             minAmmFee: 1 // 0.01%

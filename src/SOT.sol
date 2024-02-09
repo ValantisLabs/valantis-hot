@@ -583,6 +583,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
 
+        console.log('_getEffectiveLiquidity');
+
         if (liquidity0 < liquidity1) {
             effectiveLiquidity = liquidity0;
         } else {
@@ -673,7 +675,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        // console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
+        console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
 
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
 

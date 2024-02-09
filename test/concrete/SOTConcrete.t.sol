@@ -63,6 +63,32 @@ contract SOTConcreteTest is SOTBase {
         // assertEq(postState.reserve1, preState.reserve1 - 1e18 * 2000, 'reserve1');
     }
 
+    function test_swap_amm_depleteLiquidityInOneToken() public {
+        SovereignPoolSwapContextData memory data;
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e28,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        // Deplete liquidity in one token
+        pool.swap(params);
+
+        console.log('sqrtPrice: ', sot.getSqrtSpotPriceX96());
+
+        params.amountIn = 1e18;
+        params.isZeroToOne = false;
+        params.swapTokenOut = address(token0);
+
+        // No further swaps can be processed
+        pool.swap(params);
+    }
+
     function test_swap_solver_contractSigner() public {
         // Test Swap with Contract Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
@@ -181,6 +207,66 @@ contract SOTConcreteTest is SOTBase {
         pool.swap(params);
     }
 
+    function test_singleSidedLiquidity() public {
+        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+
+        (uint256 amount0, uint256 amount1) = pool.getReserves();
+        assertEq(amount0 + amount1, 0, 'pool not empty');
+
+        // Depositing single sided liquidity
+        sot.depositLiquidity(5e18, 0, 0, 0);
+
+        (amount0, amount1) = pool.getReserves();
+
+        assertEq(amount0, 5e18, 'amount0');
+        assertEq(amount1, 0, 'amount1');
+
+        // lower range: 3068493539683605223466464182272 (1500)
+        // upper range: 4068493539683605223466464182272 ()
+
+        sot.setPriceBounds(3068493539683605223466464182272, 4068493539683605223466464182272, 0, 0);
+
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        sotParams.sqrtSpotPriceX96New = 3068493539683605223466464122272;
+        feedToken0.updateAnswer(1500e8);
+        sotParams.solverPriceX192Discounted = 1500 << 192;
+
+        // Set Spot price to priceLow with empty SOT
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: mockSigner.getSignedQuote(sotParams),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: false,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token0),
+            swapContext: data
+        });
+
+        pool.swap(params);
+
+        (amount0, amount1) = pool.getReserves();
+
+        console.log('spotPrice: ', sot.getSqrtSpotPriceX96());
+        console.log('reserve0: ', amount0);
+        console.log('reserve1: ', amount1);
+
+        data.swapFeeModuleContext = bytes('');
+        data.externalContext = bytes('');
+
+        pool.swap(params);
+
+        // 340282366920938463463374607431768211456
+        // 26409387504754779197847983445333333333333333333
+    }
+
     function test_swap_solver_baseSolver() public {
         sot.setSigner(EOASigner);
 
@@ -235,7 +321,9 @@ contract SOTConcreteTest is SOTBase {
 
     function test_getReservesAtPrice() public /** uint256 priceToken0USD */ {
         // uint256 priceToken0USD = bound(priceToken0USD, 1900, 2100);
-        uint256 priceToken0USD = 1950;
+        uint256 priceToken0USD = 2050;
+        // uint160 sqrtPriceX96 = 3498620926022713237135550346861;
+        // 3498620926022713023499608260608;
 
         (uint256 reserve0Pre, uint256 reserve1Pre) = sot.getReservesAtPrice(
             getSqrtPriceX96(2000 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
@@ -248,6 +336,8 @@ contract SOTConcreteTest is SOTBase {
         (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
+
+        // (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(sqrtPriceX96);
 
         console.log(
             'spotPrice for reserves: ',
@@ -294,9 +384,9 @@ contract SOTConcreteTest is SOTBase {
     ==> Solver Swap 
         * All types of signatures, failure and edge cases
         * Multiple quotes in the same block 
-            - Discounted/Non-Discounted
+            - Discounted/Non-Discounted [done]
             - Valid/Invalid
-            - Replay Protection
+            - Replay Protection [done]
             - Effects on liquidity
         * AMM Spot Price Updates
             - Frontrun attacks
@@ -305,19 +395,21 @@ contract SOTConcreteTest is SOTBase {
         * Reentrancy Protection
         * Interactions with Oracle
             - High deviation should revert
-        * Valid/Invalid fee paths
+        * Valid/Invalid fee paths [done]
         * Effects on amm fee
         * Calculation of Manager Fee
-        * Correct amountIn and out calculations
+        * Correct amountIn and out calculations [done]
         * Solver fee in BIPS is applied correctly
 
     ==> AMM Swap
-        * Valid/Invalid fee paths
+        * Effects on AMM when very large swaps drain pool in one token, spot price etc.
+        * Valid/Invalid fee paths [done]
         * AMM Math is as expected
         * Liquidity is calculated correctly
         * Set price bounds shifts liquidity correctly
         * Fee growth is correct, pool is soft locked before solver swap
-        * No AMM swap is every able to change Swap State
+        * No AMM swap is every able to change Solver Write Slot
+        * Single Sided Liquidity
     
     ==> General Ops
         * Pause/Unpause works as expected
