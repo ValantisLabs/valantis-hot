@@ -727,6 +727,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /************************************************
      *  PRIVATE FUNCTIONS
      ***********************************************/
+
     /**
         @notice Checks that the current AMM spot price is within the expected range.
         @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
@@ -734,7 +735,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
              then no check is performed.
       */
-
     function _onlySpotPriceRange(
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96

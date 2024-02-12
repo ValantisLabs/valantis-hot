@@ -18,6 +18,7 @@ contract SOTOracle {
     /************************************************
      *  CUSTOM ERRORS
      ***********************************************/
+
     error SOTOracle__constructor_invalidFeedToken0();
     error SOTOracle__constructor_invalidFeedToken1();
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
@@ -53,6 +54,7 @@ contract SOTOracle {
     /************************************************
      *  CONSTRUCTOR
      ***********************************************/
+
     constructor(
         address _token0,
         address _token1,

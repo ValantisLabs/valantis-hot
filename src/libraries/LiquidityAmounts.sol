@@ -18,7 +18,6 @@ import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
         - getLiquidityForAmount0
         - getLiquidityForAmount1
  */
-
 library LiquidityAmounts {
     /// @notice Downcasts uint256 to uint128
     /// @param x The uint258 to be downcasted
