@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-// import 'forge-std/console.sol';
-
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
@@ -26,7 +24,13 @@ import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { LiquidityAmounts } from 'src/libraries/LiquidityAmounts.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SolverOrderType, SolverWriteSlot, SolverReadSlot, SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
+import {
+    SolverOrderType,
+    SolverWriteSlot,
+    SolverReadSlot,
+    SOTConstructorArgs,
+    AMMState
+} from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
 /**
@@ -46,7 +50,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using SignatureChecker for address;
     using SOTParams for SolverOrderType;
     using SafeERC20 for IERC20;
-    using TightPack for TightPack.PackedState;
+    using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
 
     /************************************************
@@ -143,7 +147,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         @dev sqrtSpotPriceX96 can only be updated on AMM swaps or after processing a valid SOT quote.
      */
-    TightPack.PackedState private _ammState;
+    AMMState private _ammState;
 
     /**
         @notice Contains state variables which get updated on swaps. 
@@ -314,9 +318,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             effectiveLiquidity
         );
 
-        // console.log('getReservesAtPrice: activeAmount0 = ', activeAmount0);
-        // console.log('getReservesAtPrice: activeAmount1 = ', activeAmount1);
-
         uint256 passiveAmount0 = reserve0 - activeAmount0;
         uint256 passiveAmount1 = reserve1 - activeAmount1;
 
@@ -326,9 +327,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtPriceHighX96Cache,
             effectiveLiquidity
         );
-
-        // console.log('getReservesAtPrice: postSwapActiveAmount0 = ', postSwapActiveAmount0);
-        // console.log('getReservesAtPrice: postSwapActiveAmount1 = ', postSwapActiveAmount1);
 
         reserve0 = passiveAmount0 + postSwapActiveAmount0;
         reserve1 = passiveAmount1 + postSwapActiveAmount1;
@@ -436,15 +434,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bytes calldata /*_verifierData*/
     ) external override onlyPool onlyUnpaused nonReentrant returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
-            // console.log('getLiquidityQuote: AMM Swap');
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
-            // console.log('getLiquidityQuote: Solver Swap');
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
         }
-        // console.log('getLiquidityQuote: sqrtSpotPriceNewX96 = ', _ammState.getA());
     }
 
     function depositLiquidity(
@@ -460,6 +455,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         returns (uint256 amount0Deposited, uint256 amount1Deposited)
     {
         _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
             _amount0,
             _amount1,
@@ -477,6 +473,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint160 _expectedSqrtSpotPriceLowerX96
     ) external onlyLiquidityProvider nonReentrant {
         _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
     }
 
@@ -486,13 +483,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         address /**_user*/,
         bytes memory _swapFeeModuleContext
     ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
+        // Verification of branches is done during getLiquidityQuote
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
-            // Solver Branch is verified during the getLiquidityQuote call
-            // console.log('getSwapFeeInBips: Solver Branch');
             swapFeeModuleData.feeInBips = _getSolverFeeInBips(_isZeroToOne);
         } else {
-            // console.log('getSwapFeeInBips: AMM Branch');
+            // AMM Branch
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
         }
     }
@@ -563,8 +559,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (feeInBips > uint32(feeMax)) {
             feeInBips = uint32(feeMax);
         }
-
-        // console.log('_getAMMFeeInBips: feeInBips = ', feeInBips);
     }
 
     function _getEffectiveLiquidity(
@@ -579,8 +573,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96Cache, sqrtRatioBX96Cache, reserve0);
 
         uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
-
-        // console.log('_getEffectiveLiquidity');
 
         if (liquidity0 < liquidity1) {
             effectiveLiquidity = liquidity0;
@@ -601,10 +593,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Cache sqrt spot price, lower bound, and upper bound
         (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
-
-        // console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
-        // console.log('_ammSwap: sqrtPriceLowX96Cache = ', sqrtPriceLowX96Cache);
-        // console.log('_ammSwap: sqrtPriceHighX96Cache = ', sqrtPriceHighX96Cache);
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
@@ -647,8 +635,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Execute SOT swap
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
-        // console.log('_solverSwap: almLiquidityQuoteInput.feeInBips = ', almLiquidityQuoteInput.feeInBips);
-
         // Check that the fee path was chosen correctly
         if (almLiquidityQuoteInput.feeInBips != _getSolverFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
             revert SOT__getLiquidityQuote_invalidFeePath();
@@ -672,11 +658,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        // console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
-
         sot.validateFeeParams(minAmmFee, minAmmFeeGrowthInPips, maxAmmFeeGrowthInPips);
-
-        // console.log('_solverSwap: alternatingNonceBitmap = ', solverWriteSlot.alternatingNonceBitmap);
 
         sot.validateBasicParams(
             liquidityQuote.amountOut,
@@ -687,8 +669,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             maxDelay,
             solverWriteSlotCache.alternatingNonceBitmap
         );
-
-        // console.log('_solverSwap: sqrtOraclePriceX96 = ', getSqrtOraclePriceX96());
 
         SOTParams.validatePriceConsistency(
             _ammState,

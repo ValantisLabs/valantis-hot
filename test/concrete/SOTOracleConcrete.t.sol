@@ -7,7 +7,7 @@ import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-import { MockToken } from 'test/helpers/MockToken.sol';
+import { MockToken } from 'test/mocks/MockToken.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 

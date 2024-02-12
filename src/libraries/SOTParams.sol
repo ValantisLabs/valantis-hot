@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-// import 'forge-std/console.sol';
-
-import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
+/**
+    @notice Library for validating all parameters of a signed Solver Rrder Type (SOT) quote.
+ */
 library SOTParams {
-    using TightPack for TightPack.PackedState;
+    using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
+
+    /************************************************
+     *  CUSTOM ERRORS
+     ***********************************************/
 
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
@@ -29,6 +34,10 @@ library SOTParams {
     error SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
     error SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
 
+    /************************************************
+     *  FUNCTIONS
+     ***********************************************/
+
     function validateBasicParams(
         SolverOrderType memory sot,
         uint256 amountOut,
@@ -38,7 +47,7 @@ library SOTParams {
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint56 alternatingNonceBitmap
-    ) public view {
+    ) internal view {
         if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
@@ -61,7 +70,7 @@ library SOTParams {
         uint16 feeMinBound,
         uint16 feeGrowthInPipsMinBound,
         uint16 feeGrowthInPipsMaxBound
-    ) public pure {
+    ) internal pure {
         if (sot.feeMinToken0 < feeMinBound || sot.feeMinToken1 < feeMinBound)
             revert SOTParams__validateFeeParams_insufficientFee();
 
@@ -83,20 +92,15 @@ library SOTParams {
     }
 
     function validatePriceConsistency(
-        TightPack.PackedState storage ammState,
+        AMMState storage ammState,
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
         uint256 oraclePriceMaxDiffBips,
         uint256 solverMaxDiscountBips
-    ) public view {
+    ) internal view {
         // Cache sqrt spot price, lower bound, and upper bound
         (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
-
-        // console.log('SOTParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
-        // console.log('SOTParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);
-        // console.log('SOTParams.validatePriceConsistency: sqrtPriceHighX96Cache = ', sqrtPriceHighX96);
-        // console.log('SOTParams.validatePriceConsistency: sqrtSpotPriceNewX96 = ', sqrtSpotPriceNewX96);
 
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         uint256 solverAndSpotPriceNewAbsDiff = sqrtSolverPriceX96 > sqrtSpotPriceNewX96
@@ -133,14 +137,14 @@ library SOTParams {
         uint160 sqrtSpotPriceX96,
         uint160 sqrtPriceLowX96,
         uint160 sqrtPriceHighX96
-    ) public pure {
+    ) internal pure {
         // sqrt spot price cannot exceed lower nor upper AMM position's bounds
         if (sqrtSpotPriceX96 < sqrtPriceLowX96 || sqrtSpotPriceX96 > sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
     }
 
-    function hashParams(SolverOrderType memory sot) public pure returns (bytes32) {
+    function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
         return keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sot));
     }
 }

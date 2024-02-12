@@ -70,7 +70,7 @@ contract SOTConcreteTest is SOTBase {
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: true,
-            amountIn: 1e28,
+            amountIn: 1e28, // Swap large amount to deplete 1 token
             amountOutMin: 0,
             recipient: address(this),
             deadline: block.timestamp + 2,
@@ -95,16 +95,18 @@ contract SOTConcreteTest is SOTBase {
 
         (amountInUsed, amountOut) = pool.swap(params);
 
-        postState = getPoolState();
-
-        console.log('amountInUsed 2: ', amountInUsed);
-        console.log('amountOut 2: ', amountOut);
+        assertEq(amountInUsed, 0, 'amountInUsed Wrong Direction');
+        assertEq(amountOut, 0, 'amountOut Wrong Direction');
 
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
 
         // It should be possible to make another swap in the reverse direction
         pool.swap(params);
+
+        // TODO: Investigate why swap in the reverse direction is 0.
+        // assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
+        // assertNotEq(amountOut, 0, 'amountOut Right Direction');
     }
 
     function test_swap_solver_contractSigner() public {
@@ -386,7 +388,6 @@ contract SOTConcreteTest is SOTBase {
         assertApproxEqAbs(reserve0Post, reserve0Expected, 1, 'reserve0Post');
         assertApproxEqAbs(reserve1Post, reserve1Expected, 1, 'reserve1Post');
 
-        // console.log('spotPrice: ', spotPrice);
         console.log('reserve0Pre: ', reserve0Pre);
         console.log('reserve1Pre: ', reserve1Pre);
         console.log('reserve0Expected: ', reserve0Expected);

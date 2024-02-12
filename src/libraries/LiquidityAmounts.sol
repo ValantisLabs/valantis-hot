@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.5.0;
 
-import 'forge-std/console2.sol';
-
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
 
-// @TODO: Source UniV3
-/// Source: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol
+/**
+    @title Liquidity amount functions
+    @notice 
+    Source: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol
 
-/// @title Liquidity amount functions
-/// @notice Provides functions for computing liquidity amounts from token amounts and prices
+    @notice Provides functions for computing liquidity amounts from token amounts and prices
+
+    @dev The only difference between this implementation and the original is that it does not give an
+        error when liquidity is > uint128.max. Instead, it caps the liquidity to uint128.max.
+        The relevant changes can be found in the following functions - 
+        - capToUint128
+        - getLiquidityForAmount0
+        - getLiquidityForAmount1
+ */
+
 library LiquidityAmounts {
     /// @notice Downcasts uint256 to uint128
     /// @param x The uint258 to be downcasted
@@ -23,7 +31,8 @@ library LiquidityAmounts {
         }
     }
 
-    /// @notice Computes the amount of liquidity received for a given amount of token0 and price range
+    /// @notice Computes the amount of liquidity received for a given amount of token0 and price range.
+    ///     Caps the value to uint128.max if it exceeds it. ( also if sqrtRatioAX96 == sqrtRatioBX96)
     /// @dev Calculates amount0 * (sqrt(upper) * sqrt(lower)) / (sqrt(upper) - sqrt(lower))
     /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary
     /// @param sqrtRatioBX96 A sqrt price representing the second tick boundary
@@ -34,7 +43,7 @@ library LiquidityAmounts {
         uint160 sqrtRatioBX96,
         uint256 amount0
     ) internal pure returns (uint128 liquidity) {
-        console2.log('getLiquidityForAmount0');
+        // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;
 
@@ -46,6 +55,7 @@ library LiquidityAmounts {
     }
 
     /// @notice Computes the amount of liquidity received for a given amount of token1 and price range
+    ///     Caps the value to uint128.max if it exceeds it. ( also if sqrtRatioAX96 == sqrtRatioBX96)
     /// @dev Calculates amount1 / (sqrt(upper) - sqrt(lower)).
     /// @param sqrtRatioAX96 A sqrt price representing the first tick boundary
     /// @param sqrtRatioBX96 A sqrt price representing the second tick boundary
@@ -56,6 +66,7 @@ library LiquidityAmounts {
         uint160 sqrtRatioBX96,
         uint256 amount1
     ) internal pure returns (uint128 liquidity) {
+        // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
 
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;

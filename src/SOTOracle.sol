@@ -15,10 +15,17 @@ contract SOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
+    /************************************************
+     *  CUSTOM ERRORS
+     ***********************************************/
     error SOTOracle__constructor_invalidFeedToken0();
     error SOTOracle__constructor_invalidFeedToken1();
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___getOraclePriceUSD_stalePrice();
+
+    /************************************************
+     *  IMMUTABLES
+     ***********************************************/
 
     /**
 	    @notice Base unit for token{0,1}.
@@ -43,6 +50,9 @@ contract SOTOracle {
     AggregatorV3Interface public immutable feedToken0;
     AggregatorV3Interface public immutable feedToken1;
 
+    /************************************************
+     *  CONSTRUCTOR
+     ***********************************************/
     constructor(
         address _token0,
         address _token1,
@@ -70,6 +80,10 @@ contract SOTOracle {
         feedToken1 = AggregatorV3Interface(_feedToken1);
     }
 
+    /************************************************
+     *  PUBLIC FUNCTIONS
+     ***********************************************/
+
     function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
         uint256 oraclePrice0USD = _getOraclePriceUSD(feedToken0, maxOracleUpdateDurationFeed0);
         uint256 oraclePrice1USD = _getOraclePriceUSD(feedToken1, maxOracleUpdateDurationFeed1);
@@ -85,6 +99,10 @@ contract SOTOracle {
             revert SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
         }
     }
+
+    /************************************************
+     *  INTERNAL FUNCTIONS
+     ***********************************************/
 
     function _getOraclePriceUSD(
         AggregatorV3Interface feed,
@@ -107,6 +125,8 @@ contract SOTOracle {
         uint256 oracle0Base,
         uint256 oracle1Base
     ) internal view returns (uint160) {
+        // Source: https://github.com/timeless-fi/bunni-oracle/blob/main/src/BunniOracle.sol
+
         // We are given two price feeds: token0 / USD and token1 / USD.
         // In order to compare token0 and token1 amounts, we need to convert
         // them both into USD:

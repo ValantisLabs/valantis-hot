@@ -16,7 +16,7 @@ import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot } from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, AMMState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
@@ -29,7 +29,7 @@ import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;
-    using TightPack for TightPack.PackedState;
+    using TightPack for AMMState;
 
     struct PoolState {
         uint160 sqrtSpotPriceX96;
@@ -92,7 +92,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         });
 
         vm.startPrank(_pool.poolManager());
-        _sot = this.deploySOT(_pool, args);
+        _sot = this.deploySOT(args);
         _pool.setALM(address(_sot));
         _pool.setSwapFeeModule(address(_sot));
         vm.stopPrank();

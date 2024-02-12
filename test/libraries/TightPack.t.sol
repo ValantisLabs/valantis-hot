@@ -4,11 +4,12 @@ pragma solidity 0.8.19;
 import { Test } from 'forge-std/Test.sol';
 
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { AMMState } from 'src/structs/SOTStructs.sol';
 
 contract TestTightPack is Test {
-    using TightPack for TightPack.PackedState;
+    using TightPack for AMMState;
 
-    TightPack.PackedState state;
+    AMMState state;
 
     function testPackSlotsUint160(uint32 flags, uint160 a, uint160 b, uint160 c) public {
         state.setState(flags, a, b, c);

@@ -17,7 +17,7 @@ import {
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
-import { MockToken } from 'test/helpers/MockToken.sol';
+import { MockToken } from 'test/mocks/MockToken.sol';
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoolDeployer.sol';
 

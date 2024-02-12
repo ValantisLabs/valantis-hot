@@ -3,11 +3,11 @@ pragma solidity 0.8.19;
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 
-import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 contract SOTParamsHelper {
-    TightPack.PackedState ammStateStorage;
+    AMMState ammStateStorage;
 
     function validateBasicParams(
         SolverOrderType memory sot,
@@ -41,7 +41,7 @@ contract SOTParamsHelper {
     }
 
     function validatePriceConsistency(
-        TightPack.PackedState memory ammState,
+        AMMState memory ammState,
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
