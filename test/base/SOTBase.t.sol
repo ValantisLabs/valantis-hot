@@ -32,7 +32,9 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     using TightPack for TightPack.PackedState;
 
     struct PoolState {
-        uint160 spotPrice;
+        uint160 sqrtSpotPriceX96;
+        uint160 sqrtPriceLowX96;
+        uint160 sqrtPriceHighX96;
         uint256 reserve0;
         uint256 reserve1;
         uint256 managerFee0;
@@ -197,10 +199,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function getPoolState() public view returns (PoolState memory state) {
         (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
         (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
-        uint160 sqrtSpotPriceX96 = sot.getSqrtSpotPriceX96();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
 
         state = PoolState({
-            spotPrice: sqrtSpotPriceX96,
+            sqrtSpotPriceX96: sqrtSpotPriceX96,
+            sqrtPriceLowX96: sqrtPriceLowX96,
+            sqrtPriceHighX96: sqrtPriceHighX96,
             reserve0: poolReserve0,
             reserve1: poolReserve1,
             managerFee0: managerFee0,
@@ -211,7 +215,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function checkPoolState(PoolState memory actual, PoolState memory expected) public {
         assertEq(actual.reserve0, expected.reserve0, 'checkPoolState: reserve0');
         assertEq(actual.reserve1, expected.reserve1, 'checkPoolState: reserve1');
-        assertEq(actual.spotPrice, expected.spotPrice, 'checkPoolState: spotPrice');
+        assertEq(actual.sqrtSpotPriceX96, expected.sqrtSpotPriceX96, 'checkPoolState: spotPrice');
         assertEq(actual.managerFee0, expected.managerFee0, 'checkPoolState: managerFee0');
         assertEq(actual.managerFee1, expected.managerFee1, 'checkPoolState: managerFee1');
     }

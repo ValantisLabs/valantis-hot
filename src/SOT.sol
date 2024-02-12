@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 import 'forge-std/console.sol';
 
-import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
@@ -24,6 +23,7 @@ import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-mo
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { LiquidityAmounts } from 'src/libraries/LiquidityAmounts.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SolverOrderType, SolverWriteSlot, SolverReadSlot, SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
@@ -288,8 +288,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  GETTER FUNCTIONS
      ***********************************************/
 
-    function getSqrtSpotPriceX96() external view returns (uint160) {
-        return ammState.getA();
+    function getAmmState()
+        external
+        view
+        returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
+    {
+        (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = ammState.unpackState();
     }
 
     /**

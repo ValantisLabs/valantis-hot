@@ -63,6 +63,7 @@ contract SOTConcreteTest is SOTBase {
         // assertEq(postState.reserve1, preState.reserve1 - 1e18 * 2000, 'reserve1');
     }
 
+    // TODO: Check why 6 reserves of amount1 are left in the pool
     function test_swap_amm_depleteLiquidityInOneToken() public {
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -77,15 +78,31 @@ contract SOTConcreteTest is SOTBase {
         });
 
         // Deplete liquidity in one token
-        pool.swap(params);
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
-        console.log('sqrtPrice: ', sot.getSqrtSpotPriceX96());
+        PoolState memory postState = getPoolState();
+
+        console.log('amountInUsed 1: ', amountInUsed);
+        console.log('amountOut 1: ', amountOut);
+        console.log('reserve0: ', postState.reserve0);
+        console.log('reserve1: ', postState.reserve1);
+        console.log('sqrtSpotPriceX96: ', postState.sqrtSpotPriceX96);
+        console.log('sqrtPriceLowX96: ', postState.sqrtPriceLowX96);
+        console.log('sqrtPriceHighX96: ', postState.sqrtPriceHighX96);
 
         params.amountIn = 1e18;
+
+        (amountInUsed, amountOut) = pool.swap(params);
+
+        postState = getPoolState();
+
+        console.log('amountInUsed 2: ', amountInUsed);
+        console.log('amountOut 2: ', amountOut);
+
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
 
-        // No further swaps can be processed
+        // It should be possible to make another swap in the reverse direction
         pool.swap(params);
     }
 
@@ -117,7 +134,9 @@ contract SOTConcreteTest is SOTBase {
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
             reserve1: preState.reserve1 - 1e18 * 1980,
-            spotPrice: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
             managerFee0: 0,
             managerFee1: 0
         });
@@ -254,10 +273,6 @@ contract SOTConcreteTest is SOTBase {
 
         (amount0, amount1) = pool.getReserves();
 
-        console.log('spotPrice: ', sot.getSqrtSpotPriceX96());
-        console.log('reserve0: ', amount0);
-        console.log('reserve1: ', amount1);
-
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
 
@@ -310,7 +325,9 @@ contract SOTConcreteTest is SOTBase {
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
             reserve1: preState.reserve1 - 1e18 * 2000,
-            spotPrice: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
             managerFee0: 0,
             managerFee1: 0
         });
@@ -366,9 +383,7 @@ contract SOTConcreteTest is SOTBase {
         assertApproxEqAbs(reserve0Post, reserve0Expected, 1, 'reserve0Post');
         assertApproxEqAbs(reserve1Post, reserve1Expected, 1, 'reserve1Post');
 
-        uint160 spotPrice = sot.getSqrtSpotPriceX96();
-
-        console.log('spotPrice: ', spotPrice);
+        // console.log('spotPrice: ', spotPrice);
         console.log('reserve0Pre: ', reserve0Pre);
         console.log('reserve1Pre: ', reserve1Pre);
         console.log('reserve0Expected: ', reserve0Expected);
