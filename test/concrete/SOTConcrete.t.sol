@@ -102,11 +102,10 @@ contract SOTConcreteTest is SOTBase {
         params.swapTokenOut = address(token0);
 
         // It should be possible to make another swap in the reverse direction
-        pool.swap(params);
+        (amountInUsed, amountOut) = pool.swap(params);
 
-        // TODO: Investigate why swap in the reverse direction is 0.
-        // assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
-        // assertNotEq(amountOut, 0, 'amountOut Right Direction');
+        assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
+        assertNotEq(amountOut, 0, 'amountOut Right Direction');
     }
 
     function test_swap_solver_contractSigner() public {
@@ -284,7 +283,13 @@ contract SOTConcreteTest is SOTBase {
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
 
-        pool.swap(params);
+        params.amountIn = 1e18;
+        params.swapContext = data;
+
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+
+        assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
+        assertNotEq(amountOut, 0, 'amountOut Right Direction');
     }
 
     function test_swap_solver_baseSolver() public {

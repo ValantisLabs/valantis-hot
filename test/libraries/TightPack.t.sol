@@ -22,7 +22,6 @@ contract TestTightPack is Test {
         assertEq(c, c2, 'incorrect c value');
     }
 
-    // Write tests for getFlag and setFlag
     function testFlags(uint32 flags, uint160 a, uint160 b, uint160 c, uint8 rand) public {
         state.setState(flags, a, b, c);
 
