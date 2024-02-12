@@ -12,10 +12,10 @@ struct SolverOrderType {
     uint32 expiry;
     uint16 feeMinToken0;
     uint16 feeMaxToken0;
-    uint16 feeGrowthToken0;
+    uint16 feeGrowthInPipsToken0;
     uint16 feeMinToken1;
     uint16 feeMaxToken1;
-    uint16 feeGrowthToken1;
+    uint16 feeGrowthInPipsToken1;
     uint8 nonce;
     uint8 expectedFlag;
 }
@@ -41,10 +41,10 @@ struct SolverOrderType {
 // Slot Packed
 struct SolverWriteSlot {
     uint8 lastProcessedBlockQuoteCount;
-    uint16 feeGrowthToken0;
+    uint16 feeGrowthInPipsToken0;
     uint16 feeMaxToken0;
     uint16 feeMinToken0;
-    uint16 feeGrowthToken1;
+    uint16 feeGrowthInPipsToken1;
     uint16 feeMaxToken1;
     uint16 feeMinToken1;
     uint32 lastStateUpdateTimestamp;
@@ -75,7 +75,7 @@ struct SOTConstructorArgs {
     uint32 maxOracleUpdateDurationFeed1;
     uint16 solverMaxDiscountBips;
     uint16 oraclePriceMaxDiffBips;
-    uint16 minAmmFeeGrowth;
-    uint16 maxAmmFeeGrowth;
+    uint16 minAmmFeeGrowthInPips;
+    uint16 maxAmmFeeGrowthInPips;
     uint16 minAmmFee;
 }

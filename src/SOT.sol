@@ -61,8 +61,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidManager();
-    error SOT__constructor_invalidMaxAmmFeeGrowth();
-    error SOT__constructor_invalidMinAmmFeeGrowth();
     error SOT__constructor_invalidOraclePriceMaxDiffBips();
     error SOT__constructor_invalidSigner();
     error SOT__constructor_invalidSolverMaxDiscountBips();
@@ -112,10 +110,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
 					as time increases between last processed quote.
-        @dev SOT reverts if feeGrowth exceeds these bounds.
+        Min Value: 0 %
+        Max Value: 0.65535 % per second
+        @dev SOT reverts if feeGrowthInPips exceeds these bounds.
+
      */
-    uint16 public immutable minAmmFeeGrowth;
-    uint16 public immutable maxAmmFeeGrowth;
+    uint16 public immutable minAmmFeeGrowthInPips;
+    uint16 public immutable maxAmmFeeGrowthInPips;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
@@ -261,17 +262,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
 
-        if (_args.minAmmFeeGrowth > SOTConstants.BIPS) {
-            revert SOT__constructor_invalidMinAmmFeeGrowth();
-        }
+        minAmmFeeGrowthInPips = _args.minAmmFeeGrowthInPips;
 
-        minAmmFeeGrowth = _args.minAmmFeeGrowth;
-
-        if (_args.maxAmmFeeGrowth > SOTConstants.BIPS) {
-            revert SOT__constructor_invalidMaxAmmFeeGrowth();
-        }
-
-        maxAmmFeeGrowth = _args.maxAmmFeeGrowth;
+        maxAmmFeeGrowthInPips = _args.maxAmmFeeGrowthInPips;
 
         if (_args.minAmmFee > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMinAmmFee();
@@ -560,11 +553,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         uint16 feeMin = isZeroToOne ? solverWriteSlotCache.feeMinToken0 : solverWriteSlotCache.feeMinToken1;
         uint16 feeMax = isZeroToOne ? solverWriteSlotCache.feeMaxToken0 : solverWriteSlotCache.feeMaxToken1;
-        uint16 feeGrowth = isZeroToOne ? solverWriteSlotCache.feeGrowthToken0 : solverWriteSlotCache.feeGrowthToken1;
+        uint16 feeGrowthInPips = isZeroToOne
+            ? solverWriteSlotCache.feeGrowthInPipsToken0
+            : solverWriteSlotCache.feeGrowthInPipsToken1;
 
-        feeInBips =
-            uint32(feeGrowth) *
-            (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp).toUint32();
+        feeInBips = Math
+            .mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100)
+            .toUint32();
+
         // Add minimum fee
         feeInBips += uint32(feeMin);
         // Cap fee if necessary
@@ -682,7 +678,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // console.log('_solverSwap: liquidityQuote.amountOut = ', liquidityQuote.amountOut);
 
-        sot.validateFeeParams(minAmmFee, minAmmFeeGrowth, maxAmmFeeGrowth);
+        sot.validateFeeParams(minAmmFee, minAmmFeeGrowthInPips, maxAmmFeeGrowthInPips);
 
         // console.log('_solverSwap: alternatingNonceBitmap = ', solverWriteSlot.alternatingNonceBitmap);
 
@@ -718,10 +714,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (isDiscountedSolver) {
             solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                feeGrowthToken0: sot.feeGrowthToken0,
+                feeGrowthInPipsToken0: sot.feeGrowthInPipsToken0,
                 feeMaxToken0: sot.feeMaxToken0,
                 feeMinToken0: sot.feeMinToken0,
-                feeGrowthToken1: sot.feeGrowthToken1,
+                feeGrowthInPipsToken1: sot.feeGrowthInPipsToken1,
                 feeMaxToken1: sot.feeMaxToken1,
                 feeMinToken1: sot.feeMinToken1,
                 lastStateUpdateTimestamp: block.timestamp.toUint32(),
@@ -738,10 +734,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
             solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                feeGrowthToken0: solverWriteSlotCache.feeGrowthToken0,
+                feeGrowthInPipsToken0: solverWriteSlotCache.feeGrowthInPipsToken0,
                 feeMaxToken0: solverWriteSlotCache.feeMaxToken0,
                 feeMinToken0: solverWriteSlotCache.feeMinToken0,
-                feeGrowthToken1: solverWriteSlotCache.feeGrowthToken1,
+                feeGrowthInPipsToken1: solverWriteSlotCache.feeGrowthInPipsToken1,
                 feeMaxToken1: solverWriteSlotCache.feeMaxToken1,
                 feeMinToken1: solverWriteSlotCache.feeMinToken1,
                 lastStateUpdateTimestamp: solverWriteSlotCache.lastStateUpdateTimestamp,

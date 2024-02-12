@@ -86,8 +86,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 5000, // 50%
-            minAmmFeeGrowth: 1,
-            maxAmmFeeGrowth: 100,
+            minAmmFeeGrowthInPips: 100,
+            maxAmmFeeGrowthInPips: 10000,
             minAmmFee: 1 // 0.01%
         });
 
@@ -160,10 +160,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             expiry: 24, // 2 Blocks
             feeMinToken0: 10, // 0.1%
             feeMaxToken0: 100, // 1%
-            feeGrowthToken0: 5, // 5 bips per second
+            feeGrowthInPipsToken0: 500, // 5 bips per second
             feeMinToken1: 10,
             feeMaxToken1: 100,
-            feeGrowthToken1: 5,
+            feeGrowthInPipsToken1: 500,
             nonce: 1,
             expectedFlag: 0
         });
@@ -235,10 +235,18 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             expected.lastProcessedBlockQuoteCount,
             'checkSolverWriteSlot: lastProcessedBlockQuoteCount'
         );
-        assertEq(actual.feeGrowthToken0, expected.feeGrowthToken0, 'checkSolverWriteSlot: feeGrowthToken0');
+        assertEq(
+            actual.feeGrowthInPipsToken0,
+            expected.feeGrowthInPipsToken0,
+            'checkSolverWriteSlot: feeGrowthInPipsToken0'
+        );
         assertEq(actual.feeMaxToken0, expected.feeMaxToken0, 'checkSolverWriteSlot: feeMaxToken0');
         assertEq(actual.feeMinToken0, expected.feeMinToken0, 'checkSolverWriteSlot: feeMinToken0');
-        assertEq(actual.feeGrowthToken1, expected.feeGrowthToken1, 'checkSolverWriteSlot: feeGrowthToken1');
+        assertEq(
+            actual.feeGrowthInPipsToken1,
+            expected.feeGrowthInPipsToken1,
+            'checkSolverWriteSlot: feeGrowthInPipsToken1'
+        );
         assertEq(actual.feeMaxToken1, expected.feeMaxToken1, 'checkSolverWriteSlot: feeMaxToken1');
         assertEq(actual.feeMinToken1, expected.feeMinToken1, 'checkSolverWriteSlot: feeMinToken1');
         assertEq(

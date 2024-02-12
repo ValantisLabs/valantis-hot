@@ -21,7 +21,7 @@ library SOTParams {
     error SOTParams__validateBasicParams_unauthorizedSender();
     error SOTParams__validateBasicParams_unauthorizedRecipient();
     error SOTParams__validateFeeParams_insufficientFee();
-    error SOTParams__validateFeeParams_invalidFeeGrowth();
+    error SOTParams__validateFeeParams_invalidfeeGrowthInPips();
     error SOTParams__validateFeeParams_invalidFeeMax();
     error SOTParams__validateFeeParams_invalidFeeMin();
     error SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
@@ -59,19 +59,19 @@ library SOTParams {
     function validateFeeParams(
         SolverOrderType memory sot,
         uint16 feeMinBound,
-        uint16 feeGrowthMinBound,
-        uint16 feeGrowthMaxBound
+        uint16 feeGrowthInPipsMinBound,
+        uint16 feeGrowthInPipsMaxBound
     ) public pure {
         if (sot.feeMinToken0 < feeMinBound || sot.feeMinToken1 < feeMinBound)
             revert SOTParams__validateFeeParams_insufficientFee();
 
         if (
-            sot.feeGrowthToken0 < feeGrowthMinBound ||
-            sot.feeGrowthToken1 < feeGrowthMinBound ||
-            sot.feeGrowthToken0 > feeGrowthMaxBound ||
-            sot.feeGrowthToken1 > feeGrowthMaxBound
+            sot.feeGrowthInPipsToken0 < feeGrowthInPipsMinBound ||
+            sot.feeGrowthInPipsToken1 < feeGrowthInPipsMinBound ||
+            sot.feeGrowthInPipsToken0 > feeGrowthInPipsMaxBound ||
+            sot.feeGrowthInPipsToken1 > feeGrowthInPipsMaxBound
         ) {
-            revert SOTParams__validateFeeParams_invalidFeeGrowth();
+            revert SOTParams__validateFeeParams_invalidfeeGrowthInPips();
         }
 
         // feeMax should be strictly less than 100%

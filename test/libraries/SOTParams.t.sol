@@ -157,30 +157,30 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
         // Correct Case
-        sotParamsHelper.validateFeeParams(sotParams, 1, 1, 10);
+        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
 
         // // Incorrect Cases
         // 1. Fee Growth out of min & max bounds
-        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeGrowth.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 6, 10);
+        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
+        sotParamsHelper.validateFeeParams(sotParams, 1, 600, 1000);
 
-        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeGrowth.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 1, 4);
+        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
+        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 400);
 
         // 2. Insufficient Fee Min
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_insufficientFee.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 11, 1, 10);
+        sotParamsHelper.validateFeeParams(sotParams, 11, 100, 1000);
 
         // 3. Invalid Fee Max
         sotParams.feeMaxToken0 = 1e4;
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMax.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 1, 10);
+        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
 
         // 4. Invalid Fee Min
         sotParams.feeMaxToken0 = 1e2;
         sotParams.feeMinToken0 = 1e2 + 1;
 
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMin.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 1, 10);
+        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
     }
 }
