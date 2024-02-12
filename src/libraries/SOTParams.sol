@@ -91,7 +91,7 @@ library SOTParams {
         uint256 solverMaxDiscountBips
     ) public view {
         // Cache sqrt spot price, lower bound, and upper bound
-        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.unpackState();
+        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
 
         // console.log('SOTParams.validatePriceConsistency: sqrtPriceX96Cache = ', sqrtSpotPriceX96);
         // console.log('SOTParams.validatePriceConsistency: sqrtPriceLowX96Cache = ', sqrtPriceLowX96);

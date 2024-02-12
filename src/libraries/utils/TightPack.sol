@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 /**
     @notice Helper library for tight packing multiple uint160 values into minimum amount of uint256 slots.
  */
 library TightPack {
+    error TightPack__invalidIndex();
+
     struct PackedState {
         uint256 slot1;
         uint256 slot2;
@@ -16,11 +20,10 @@ library TightPack {
         @param a uint160 value to pack into slot1.
         @param b uint160 value to pack into slot1 and slot2.
         @param c uint160 value to pack into slot2.
-        @return state PackedState struct containing slot1 and slot2.
-        @dev slot1: << 16 bits of d | 16 bits of e | upper 64 bits of b | all 160 bits of a >>
+        @dev slot1: << 32 free bits | upper 64 bits of b | all 160 bits of a >>
              slot2: << lower 96 bits of b | all 160 bits of c >>
      */
-    function packState(uint32 flags, uint160 a, uint160 b, uint160 c) internal pure returns (PackedState memory state) {
+    function setState(PackedState storage state, uint32 flags, uint160 a, uint160 b, uint160 c) internal {
         uint256 slot1;
         uint256 slot2;
         assembly {
@@ -42,9 +45,7 @@ library TightPack {
         @dev slot1: << 32 empty bits | upper 64 bits of b | all 160 bits of a >>
              slot2: << lower 96 bits of b | all 160 bits of c >>
      */
-    function unpackState(
-        PackedState storage state
-    ) internal view returns (uint32 flags, uint160 a, uint160 b, uint160 c) {
+    function getState(PackedState storage state) internal view returns (uint32 flags, uint160 a, uint160 b, uint160 c) {
         uint256 slot1 = state.slot1;
         uint256 slot2 = state.slot2;
 
@@ -56,41 +57,11 @@ library TightPack {
         }
     }
 
-    function getFlags(PackedState storage state) internal view returns (uint32 flags) {
-        uint256 slot1 = state.slot1;
-        assembly {
-            flags := shr(224, slot1)
-        }
-    }
-
     function getA(PackedState storage state) internal view returns (uint160 a) {
         uint256 slot1 = state.slot1;
         assembly {
             a := shr(96, shl(96, slot1)) // TODO: Add mask here
         }
-    }
-
-    function getB(PackedState storage state) internal view returns (uint160 b) {
-        uint256 slot1 = state.slot1;
-        uint256 slot2 = state.slot2;
-        assembly {
-            b := or(shl(96, shr(160, slot1)), shr(160, slot2))
-        }
-    }
-
-    function getC(PackedState storage state) internal view returns (uint160 c) {
-        uint256 slot2 = state.slot2;
-        assembly {
-            c := shr(96, shl(96, slot2))
-        }
-    }
-
-    function setFlags(PackedState storage state, uint32 flags) internal {
-        uint256 slot1 = state.slot1;
-        assembly {
-            slot1 := or(shl(224, flags), shr(32, shl(32, slot1)))
-        }
-        state.slot1 = slot1;
     }
 
     function setA(PackedState storage state, uint160 a) internal {
@@ -101,24 +72,26 @@ library TightPack {
         state.slot1 = slot1;
     }
 
-    function setB(PackedState storage state, uint160 b) internal {
-        (uint32 flags, uint160 a, , uint160 c) = unpackState(state);
-        PackedState memory tempState = packState(flags, a, b, c);
-        state.slot1 = tempState.slot1;
-        state.slot2 = tempState.slot2;
+    function getFlag(PackedState storage state, uint8 index) internal view returns (bool value) {
+        if (index > 31) revert TightPack__invalidIndex();
+
+        uint256 val = (1 << (224 + index));
+
+        val &= state.slot1;
+        return val > 0;
     }
 
-    function setC(PackedState storage state, uint160 c) internal {
-        uint256 slot2 = state.slot2;
-        assembly {
-            slot2 := or(shl(160, shr(160, slot2)), c)
+    function setFlag(PackedState storage state, uint8 index, bool value) internal {
+        if (index > 31) revert TightPack__invalidIndex();
+
+        uint256 slot1 = state.slot1;
+        uint256 val = (1 << (224 + index));
+
+        if (value) {
+            slot1 |= val;
+        } else {
+            slot1 &= (~val);
         }
-        state.slot2 = slot2;
-    }
-
-    function setState(PackedState storage state, uint32 flags, uint160 a, uint160 b, uint160 c) internal {
-        PackedState memory tempState = packState(flags, a, b, c);
-        state.slot1 = tempState.slot1;
-        state.slot2 = tempState.slot2;
+        state.slot1 = slot1;
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 library SOTConstants {
+    // TODO: Make the constants library internal
     /**
         @notice Maximum allowed solver fee, in basis-points.
       */
@@ -36,4 +37,8 @@ library SOTConstants {
     uint256 public constant BIPS = 10_000;
 
     uint256 public constant MAX_SOT_QUOTES_IN_BLOCK = 32;
+
+    uint8 internal constant PAUSE_FLAG = 0;
+
+    uint8 internal constant REENTRANCY_FLAG = 1;
 }

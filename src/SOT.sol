@@ -195,15 +195,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     modifier nonReentrant() {
-        uint32 flags = _ammState.getFlags();
         // 1st bit of flags: ReentrancyLock
-        if ((flags & 0xfffffffd) == 0x2) {
+        if (_ammState.getFlag(SOTConstants.REENTRANCY_FLAG)) {
             revert SOT__reentrant();
         }
-        _ammState.setFlags(flags | 0x2);
+        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, true);
         _;
 
-        _ammState.setFlags(flags);
+        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, false);
     }
 
     /************************************************
@@ -287,7 +286,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         view
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
     {
-        (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.unpackState();
+        (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
     }
 
     /**
@@ -299,7 +298,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
         (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
-            .unpackState();
+            .getState();
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = _getEffectiveLiquidity(
@@ -391,9 +390,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @notice Toggles the pause flag which instantly pauses all critical functions except withdrawals
      */
     function setPause(bool _value) external onlyManager {
-        uint32 flags = _ammState.getFlags();
-
-        _ammState.setFlags((flags & 0xfffffffe) | (_value ? 1 : 0));
+        _ammState.setFlag(SOTConstants.PAUSE_FLAG, _value);
     }
 
     /**
@@ -412,7 +409,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external onlyLiquidityProvider {
         _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
         // Check that lower bound is smaller than upper bound, and both are not 0
-        if (_sqrtPriceLowX96 >= _sqrtPriceHighX96 || _sqrtPriceLowX96 == 0) {
+        if (_sqrtPriceLowX96 >= _sqrtPriceHighX96) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 
@@ -421,13 +418,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 
-        uint160 sqrtSpotPriceX96Cache = _ammState.getA();
+        (uint32 flags, uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
 
         // Check that new price bounds don't exclude current spot price
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
-        // TODO: Optimize
-        _ammState.setState(_ammState.getFlags(), sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+        _ammState.setState(flags, sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     /************************************************
@@ -604,7 +600,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Cache sqrt spot price, lower bound, and upper bound
         (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
-            .unpackState();
+            .getState();
 
         // console.log('_ammSwap: sqrtPriceX96Cache = ', sqrtPriceX96Cache);
         // console.log('_ammSwap: sqrtPriceLowX96Cache = ', sqrtPriceLowX96Cache);
@@ -789,7 +785,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     function _onlyUnpaused() private view {
         // 0th bit of flags: Pause
-        if (_ammState.getFlags() & 0xfffffffe == 1) {
+        if (_ammState.getFlag(SOTConstants.PAUSE_FLAG)) {
             revert SOT__onlyUnpaused();
         }
     }
