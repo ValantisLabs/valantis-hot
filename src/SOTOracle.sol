@@ -22,18 +22,19 @@ contract SOTOracle {
 
     /**
 	    @notice Base unit for token{0,1}.
-          For example: token0Base = 10 ** token0Decimals;
+          For example: _token0Base = 10 ** token0Decimals;
         @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
      */
-    uint256 immutable token0Base;
-    uint256 immutable token1Base;
+    uint256 private immutable _token0Base;
+    uint256 private immutable _token1Base;
 
     /**
 	    @notice Maximum allowed duration for each oracle update, in seconds.
         @dev Oracle prices are considered stale beyond this threshold,
              meaning that all swaps should revert.
      */
-    uint32 public immutable maxOracleUpdateDuration;
+    uint32 public immutable maxOracleUpdateDurationFeed0;
+    uint32 public immutable maxOracleUpdateDurationFeed1;
 
     /**
 	    @notice Price feeds for token{0,1}, denominated in USD.
@@ -47,13 +48,15 @@ contract SOTOracle {
         address _token1,
         address _feedToken0,
         address _feedToken1,
-        uint32 _maxOracleUpdateDuration
+        uint32 _maxOracleUpdateDurationFeed0,
+        uint32 _maxOracleUpdateDurationFeed1
     ) {
-        token0Base = 10 ** IERC20Metadata(_token0).decimals();
-        token1Base = 10 ** IERC20Metadata(_token1).decimals();
+        _token0Base = 10 ** IERC20Metadata(_token0).decimals();
+        _token1Base = 10 ** IERC20Metadata(_token1).decimals();
 
         // TODO: Enforce sensible bound
-        maxOracleUpdateDuration = _maxOracleUpdateDuration;
+        maxOracleUpdateDurationFeed0 = _maxOracleUpdateDurationFeed0;
+        maxOracleUpdateDurationFeed1 = _maxOracleUpdateDurationFeed1;
 
         if (_feedToken0 == address(0)) {
             revert SOTOracle__constructor_invalidFeedToken0();
@@ -68,16 +71,14 @@ contract SOTOracle {
     }
 
     function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
-        uint256 oraclePrice0USD = _getOraclePriceUSD(feedToken0);
-        uint256 oraclePrice1USD = _getOraclePriceUSD(feedToken1);
+        uint256 oraclePrice0USD = _getOraclePriceUSD(feedToken0, maxOracleUpdateDurationFeed0);
+        uint256 oraclePrice1USD = _getOraclePriceUSD(feedToken1, maxOracleUpdateDurationFeed1);
 
         sqrtOraclePriceX96 = _calculateSqrtOraclePriceX96(
             oraclePrice0USD,
             oraclePrice1USD,
             10 ** feedToken0.decimals(),
-            10 ** feedToken1.decimals(),
-            token0Base,
-            token1Base
+            10 ** feedToken1.decimals()
         );
 
         if (sqrtOraclePriceX96 < SOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTConstants.MAX_SQRT_PRICE) {
@@ -85,7 +86,10 @@ contract SOTOracle {
         }
     }
 
-    function _getOraclePriceUSD(AggregatorV3Interface feed) internal view returns (uint256 oraclePriceUSD) {
+    function _getOraclePriceUSD(
+        AggregatorV3Interface feed,
+        uint32 maxOracleUpdateDuration
+    ) internal view returns (uint256 oraclePriceUSD) {
         (, int256 oraclePriceUSDInt, , uint256 updatedAt, ) = feed.latestRoundData();
 
         if (block.timestamp - updatedAt > maxOracleUpdateDuration) {
@@ -101,22 +105,20 @@ contract SOTOracle {
         uint256 oraclePrice0USD,
         uint256 oraclePrice1USD,
         uint256 oracle0Base,
-        uint256 oracle1Base,
-        uint256 _token0Base,
-        uint256 _token1Base
-    ) internal pure returns (uint160) {
+        uint256 oracle1Base
+    ) internal view returns (uint160) {
         // We are given two price feeds: token0 / USD and token1 / USD.
         // In order to compare token0 and token1 amounts, we need to convert
         // them both into USD:
         //
-        // amount1USD = token1Base / (oraclePrice1USD / oracle1Base)
-        // amount0USD = token0Base / (oraclePrice0USD / oracle0Base)
+        // amount1USD = _token1Base / (oraclePrice1USD / oracle1Base)
+        // amount0USD = _token0Base / (oraclePrice0USD / oracle0Base)
         //
         // Following SOT and sqrt spot price definition:
         //
         // sqrtOraclePriceX96 = sqrt(amount1USD / amount0USD) * 2 ** 96
         // solhint-disable-next-line max-line-length
-        // = sqrt(oraclePrice0USD * token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * token0Base * oracle0Base)) * 2 ** 48
+        // = sqrt(oraclePrice0USD * _token1Base * oracle1Base) * 2 ** 96 / (oraclePrice1USD * _token0Base * oracle0Base)) * 2 ** 48
 
         uint256 oraclePriceX96 = Math.mulDiv(
             oraclePrice0USD * oracle1Base * _token1Base,

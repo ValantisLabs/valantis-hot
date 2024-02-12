@@ -66,7 +66,8 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
             sqrtPriceLowX96: getSqrtPriceX96(1500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceHighX96: getSqrtPriceX96(2500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             maxDelay: 20 minutes,
-            maxOracleUpdateDuration: 1 hours,
+            maxOracleUpdateDurationFeed0: 1 hours,
+            maxOracleUpdateDurationFeed1: 1 hours,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 50, // 0.5%
             minAmmFeeGrowth: 1,

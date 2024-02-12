@@ -82,7 +82,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             sqrtPriceLowX96: getSqrtPriceX96(1500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceHighX96: getSqrtPriceX96(2500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             maxDelay: 9 minutes,
-            maxOracleUpdateDuration: 10 minutes,
+            maxOracleUpdateDurationFeed0: 10 minutes,
+            maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 5000, // 50%
             minAmmFeeGrowth: 1,
@@ -111,29 +112,35 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function deploySOTOracleIndependently(
         MockChainlinkOracle _feedToken0,
         MockChainlinkOracle _feedToken1,
-        uint32 _maxOracleUpdateDuration
+        uint32 _maxOracleUpdateDurationFeed0,
+        uint32 _maxOracleUpdateDurationFeed1
     ) public returns (SOTOracle oracle) {
         oracle = new SOTOracle(
             address(pool.token0()),
             address(pool.token1()),
             address(_feedToken0),
             address(_feedToken1),
-            _maxOracleUpdateDuration
+            _maxOracleUpdateDurationFeed0,
+            _maxOracleUpdateDurationFeed1
         );
     }
 
     /// @dev This is only used for testing, during deployment SOTOracle is inherited by SOT
     function deploySOTOracleHelper(
+        address _token0,
+        address _token1,
         MockChainlinkOracle _feedToken0,
         MockChainlinkOracle _feedToken1,
-        uint32 _maxOracleUpdateDuration
+        uint32 _maxOracleUpdateDurationFeed0,
+        uint32 _maxOracleUpdateDurationFeed1
     ) public returns (SOTOracleHelper oracle) {
         oracle = new SOTOracleHelper(
-            address(pool.token0()),
-            address(pool.token1()),
+            _token0,
+            _token1,
             address(_feedToken0),
             address(_feedToken1),
-            _maxOracleUpdateDuration
+            _maxOracleUpdateDurationFeed0,
+            _maxOracleUpdateDurationFeed1
         );
     }
 

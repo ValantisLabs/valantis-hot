@@ -7,7 +7,7 @@ import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-
+import { MockToken } from 'test/helpers/MockToken.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
@@ -20,14 +20,20 @@ contract SOTOracleConcrete is SOTBase {
         super.setUp();
 
         (feedToken0, feedToken1) = deployChainlinkOracles(8, 8);
-        oracle = deploySOTOracleIndependently(feedToken0, feedToken1, ORACLE_FEED_UPDATE_PERIOD);
+        oracle = deploySOTOracleIndependently(
+            feedToken0,
+            feedToken1,
+            ORACLE_FEED_UPDATE_PERIOD,
+            ORACLE_FEED_UPDATE_PERIOD
+        );
     }
 
     function test_constructor() public {
         // Check correct initialization
         assertEq(address(oracle.feedToken0()), address(feedToken0));
         assertEq(address(oracle.feedToken1()), address(feedToken1));
-        assertEq(oracle.maxOracleUpdateDuration(), 10 minutes);
+        assertEq(oracle.maxOracleUpdateDurationFeed0(), 10 minutes);
+        assertEq(oracle.maxOracleUpdateDurationFeed1(), 10 minutes);
     }
 
     function test__getOraclePriceUSD() public {
@@ -36,10 +42,17 @@ contract SOTOracleConcrete is SOTBase {
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(50e8);
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(feedToken0, feedToken1, ORACLE_FEED_UPDATE_PERIOD);
+        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+            address(token0),
+            address(token1),
+            feedToken0,
+            feedToken1,
+            ORACLE_FEED_UPDATE_PERIOD,
+            ORACLE_FEED_UPDATE_PERIOD
+        );
 
-        uint256 price0 = oracleHelper.getOraclePriceUSD(feedToken0);
-        uint256 price1 = oracleHelper.getOraclePriceUSD(feedToken1);
+        uint256 price0 = oracleHelper.getOraclePriceUSD(feedToken0, ORACLE_FEED_UPDATE_PERIOD);
+        uint256 price1 = oracleHelper.getOraclePriceUSD(feedToken1, ORACLE_FEED_UPDATE_PERIOD);
 
         assertEq(price0, 2000e8);
         assertEq(price1, 50e8);
@@ -85,12 +98,19 @@ contract SOTOracleConcrete is SOTBase {
         // Decimals of feed0 = 18
         // Decimals of feed1 = 6
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(feedToken0, feedToken1, ORACLE_FEED_UPDATE_PERIOD);
+        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+            address(token0),
+            address(token1),
+            feedToken0,
+            feedToken1,
+            ORACLE_FEED_UPDATE_PERIOD,
+            ORACLE_FEED_UPDATE_PERIOD
+        );
 
         // Wolfram Alpha Result
         // floor(sqrt( 5000 * 2 ** 96 )) * 2**48
         uint256 expectedResult = 5602277097478613917437299523584;
-        uint256 actualResult = oracleHelper.calculateSqrtOraclePriceX96(5000e18, 1e6, 1e18, 1e6, 1e18, 1e18);
+        uint256 actualResult = oracleHelper.calculateSqrtOraclePriceX96(5000e18, 1e6, 1e18, 1e6);
         assertEq(actualResult, expectedResult);
     }
 
@@ -100,11 +120,21 @@ contract SOTOracleConcrete is SOTBase {
         // Decimals of feed0 = 18
         // Decimals of feed1 = 18
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(feedToken0, feedToken1, ORACLE_FEED_UPDATE_PERIOD);
+        MockToken _token0 = new MockToken('Token0', '', 8);
+        MockToken _token1 = new MockToken('Token1', '', 18);
+
+        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+            address(_token0),
+            address(_token1),
+            feedToken0,
+            feedToken1,
+            ORACLE_FEED_UPDATE_PERIOD,
+            ORACLE_FEED_UPDATE_PERIOD
+        );
         // Wolfram Alpha Result
         // floor(sqrt( 5000 * 1e10 * 2 ** 96)) * 2**48
         uint256 expectedResult = 560227709747861399187054236494987264;
-        uint256 actualResult = oracleHelper.calculateSqrtOraclePriceX96(5000e18, 1e18, 1e18, 1e18, 1e8, 1e18);
+        uint256 actualResult = oracleHelper.calculateSqrtOraclePriceX96(5000e18, 1e18, 1e18, 1e18);
         assertEq(actualResult, expectedResult);
     }
 

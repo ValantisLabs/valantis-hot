@@ -184,7 +184,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     modifier onlyLiquidityProvider() {
-        _onlyLiquidtyProvider();
+        _onlyLiquidityProvider();
         _;
     }
 
@@ -218,7 +218,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             ISovereignPool(_args.pool).token1(),
             _args.feedToken0,
             _args.feedToken1,
-            _args.maxOracleUpdateDuration
+            _args.maxOracleUpdateDurationFeed0,
+            _args.maxOracleUpdateDurationFeed1
         )
     {
         if (_args.pool == address(0)) {
@@ -797,7 +798,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    function _onlyLiquidtyProvider() private view {
+    function _onlyLiquidityProvider() private view {
         if (msg.sender != liquidityProvider) {
             revert SOT__onlyLiquidityProvider();
         }
