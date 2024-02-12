@@ -49,6 +49,7 @@ contract SOTConcreteTest is SOTBase {
             swapTokenOut: address(token1),
             swapContext: data
         });
+
         uint256 preGas = gasleft();
 
         pool.swap(params);
@@ -240,13 +241,12 @@ contract SOTConcreteTest is SOTBase {
         assertEq(amount0, 5e18, 'amount0');
         assertEq(amount1, 0, 'amount1');
 
-        // lower range: 3068493539683605223466464182272 (1500)
-        // upper range: 4068493539683605223466464182272 ()
-
-        sot.setPriceBounds(3068493539683605223466464182272, 4068493539683605223466464182272, 0, 0);
-
         SolverOrderType memory sotParams = _getSensibleSOTParams();
-        sotParams.sqrtSpotPriceX96New = 3068493539683605223466464122272;
+
+        (, uint160 sqrtSpotPriceLowX96, ) = sot.getAmmState();
+        sotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96;
+
+        // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
         sotParams.solverPriceX192Discounted = 1500 << 192;
 
@@ -258,10 +258,11 @@ contract SOTConcreteTest is SOTBase {
             swapFeeModuleContext: bytes('1')
         });
 
+        // AmountIn is set to 1, so that SovereignPool doesn't revert
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: false,
-            amountIn: 1e18,
+            amountIn: 1,
             amountOutMin: 0,
             recipient: makeAddr('RECIPIENT'),
             deadline: block.timestamp + 2,
@@ -269,17 +270,19 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
+        // Perform SOT swap to update the spot price
         pool.swap(params);
 
         (amount0, amount1) = pool.getReserves();
+
+        // Assert that amount1 reserves are empty
+        assertEq(amount0, 5e18, 'amount0');
+        assertEq(amount1, 0, 'amount1');
 
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
 
         pool.swap(params);
-
-        // 340282366920938463463374607431768211456
-        // 26409387504754779197847983445333333333333333333
     }
 
     function test_swap_solver_baseSolver() public {
@@ -405,7 +408,7 @@ contract SOTConcreteTest is SOTBase {
             - Effects on liquidity
         * AMM Spot Price Updates
             - Frontrun attacks
-            - Solver swap combined with AMM swap
+            - Solver swap combined with AMM swap [done]
             - Pool Liquidity should be calculated correctly after update
         * Reentrancy Protection
         * Interactions with Oracle
@@ -417,14 +420,14 @@ contract SOTConcreteTest is SOTBase {
         * Solver fee in BIPS is applied correctly
 
     ==> AMM Swap
-        * Effects on AMM when very large swaps drain pool in one token, spot price etc.
+        * Effects on AMM when very large swaps drain pool in one token, spot price etc. [done]
         * Valid/Invalid fee paths [done]
         * AMM Math is as expected
         * Liquidity is calculated correctly
         * Set price bounds shifts liquidity correctly
         * Fee growth is correct, pool is soft locked before solver swap
         * No AMM swap is every able to change Solver Write Slot
-        * Single Sided Liquidity
+        * Single Sided Liquidity [done]
     
     ==> General Ops
         * Pause/Unpause works as expected
@@ -437,4 +440,8 @@ contract SOTConcreteTest is SOTBase {
     ==> Gas
         * Prepare setup for correct gas reports
         * Solvers should do maximum 2 storage writes in SOT
+
+    ==> Imp
+        * Fuzz at edges of liquidity to make sure there are no path independence issues
+        * Write tests for LiquidityAmounts library especially at edges
 */

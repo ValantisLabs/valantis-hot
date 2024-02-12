@@ -216,6 +216,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         assertEq(actual.reserve0, expected.reserve0, 'checkPoolState: reserve0');
         assertEq(actual.reserve1, expected.reserve1, 'checkPoolState: reserve1');
         assertEq(actual.sqrtSpotPriceX96, expected.sqrtSpotPriceX96, 'checkPoolState: spotPrice');
+        assertEq(actual.sqrtPriceLowX96, expected.sqrtPriceLowX96, 'checkPoolState: priceLow');
+        assertEq(actual.sqrtPriceHighX96, expected.sqrtPriceHighX96, 'checkPoolState: priceHigh');
         assertEq(actual.managerFee0, expected.managerFee0, 'checkPoolState: managerFee0');
         assertEq(actual.managerFee1, expected.managerFee1, 'checkPoolState: managerFee1');
     }
