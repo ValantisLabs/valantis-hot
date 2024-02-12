@@ -25,7 +25,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: process.env.MAINNET_URL!,
+        url: process.env.MAINNET_RPC_URL!,
       },
     },
   },
