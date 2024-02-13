@@ -149,9 +149,13 @@ contract SOTConcreteTest is SOTBase {
     function test_swap_solver_EOASigner() public {
         sot.setSigner(EOASigner);
 
-        // Test Swap with EOA Signer
+        bytes memory quote = getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey);
+
+        // Test Swap with EOA Signer ( but corrupted data )
+        // NOTE: if abi.encodePacked is used here instead of abi.encode, the test will fail
+        // @audit: verify if these kind of quote manipulations are safe in the SOT.
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            externalContext: abi.encode(quote, bytes('random')),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -168,10 +172,20 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        uint256 gasUsed = gasleft();
+        // Revert because the data is corrupted
+        vm.expectRevert();
         pool.swap(params);
+
+        // Data fixed, swap should work now.
+        data.externalContext = quote;
+        uint256 gasUsed = gasleft();
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
         gasUsed = gasUsed - gasleft();
         console.log('gas: ', gasUsed);
+
+        // TODO: replace these with exact math tests
+        assertNotEq(amountInUsed, 0, 'amountInUsed 0');
+        assertNotEq(amountOut, 0, 'amountOut 0');
     }
 
     function test_swap_solver_invalidSignature() public {
@@ -353,7 +367,52 @@ contract SOTConcreteTest is SOTBase {
         });
 
         checkPoolState(expectedState, postState);
+        // TODO: Check solverWriteSlot everywhere
         // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
+    }
+
+    function test_depositLiquidity() public {
+        // Deposit liquidity
+        sot.depositLiquidity(1, 1, 0, 0);
+
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        assertEq(reserve0, 5e18 + 1, 'reserve0');
+        assertEq(reserve1, 10_000e18 + 1, 'reserve1');
+
+        // Deposit with any other address except liquidity provider.
+        vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
+        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+        sot.depositLiquidity(1, 1, 0, 0);
+        vm.stopPrank();
+
+        // Burn all tokens
+        token0.transfer(address(1), token0.balanceOf(address(this)));
+        token1.transfer(address(1), token1.balanceOf(address(this)));
+
+        vm.expectRevert('ERC20: transfer amount exceeds balance');
+        sot.depositLiquidity(1, 1, 0, 0);
+    }
+
+    function test_withdrawLiquidity() public {
+        // Withdraw with any other address except liquidity provider.
+        vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
+        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+        sot.withdrawLiquidity(1, 1, address(this), 0, 0);
+        vm.stopPrank();
+
+        // Withdraw liquidity to liquidity provider address
+        sot.withdrawLiquidity(5e18, 10_000e18, makeAddr('RECEIVER'), 0, 0);
+
+        assertEq(token0.balanceOf(makeAddr('RECEIVER')), 5e18, 'balance0');
+        assertEq(token1.balanceOf(makeAddr('RECEIVER')), 10_000e18, 'balance0');
+
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        assertEq(reserve0, 0, 'reserve0');
+        assertEq(reserve1, 0, 'reserve1');
+
+        // Withdraw liquidity again
+        vm.expectRevert(SovereignPool.SovereignPool__withdrawLiquidity_insufficientReserve0.selector);
+        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
     }
 
     function test_getReservesAtPrice() public /** uint256 priceToken0USD */ {
@@ -512,7 +571,7 @@ contract SOTConcreteTest is SOTBase {
     Test Cases:
 
     ==> Solver Swap 
-        * [ ] All types of signatures, failure and edge cases
+        * [*] All types of signatures, failure and edge cases
         * [ ] Multiple quotes in the same block 
             - [*] Discounted/Non-Discounted
             - [ ] Valid/Invalid
@@ -530,6 +589,7 @@ contract SOTConcreteTest is SOTBase {
         * [ ] Calculation of Manager Fee
         * [*] Correct amountIn and out calculations 
         * [ ] Solver fee in BIPS is applied correctly
+        * [ ] Max quotes in a block
 
     ==> AMM Swap
         * [*] Effects on AMM when very large swaps drain pool in one token, spot price etc.
@@ -538,7 +598,7 @@ contract SOTConcreteTest is SOTBase {
         * [ ] Liquidity is calculated correctly
         * [ ] Set price bounds shifts liquidity correctly
         * [ ] Fee growth is correct, pool is soft locked before solver swap
-        * [ ] No AMM swap is every able to change Solver Write Slot
+        * [ ] No AMM swap is every able to change Solver Write Slot [invariant]
         * [*] Single Sided Liquidity
     
     ==> General Ops
@@ -548,7 +608,9 @@ contract SOTConcreteTest is SOTBase {
         * [ ] All important functions are reentrancy protected
         * [ ] Manager is able to withdraw fee from Sovereign Pool
         * [ ] Critical Manager operations are timelocked
-        * [ ] Check spot price manipulation on deposit
+        * [*] Check spot price manipulation on deposit/withdraw/setPriceBounds
+        * [*] Tests for depositLiquidity
+        * [*] Tests for withdrawLiquidity
     
     ==> Gas
         * [ ] Prepare setup for correct gas reports
