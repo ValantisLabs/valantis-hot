@@ -44,7 +44,7 @@ library SOTConstants {
     /**
         @notice The maximum number of SOT quotes that can be processed in a single block.
      */
-    uint256 internal constant MAX_SOT_QUOTES_IN_BLOCK = 32;
+    uint256 internal constant MAX_SOT_QUOTES_IN_BLOCK = 56;
 
     /**
         @notice The index of the pause flag in the flags bitmap.

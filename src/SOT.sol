@@ -605,26 +605,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtPriceHighX96Cache
         );
 
-        uint160 sqrtSpotPriceX96New;
-
         // Calculate amountOut according to CPMM math
-        if (almLiquidityQuoteInput.isZeroToOne) {
-            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
-                sqrtPriceX96Cache,
-                sqrtPriceLowX96Cache,
-                effectiveLiquidity,
-                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
-                0 // fees have already been deducted
-            );
-        } else {
-            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
-                sqrtPriceX96Cache,
-                sqrtPriceHighX96Cache,
-                effectiveLiquidity,
-                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
-                0 // fees have already been deducted
-            );
-        }
+        uint160 sqrtSpotPriceX96New;
+        (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
+            sqrtPriceX96Cache,
+            almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
+            effectiveLiquidity,
+            almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
+            0 // fees have already been deducted
+        );
 
         _ammState.setA(sqrtSpotPriceX96New);
     }
