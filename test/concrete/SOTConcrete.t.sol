@@ -16,9 +16,11 @@ import {
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot } from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 contract SOTConcreteTest is SOTBase {
     function setUp() public virtual override {
@@ -371,6 +373,94 @@ contract SOTConcreteTest is SOTBase {
         // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
     }
 
+    function test_swap_solverMathWithFee() public {
+        // Excess solver feeInBips
+        vm.expectRevert(SOT.SOT__setSolverFeeInBips_invalidSolverFee.selector);
+        sot.setSolverFeeInBips(101, 5);
+
+        vm.expectRevert(SOT.SOT__setSolverFeeInBips_invalidSolverFee.selector);
+        sot.setSolverFeeInBips(5, 101);
+
+        // Correct solver feeInBips: token0 = 0.1%, token1 = 0.5%
+        sot.setSolverFeeInBips(10, 50);
+
+        (, uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
+
+        assertEq(solverFeeBipsToken0, 10, 'solverFeeBipsToken0');
+        assertEq(solverFeeBipsToken1, 50, 'solverFeeBipsToken1');
+
+        // Test Swap with Contract Signer
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: mockSigner.getSignedQuote(sotParams),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        PoolState memory preState = getPoolState();
+        uint256 amountIn = 1e18;
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: amountIn,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        // amountInWithoutFee = 1e18 * [1e4 / (1e4 + 10)]
+        uint256 amountInWithoutFee = 999000999000999000;
+
+        // 1% of all fees
+        vm.prank(pool.poolManager());
+        pool.setPoolManagerFeeBips(100);
+        uint256 poolManagerFee = (amountIn - amountInWithoutFee) / 100;
+
+        // TODO: add amountInUsed and amountOut checks everywhere
+        pool.swap(params);
+        PoolState memory postState = getPoolState();
+
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + amountIn - poolManagerFee,
+            reserve1: preState.reserve1 - amountInWithoutFee * 1980,
+            sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
+            managerFee0: preState.managerFee0 + poolManagerFee,
+            managerFee1: preState.managerFee1 + 0
+        });
+
+        checkPoolState(expectedState, postState);
+
+        preState = postState;
+        amountIn = 9e8;
+        params.isZeroToOne = false;
+        params.swapTokenOut = address(token0);
+        params.amountIn = amountIn;
+
+        sotParams.nonce = 55;
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+
+        // Check the math in the other direction
+        pool.swap(params);
+
+        postState = getPoolState();
+
+        amountInWithoutFee = 895522388;
+        poolManagerFee = (amountIn - amountInWithoutFee) / 100;
+
+        expectedState.reserve0 = preState.reserve0 - amountInWithoutFee / 2000;
+        expectedState.reserve1 = preState.reserve1 + amountIn - poolManagerFee;
+        expectedState.managerFee0 = preState.managerFee0 + 0;
+        expectedState.managerFee1 = preState.managerFee1 + poolManagerFee;
+
+        checkPoolState(expectedState, postState);
+    }
+
     function test_depositLiquidity() public {
         // Deposit liquidity
         sot.depositLiquidity(1, 1, 0, 0);
@@ -586,9 +676,10 @@ contract SOTConcreteTest is SOTBase {
             - [ ] High deviation should revert
         * [*] Valid/Invalid fee paths
         * [ ] Effects on amm fee
-        * [ ] Calculation of Manager Fee
+        * [*] Calculation of Manager Fee
         * [*] Correct amountIn and out calculations 
-        * [ ] Solver fee in BIPS is applied correctly
+        * [*] Solver fee in BIPS is applied correctly
+        * [*] Swap Math is correct, amountOut calculations are correct
         * [ ] Max quotes in a block
 
     ==> AMM Swap
