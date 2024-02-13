@@ -336,6 +336,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         return _domainSeparatorV4();
     }
 
+    function isPaused() external view returns (bool) {
+        return _ammState.getFlag(SOTConstants.PAUSE_FLAG);
+    }
+
     /************************************************
      *  SETTER FUNCTIONS
      ***********************************************/

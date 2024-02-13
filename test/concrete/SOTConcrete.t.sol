@@ -400,54 +400,112 @@ contract SOTConcreteTest is SOTBase {
         console.log('reserve0Post: ', reserve0Post);
         console.log('reserve1Post: ', reserve1Post);
     }
+
+    function test_pause() public {
+        // Default SOT is unpaused
+        assertFalse(sot.isPaused(), 'isPaused error 1');
+
+        // Set to the same value again
+        sot.setPause(false);
+        assertFalse(sot.isPaused(), 'isPaused error 2');
+
+        // Pause the SOT. At this point SOT has (5e18, 10_000e18) liquidity
+        sot.setPause(true);
+        assertTrue(sot.isPaused(), 'isPaused error 3');
+
+        // Deposits are paused
+        vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
+        sot.depositLiquidity(1e18, 1e18, 0, 0);
+
+        // Swaps are paused
+        SovereignPoolSwapContextData memory data;
+        vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: false,
+            amountIn: 1e8,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token0),
+            swapContext: data
+        });
+        pool.swap(params);
+
+        // Withdrawals are never paused.
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        uint256 preBalance0 = token0.balanceOf(address(this));
+        uint256 preBalance1 = token1.balanceOf(address(this));
+
+        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+
+        (reserve0, reserve1) = pool.getReserves();
+        assertEq(reserve0, 0, 'reserve0 1');
+        assertEq(reserve1, 0, 'reserve1 1');
+        assertEq(token0.balanceOf(address(this)) - preBalance0, 5e18, 'balance0');
+        assertEq(token1.balanceOf(address(this)) - preBalance1, 10_000e18, 'balance1');
+
+        // Unpause the SOT
+        sot.setPause(false);
+        assertFalse(sot.isPaused(), 'isPaused error 4');
+
+        // Deposits are unpaused
+        sot.depositLiquidity(1e18, 1e18, 0, 0);
+        (reserve0, reserve1) = pool.getReserves();
+        assertEq(reserve0, 1e18, 'reserve0 2');
+        assertEq(reserve1, 1e18, 'reserve1 2');
+    }
+
+    function test_spotPriceRange() public {}
 }
 
 /**
     Test Cases:
 
     ==> Solver Swap 
-        * All types of signatures, failure and edge cases
-        * Multiple quotes in the same block 
-            - Discounted/Non-Discounted [done]
-            - Valid/Invalid
-            - Replay Protection [done]
-            - Effects on liquidity
-        * AMM Spot Price Updates
-            - Frontrun attacks
-            - Solver swap combined with AMM swap [done]
-            - Pool Liquidity should be calculated correctly after update
-        * Reentrancy Protection
-        * Interactions with Oracle
-            - High deviation should revert
-        * Valid/Invalid fee paths [done]
-        * Effects on amm fee
-        * Calculation of Manager Fee
-        * Correct amountIn and out calculations [done]
-        * Solver fee in BIPS is applied correctly
+        * [ ] All types of signatures, failure and edge cases
+        * [ ] Multiple quotes in the same block 
+            - [*] Discounted/Non-Discounted
+            - [ ] Valid/Invalid
+            - [*] Replay Protection
+            - [ ] Effects on liquidity
+        * [ ] AMM Spot Price Updates
+            - [ ] Frontrun attacks
+            - [*] Solver swap combined with AMM swap
+            - [ ] Pool Liquidity should be calculated correctly after update
+        * [ ] Reentrancy Protection
+        * [ ] Interactions with Oracle
+            - [ ] High deviation should revert
+        * [*] Valid/Invalid fee paths
+        * [ ] Effects on amm fee
+        * [ ] Calculation of Manager Fee
+        * [*] Correct amountIn and out calculations 
+        * [ ] Solver fee in BIPS is applied correctly
 
     ==> AMM Swap
-        * Effects on AMM when very large swaps drain pool in one token, spot price etc. [done]
-        * Valid/Invalid fee paths [done]
-        * AMM Math is as expected
-        * Liquidity is calculated correctly
-        * Set price bounds shifts liquidity correctly
-        * Fee growth is correct, pool is soft locked before solver swap
-        * No AMM swap is every able to change Solver Write Slot
-        * Single Sided Liquidity [done]
+        * [*] Effects on AMM when very large swaps drain pool in one token, spot price etc.
+        * [*] Valid/Invalid fee paths
+        * [ ] AMM Math is as expected
+        * [ ] Liquidity is calculated correctly
+        * [ ] Set price bounds shifts liquidity correctly
+        * [ ] Fee growth is correct, pool is soft locked before solver swap
+        * [ ] No AMM swap is every able to change Solver Write Slot
+        * [*] Single Sided Liquidity
     
     ==> General Ops
-        * Pause/Unpause works as expected
-        * Constructor sets all values correctly
-        * Get Reserves at Price function is correct
-        * All important functions are reentrancy protected
-        * Manager is able to withdraw fee from Sovereign Pool
-        * Critical Manager operations are timelocked
+        * [*] Pause/Unpause works as expected [done]
+        * [ ] Constructor sets all values correctly
+        * [ ] Get Reserves at Price function is correct
+        * [ ] All important functions are reentrancy protected
+        * [ ] Manager is able to withdraw fee from Sovereign Pool
+        * [ ] Critical Manager operations are timelocked
+        * [ ] Check spot price manipulation on deposit
     
     ==> Gas
-        * Prepare setup for correct gas reports
-        * Solvers should do maximum 2 storage writes in SOT
+        * [ ] Prepare setup for correct gas reports
+        * [ ] Solvers should do maximum 2 storage writes in SOT
 
     ==> Imp
-        * Fuzz at edges of liquidity to make sure there are no path independence issues
-        * Write tests for LiquidityAmounts library especially at edges
+        * [ ] Fuzz at edges of liquidity to make sure there are no path independence issues
+        * [ ] Write tests for LiquidityAmounts library especially at edges
 */
