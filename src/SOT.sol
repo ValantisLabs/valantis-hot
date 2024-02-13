@@ -634,6 +634,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
+        // @audit Verify if this is safe ( more info in SOTConcrete.t.sol with @audit tag)
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
