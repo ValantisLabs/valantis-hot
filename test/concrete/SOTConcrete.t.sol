@@ -226,9 +226,19 @@ contract SOTConcreteTest is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
 
         pool.swap(params);
+
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        sotParams.expectedFlag = 1;
+
+        data.externalContext = getEOASignedQuote(sotParams, EOASignerPrivateKey);
+
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+
+        assertNotEq(amountInUsed, 0, 'amountInUsed 0');
+        assertNotEq(amountOut, 0, 'amountOut 0');
     }
 
-    function test_singleSidedLiquidity() public {
+    function test_swap_amm_singleSidedLiquidity() public {
         sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
 
         (uint256 amount0, uint256 amount1) = pool.getReserves();
@@ -456,7 +466,46 @@ contract SOTConcreteTest is SOTBase {
         assertEq(reserve1, 1e18, 'reserve1 2');
     }
 
-    function test_spotPriceRange() public {}
+    function test_onlySpotPriceRange() public {
+        uint256 token0Base = 10 ** feedToken0.decimals();
+        uint256 token1Base = 10 ** feedToken1.decimals();
+
+        uint160 sqrtPrice1991 = getSqrtPriceX96(1991 * token0Base, 1 * token1Base);
+        uint160 sqrtPrice1999 = getSqrtPriceX96(1999 * token0Base, 1 * token1Base);
+        uint160 sqrtPrice2000 = getSqrtPriceX96(2000 * token0Base, 1 * token1Base);
+        uint160 sqrtPrice2001 = getSqrtPriceX96(2001 * token0Base, 1 * token1Base);
+        uint160 sqrtPrice2005 = getSqrtPriceX96(2005 * token0Base, 1 * token1Base);
+
+        // Spot price range is exact, deposit shouldn't revert
+        sot.depositLiquidity(1, 1, sqrtPrice1991, sqrtPrice2005);
+
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        assertEq(reserve0, 5e18 + 1, 'reserve0');
+        assertEq(reserve1, 10_000e18 + 1, 'reserve1');
+
+        // Spot price is out of range, deposit should revert
+        vm.expectRevert(
+            abi.encodeWithSelector(SOT.SOT__setPriceBounds_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+        );
+        sot.depositLiquidity(1, 1, sqrtPrice2001, sqrtPrice2005);
+
+        // Exact spot price range for setPriceBounds, should work
+        sot.setPriceBounds(sqrtPrice1999, sqrtPrice2001, sqrtPrice1991, sqrtPrice2005);
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+
+        assertEq(sqrtSpotPriceX96, sqrtPrice2000, 'sqrtSpotPriceX96');
+        assertEq(sqrtPriceLowX96, sqrtPrice1999, 'sqrtPriceLowX96');
+        assertEq(sqrtPriceHighX96, sqrtPrice2001, 'sqrtPriceHighX96');
+
+        // Spot price is out of range, setPriceBounds should revert
+        vm.expectRevert(
+            abi.encodeWithSelector(SOT.SOT__setPriceBounds_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+        );
+        sot.setPriceBounds(sqrtPrice1999, sqrtPrice2005, sqrtPrice1991, sqrtPrice1999);
+
+        // (0,0) bypasses all checks
+        sot.withdrawLiquidity(1e18, 1e18, address(this), 0, 0);
+    }
 }
 
 /**

@@ -399,17 +399,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @notice Sets the AMM position's square-root upper and lower price bounds
         @param _sqrtPriceLowX96 New square-root lower price bound
         @param _sqrtPriceHighX96 New square-root upper price bound
-        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price when setting new bounds
-        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price when setting new bounds
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price ( inclusive )
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price ( inclusive )
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
      */
     function setPriceBounds(
         uint160 _sqrtPriceLowX96,
         uint160 _sqrtPriceHighX96,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     ) external onlyLiquidityProvider {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
         // Check that lower bound is smaller than upper bound, and both are not 0
         if (_sqrtPriceLowX96 >= _sqrtPriceHighX96) {
             revert SOT__setPriceBounds_invalidPriceBounds();
@@ -449,8 +449,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function depositLiquidity(
         uint256 _amount0,
         uint256 _amount1,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     )
         external
         onlyLiquidityProvider
@@ -458,7 +458,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         nonReentrant
         returns (uint256 amount0Deposited, uint256 amount1Deposited)
     {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
             _amount0,
@@ -473,10 +473,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 _amount0,
         uint256 _amount1,
         address _recipient,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     ) external onlyLiquidityProvider nonReentrant {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
     }
@@ -734,14 +734,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     /**
         @notice Checks that the current AMM spot price is within the expected range.
-        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
-        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price.
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price. ( inclusive )
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price. ( inclusive )
         @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
              then no check is performed.
       */
     function _onlySpotPriceRange(
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     ) private view {
         if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
             uint160 sqrtSpotPriceX96 = _ammState.getA();
