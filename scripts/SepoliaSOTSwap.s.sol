@@ -53,6 +53,7 @@ contract SepoliaSOTSwapScript is Script {
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('')
         });
+
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: true,
