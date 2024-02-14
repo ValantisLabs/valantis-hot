@@ -411,6 +411,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external onlyLiquidityProvider {
         _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
         // Check that lower bound is smaller than upper bound, and both are not 0
+        // TODO: should we allow _sqrtPriceLowX96 = _sqrtPriceHighX96 here?
         if (_sqrtPriceLowX96 >= _sqrtPriceHighX96) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
@@ -490,7 +491,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Verification of branches is done during getLiquidityQuote
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
-            swapFeeModuleData.feeInBips = _getSolverFeeInBips(_isZeroToOne);
+            swapFeeModuleData.feeInBips = _isZeroToOne
+                ? solverReadSlot.solverFeeBipsToken0
+                : solverReadSlot.solverFeeBipsToken1;
         } else {
             // AMM Branch
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
@@ -537,10 +540,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    function _getSolverFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
-        feeInBips = isZeroToOne ? solverReadSlot.solverFeeBipsToken0 : solverReadSlot.solverFeeBipsToken1;
-    }
 
     function _getAMMFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
         // TODO: Test if all the calculations are in bips.
@@ -628,9 +627,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Execute SOT swap
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
+        SolverReadSlot memory solverReadSlotCache = solverReadSlot;
 
         // Check that the fee path was chosen correctly
-        if (almLiquidityQuoteInput.feeInBips != _getSolverFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
+        if (
+            almLiquidityQuoteInput.feeInBips !=
+            (
+                almLiquidityQuoteInput.isZeroToOne
+                    ? solverReadSlot.solverFeeBipsToken0
+                    : solverReadSlot.solverFeeBipsToken1
+            )
+        ) {
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
@@ -640,9 +647,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bool isDiscountedSolver = block.timestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
             (solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
 
-        uint8 updatedBlockQuoteCount = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
+        uint8 quotesInCurrentBlock = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
             ? 1
             : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
+
+        if (quotesInCurrentBlock > solverReadSlotCache.maxAllowedQuotes) {
+            revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+        }
 
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
 
@@ -676,14 +687,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Verify SOT quote signature
         // @audit: Verify that this is a safe way to check signatures
         bytes32 sotHash = sot.hashParams();
-        if (!solverReadSlot.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
+        if (!solverReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
         // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
             solverWriteSlot = SolverWriteSlot({
-                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
+                lastProcessedBlockQuoteCount: quotesInCurrentBlock,
                 feeGrowthInPipsToken0: sot.feeGrowthInPipsToken0,
                 feeMaxToken0: sot.feeMaxToken0,
                 feeMinToken0: sot.feeMinToken0,
@@ -698,23 +709,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
             _ammState.setA(sot.sqrtSpotPriceX96New);
         } else {
-            if (solverWriteSlotCache.lastProcessedBlockQuoteCount == SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
-                revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
-            }
+            solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
+            solverWriteSlotCache.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+            solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(
+                sot.nonce
+            );
 
-            solverWriteSlot = SolverWriteSlot({
-                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                feeGrowthInPipsToken0: solverWriteSlotCache.feeGrowthInPipsToken0,
-                feeMaxToken0: solverWriteSlotCache.feeMaxToken0,
-                feeMinToken0: solverWriteSlotCache.feeMinToken0,
-                feeGrowthInPipsToken1: solverWriteSlotCache.feeGrowthInPipsToken1,
-                feeMaxToken1: solverWriteSlotCache.feeMaxToken1,
-                feeMinToken1: solverWriteSlotCache.feeMinToken1,
-                lastStateUpdateTimestamp: solverWriteSlotCache.lastStateUpdateTimestamp,
-                lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
-                lastProcessedSignatureTimestamp: solverWriteSlotCache.lastProcessedSignatureTimestamp,
-                alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
-            });
+            solverWriteSlot = solverWriteSlotCache;
         }
     }
 
