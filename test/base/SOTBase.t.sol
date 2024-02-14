@@ -219,6 +219,37 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         });
     }
 
+    function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
+        // This pattern is used to prevent stack too deep errors
+        (
+            ,
+            ,
+            ,
+            ,
+            slot.feeGrowthInPipsToken1,
+            slot.feeMaxToken1,
+            slot.feeMinToken1,
+            slot.lastStateUpdateTimestamp,
+            slot.lastProcessedQuoteTimestamp,
+            slot.lastProcessedSignatureTimestamp,
+            slot.alternatingNonceBitmap
+        ) = sot.solverWriteSlot();
+
+        (
+            slot.lastProcessedBlockQuoteCount,
+            slot.feeGrowthInPipsToken0,
+            slot.feeMaxToken0,
+            slot.feeMinToken0,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+
+        ) = sot.solverWriteSlot();
+    }
+
     function checkPoolState(PoolState memory actual, PoolState memory expected) public {
         assertEq(actual.reserve0, expected.reserve0, 'checkPoolState: reserve0');
         assertEq(actual.reserve1, expected.reserve1, 'checkPoolState: reserve1');
