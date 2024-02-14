@@ -21,8 +21,11 @@ import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } 
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 contract SOTConcreteTest is SOTBase {
+    using SafeCast for uint256;
+
     function setUp() public virtual override {
         super.setUp();
 
@@ -35,6 +38,7 @@ contract SOTConcreteTest is SOTBase {
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
         vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
+        sot.setMaxAllowedQuotes(2);
     }
 
     function test_swap_amm() public {
@@ -373,7 +377,7 @@ contract SOTConcreteTest is SOTBase {
         // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
     }
 
-    function test_swap_solverMathWithFee() public {
+    function test_swap_solver_swapMathWithFee() public {
         // Excess solver feeInBips
         vm.expectRevert(SOT.SOT__setSolverFeeInBips_invalidSolverFee.selector);
         sot.setSolverFeeInBips(101, 5);
@@ -459,6 +463,131 @@ contract SOTConcreteTest is SOTBase {
         expectedState.managerFee1 = preState.managerFee1 + poolManagerFee;
 
         checkPoolState(expectedState, postState);
+    }
+
+    function test_swap_invalidFeePath() public {
+        sot.setSolverFeeInBips(10, 50);
+
+        // Solver Swap, amm fee path
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidFeePath.selector);
+        pool.swap(params);
+
+        // AMM Swap, solver fee path
+        data.externalContext = bytes('');
+        data.swapFeeModuleContext = bytes('1');
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidFeePath.selector);
+        pool.swap(params);
+
+        data.externalContext = bytes('');
+        data.swapFeeModuleContext = bytes('');
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+
+        assertNotEq(amountInUsed, 0, 'amountInUsed');
+        assertNotEq(amountOut, 0, 'amountOut');
+    }
+
+    function test_swap_solver_multipleQuotes() public {
+        (uint8 maxAllowedQuotes, , , ) = sot.solverReadSlot();
+        assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
+
+        vm.expectRevert(SOT.SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
+        sot.setMaxAllowedQuotes(57);
+
+        sot.setMaxAllowedQuotes(0);
+        (maxAllowedQuotes, , , ) = sot.solverReadSlot();
+
+        assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
+
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: mockSigner.getSignedQuote(sotParams),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        pool.swap(params);
+
+        sot.setMaxAllowedQuotes(3);
+        PoolState memory preState = getPoolState();
+
+        pool.swap(params);
+
+        PoolState memory postState = getPoolState();
+
+        SolverWriteSlot memory expectedSolverWriteSlot = SolverWriteSlot({
+            lastProcessedBlockQuoteCount: 1,
+            feeGrowthInPipsToken0: 500,
+            feeMaxToken0: 100,
+            feeMinToken0: 10,
+            feeGrowthInPipsToken1: 500,
+            feeMaxToken1: 100,
+            feeMinToken1: 10,
+            lastStateUpdateTimestamp: block.timestamp.toUint32(),
+            lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
+            lastProcessedSignatureTimestamp: block.timestamp.toUint32(),
+            alternatingNonceBitmap: 2
+        });
+
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + 1e18,
+            reserve1: preState.reserve1 - 1e18 * 1980,
+            sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
+            managerFee0: 0,
+            managerFee1: 0
+        });
+
+        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+
+        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkPoolState(expectedState, postState);
+
+        sotParams.nonce = 0;
+
+        console.log('sotParams signatureTimestamp: ', sotParams.signatureTimestamp);
+        console.log('block.timestamp: ', block.timestamp);
+        sotParams.signatureTimestamp = sotParams.signatureTimestamp + 1;
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+
+        preState = postState;
+        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_invalidSignatureTimestamp.selector);
+        pool.swap(params);
+
+        //TODO: Complete this test
     }
 
     function test_depositLiquidity() public {
@@ -710,4 +839,6 @@ contract SOTConcreteTest is SOTBase {
     ==> Imp
         * [ ] Fuzz at edges of liquidity to make sure there are no path independence issues
         * [ ] Write tests for LiquidityAmounts library especially at edges
+        * [ ] What happens when spotPrice = spotPriceLow = spotPriceHigh, quote becomes infinite.
+        * [ ] Check if maxVolume per quote is enforced in amountOut
 */
