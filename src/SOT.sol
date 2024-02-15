@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
@@ -302,21 +304,23 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev this is a temporary implementation of the function.
         // TODO: add correct reserves calculation.
      */
-    function getReservesAtPrice(uint160 sqrtPriceX96New) external view returns (uint256 reserve0, uint256 reserve1) {
+    function getReservesAtPrice(
+        uint160 sqrtSpotPriceX96New
+    ) external view returns (uint256 reserve0, uint256 reserve1) {
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
-        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = getEffectiveLiquidity(
-            sqrtPriceX96Cache,
+            sqrtSpotPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
         );
 
         (uint256 activeAmount0, uint256 activeAmount1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96Cache,
+            sqrtSpotPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache,
             effectiveLiquidity
@@ -326,7 +330,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 passiveAmount1 = reserve1 - activeAmount1;
 
         (uint256 postSwapActiveAmount0, uint256 postSwapActiveAmount1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96New,
+            sqrtSpotPriceX96New,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache,
             effectiveLiquidity
@@ -569,23 +573,28 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     function getEffectiveLiquidity(
-        uint160 sqrtRatioX96,
-        uint160 sqrtRatioAX96,
-        uint160 sqrtRatioBX96
+        uint160 sqrtSpotPriceX96,
+        uint160 sqrtPriceLowX96,
+        uint160 sqrtPriceHighX96
     ) public view returns (uint128 effectiveLiquidity) {
         // Query current reserves
         // This already excludes poolManager and protocol fees
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
 
-        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96, sqrtRatioBX96, reserve0);
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtSpotPriceX96, sqrtPriceHighX96, reserve0);
 
-        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96, sqrtRatioX96, reserve1);
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtPriceLowX96, sqrtSpotPriceX96, reserve1);
+
+        console.log('sot.getEffectiveLiquidity liquidity0: ', liquidity0);
+        console.log('sot.getEffectiveLiquidity liquidity1: ', liquidity1);
 
         if (liquidity0 < liquidity1) {
             effectiveLiquidity = liquidity0;
         } else {
             effectiveLiquidity = liquidity1;
         }
+
+        console.log('sot.getEffectiveLiquidity effectiveLiquidity: ', effectiveLiquidity);
     }
 
     function _ammSwap(
@@ -598,12 +607,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         // Cache sqrt spot price, lower bound, and upper bound
-        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
         uint128 effectiveLiquidity = getEffectiveLiquidity(
-            sqrtPriceX96Cache,
+            sqrtSpotPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
         );
@@ -611,7 +620,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Calculate amountOut according to CPMM math
         uint160 sqrtSpotPriceX96New;
         (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
-            sqrtPriceX96Cache,
+            sqrtSpotPriceX96Cache,
             almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
             effectiveLiquidity,
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
