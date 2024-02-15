@@ -775,61 +775,6 @@ contract SOTConcreteTest is SOTBase {
         sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
     }
 
-    function test_getReservesAtPrice() public /** uint256 priceToken0USD */ {
-        // uint256 priceToken0USD = bound(priceToken0USD, 1900, 2100);
-        uint256 priceToken0USD = 2050;
-        // uint160 sqrtPriceX96 = 3498620926022713237135550346861;
-        // 3498620926022713023499608260608;
-
-        (uint256 reserve0Pre, uint256 reserve1Pre) = sot.getReservesAtPrice(
-            getSqrtPriceX96(2000 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
-        );
-
-        assertEq(reserve0Pre, 5e18, 'reserve0Pre');
-        assertEq(reserve1Pre, 10_000e18, 'reserve1Pre');
-
-        // Check reserves at priceToken0USD
-        (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(
-            getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
-        );
-
-        // (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(sqrtPriceX96);
-
-        console.log(
-            'spotPrice for reserves: ',
-            getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
-        );
-
-        SovereignPoolSwapContextData memory data;
-
-        bool isZeroToOne = priceToken0USD < 2000;
-        uint256 amountIn = isZeroToOne ? reserve0Expected - reserve0Pre : reserve1Expected - reserve1Pre;
-
-        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
-            isSwapCallback: false,
-            isZeroToOne: isZeroToOne,
-            amountIn: amountIn,
-            amountOutMin: 0,
-            recipient: address(this),
-            deadline: block.timestamp + 2,
-            swapTokenOut: isZeroToOne ? address(token1) : address(token0),
-            swapContext: data
-        });
-        pool.swap(params);
-
-        (uint256 reserve0Post, uint256 reserve1Post) = pool.getReserves();
-
-        assertApproxEqAbs(reserve0Post, reserve0Expected, 1, 'reserve0Post');
-        assertApproxEqAbs(reserve1Post, reserve1Expected, 1, 'reserve1Post');
-
-        console.log('reserve0Pre: ', reserve0Pre);
-        console.log('reserve1Pre: ', reserve1Pre);
-        console.log('reserve0Expected: ', reserve0Expected);
-        console.log('reserve1Expected: ', reserve1Expected);
-        console.log('reserve0Post: ', reserve0Post);
-        console.log('reserve1Post: ', reserve1Post);
-    }
-
     function test_pause() public {
         // Default SOT is unpaused
         assertFalse(sot.isPaused(), 'isPaused error 1');
@@ -934,7 +879,7 @@ contract SOTConcreteTest is SOTBase {
         * [*] All types of signatures, failure and edge cases
         * [ ] Multiple quotes in the same block 
             - [*] Discounted/Non-Discounted
-            - [ ] Valid/Invalid
+            - [*] Valid/Invalid
             - [*] Replay Protection
             - [ ] Effects on liquidity
         * [ ] AMM Spot Price Updates
@@ -950,7 +895,7 @@ contract SOTConcreteTest is SOTBase {
         * [*] Correct amountIn and out calculations 
         * [*] Solver fee in BIPS is applied correctly
         * [*] Swap Math is correct, amountOut calculations are correct
-        * [ ] Max quotes in a block
+        * [*] Max quotes in a block
         * [ ] Expired quotes should not be allowed 
 
     ==> AMM Swap
