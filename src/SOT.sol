@@ -309,7 +309,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = _getEffectiveLiquidity(
+        uint128 effectiveLiquidity = getEffectiveLiquidity(
             sqrtPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
@@ -568,18 +568,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    function _getEffectiveLiquidity(
-        uint160 sqrtRatioX96Cache,
-        uint160 sqrtRatioAX96Cache,
-        uint160 sqrtRatioBX96Cache
-    ) internal view returns (uint128 effectiveLiquidity) {
+    function getEffectiveLiquidity(
+        uint160 sqrtRatioX96,
+        uint160 sqrtRatioAX96,
+        uint160 sqrtRatioBX96
+    ) public view returns (uint128 effectiveLiquidity) {
         // Query current reserves
         // This already excludes poolManager and protocol fees
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
 
-        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96Cache, sqrtRatioBX96Cache, reserve0);
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96, sqrtRatioBX96, reserve0);
 
-        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96, sqrtRatioX96, reserve1);
 
         if (liquidity0 < liquidity1) {
             effectiveLiquidity = liquidity0;
@@ -602,7 +602,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = _getEffectiveLiquidity(
+        uint128 effectiveLiquidity = getEffectiveLiquidity(
             sqrtPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
