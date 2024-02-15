@@ -94,34 +94,6 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
 
         liquidityProvider.setSOT(address(sot));
 
-        liquidityProvider.depositLiquidity(address(pool), 5e18, 10_000e6, 0, 0);
-
-        token0.approve(address(pool), type(uint256).max);
-        token1.approve(address(pool), type(uint256).max);
-
-        console.log('block timestamp: ', block.timestamp);
-
-        // AMM Swap
-        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: bytes(''),
-            verifierContext: bytes(''),
-            swapCallbackContext: bytes(''),
-            swapFeeModuleContext: bytes('')
-        });
-
-        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
-            isSwapCallback: false,
-            isZeroToOne: true,
-            amountIn: 1e18,
-            amountOutMin: 0,
-            recipient: address(this),
-            deadline: block.timestamp + 100000,
-            swapTokenOut: address(token1),
-            swapContext: data
-        });
-
-        pool.swap(params);
-
         vm.stopBroadcast();
     }
 }
