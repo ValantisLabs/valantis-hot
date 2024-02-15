@@ -18,6 +18,8 @@ import {
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { MockToken } from 'test/mocks/MockToken.sol';
+import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
+
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoolDeployer.sol';
 
@@ -52,9 +54,11 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
 
         SOTLiquidityProvider liquidityProvider = new SOTLiquidityProvider();
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
+        // AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
+        // AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
 
+        AggregatorV3Interface feedToken0 = new MockChainlinkOracle(8);
+        AggregatorV3Interface feedToken1 = new MockChainlinkOracle(8);
         SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
             pool: address(pool),
             manager: vm.envAddress('SEPOLIA_PUBLIC_KEY'),
@@ -89,6 +93,34 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
         token1.mint(address(signer), 2_000_000e6);
 
         liquidityProvider.setSOT(address(sot));
+
+        liquidityProvider.depositLiquidity(address(pool), 5e18, 10_000e6, 0, 0);
+
+        token0.approve(address(pool), type(uint256).max);
+        token1.approve(address(pool), type(uint256).max);
+
+        console.log('block timestamp: ', block.timestamp);
+
+        // AMM Swap
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: bytes(''),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 100000,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        pool.swap(params);
 
         vm.stopBroadcast();
     }
