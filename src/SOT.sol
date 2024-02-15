@@ -62,6 +62,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__onlyLiquidityProvider();
     error SOT__onlyUnpaused();
     error SOT__reentrant();
+    error SOT__constructor_invalidFeeGrowthBounds();
     error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAmmFee();
     error SOT__constructor_invalidManager();
@@ -265,6 +266,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
 
+        if (_args.minAmmFeeGrowthInPips > _args.maxAmmFeeGrowthInPips) {
+            revert SOT__constructor_invalidFeeGrowthBounds();
+        }
         minAmmFeeGrowthInPips = _args.minAmmFeeGrowthInPips;
 
         maxAmmFeeGrowthInPips = _args.maxAmmFeeGrowthInPips;

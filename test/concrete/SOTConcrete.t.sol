@@ -506,6 +506,11 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_swap_solver_multipleQuotes() public {
+        // Initial block timestamp set to 1000
+        vm.warp(1000);
+        feedToken0.updateAnswer(2000e8);
+        feedToken1.updateAnswer(1e8);
+
         (uint8 maxAllowedQuotes, , , ) = sot.solverReadSlot();
         assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
 
@@ -518,6 +523,7 @@ contract SOTConcreteTest is SOTBase {
         assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
 
         SolverOrderType memory sotParams = _getSensibleSOTParams();
+        sotParams.signatureTimestamp = (block.timestamp - 5).toUint32();
 
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
             externalContext: mockSigner.getSignedQuote(sotParams),
@@ -541,6 +547,8 @@ contract SOTConcreteTest is SOTBase {
         pool.swap(params);
 
         sot.setMaxAllowedQuotes(3);
+
+        // First Swap: Discounted
         PoolState memory preState = getPoolState();
 
         pool.swap(params);
@@ -557,7 +565,7 @@ contract SOTConcreteTest is SOTBase {
             feeMinToken1: 10,
             lastStateUpdateTimestamp: block.timestamp.toUint32(),
             lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
-            lastProcessedSignatureTimestamp: block.timestamp.toUint32(),
+            lastProcessedSignatureTimestamp: block.timestamp.toUint32() - 5,
             alternatingNonceBitmap: 2
         });
 
@@ -576,18 +584,151 @@ contract SOTConcreteTest is SOTBase {
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
         checkPoolState(expectedState, postState);
 
+        // Invalid quote is sent in between
         sotParams.nonce = 0;
-
-        console.log('sotParams signatureTimestamp: ', sotParams.signatureTimestamp);
-        console.log('block.timestamp: ', block.timestamp);
-        sotParams.signatureTimestamp = sotParams.signatureTimestamp + 1;
+        sotParams.signatureTimestamp = (block.timestamp + 5).toUint32();
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
-        preState = postState;
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_invalidSignatureTimestamp.selector);
         pool.swap(params);
 
-        //TODO: Complete this test
+        //  A more updated quote is sent, but should still be considered base
+        sotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
+        sotParams.solverPriceX192Base = 2001 << 192;
+        sotParams.solverPriceX192Discounted = 1990 << 192;
+        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+            2003 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        params.amountIn = 2e18;
+
+        // Second Swap: Base
+        preState = postState;
+        pool.swap(params);
+        postState = getPoolState();
+
+        expectedState.reserve0 = preState.reserve0 + 2e18;
+        expectedState.reserve1 = preState.reserve1 - 2e18 * 2001;
+
+        checkPoolState(expectedState, postState);
+
+        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 2;
+        expectedSolverWriteSlot.alternatingNonceBitmap = 3;
+
+        solverWriteSlot = getSolverWriteSlot();
+
+        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+
+        // Third Swap: Base
+        sotParams.nonce = 2;
+        sotParams.signatureTimestamp = (block.timestamp - 1).toUint32();
+        sotParams.solverPriceX192Base = 2002 << 192;
+        sotParams.solverPriceX192Discounted = 1998 << 192;
+        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+            2004 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        params.amountIn = 3e18;
+        params.isZeroToOne = false;
+        params.swapTokenOut = address(token0);
+
+        preState = postState;
+        pool.swap(params);
+        postState = getPoolState();
+        solverWriteSlot = getSolverWriteSlot();
+
+        expectedState.reserve0 = preState.reserve0 - uint256(Math.mulDiv(3e18, 1 << 192, 2002 << 192));
+        expectedState.reserve1 = preState.reserve1 + 3e18;
+
+        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 3;
+        expectedSolverWriteSlot.alternatingNonceBitmap = 7;
+
+        checkPoolState(expectedState, postState);
+        checkSolverWriteSlot(expectedSolverWriteSlot, solverWriteSlot);
+
+        // Fourth Swap: Max quotes exceeded should revert
+        sotParams.nonce = 3;
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        pool.swap(params);
+
+        // Next Block
+        vm.warp(1001);
+
+        // Older than the last processed signature timestamp, should be treated as base.
+        sotParams = _getSensibleSOTParams();
+        sotParams.signatureTimestamp = (block.timestamp - 10).toUint32();
+        sotParams.expectedFlag = 1;
+
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+
+        expectedSolverWriteSlot = getSolverWriteSlot();
+        preState = getPoolState();
+
+        params.isZeroToOne = true;
+        params.amountIn = 1e10;
+        params.swapTokenOut = address(token1);
+        pool.swap(params);
+
+        postState = getPoolState();
+        solverWriteSlot = getSolverWriteSlot();
+
+        expectedSolverWriteSlot.alternatingNonceBitmap = 5;
+        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 1;
+        expectedSolverWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32() - 1;
+        expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 6;
+
+        expectedState.reserve0 = preState.reserve0 + params.amountIn;
+        expectedState.reserve1 = preState.reserve1 - params.amountIn * 2000;
+
+        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkPoolState(expectedState, postState);
+
+        // The second quote in the new block has a more updated timestamp, should be treated as discounted
+        sotParams.signatureTimestamp = (block.timestamp - 2).toUint32();
+        sotParams.expectedFlag = 0;
+        sotParams.solverPriceX192Base = 2002 << 192;
+        sotParams.solverPriceX192Discounted = 1997 << 192;
+        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+            2004 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+
+        data.externalContext = mockSigner.getSignedQuote(sotParams);
+
+        expectedSolverWriteSlot = getSolverWriteSlot();
+        preState = getPoolState();
+
+        params.isZeroToOne = true;
+        params.amountIn = 1e10;
+        params.swapTokenOut = address(token1);
+        pool.swap(params);
+
+        postState = getPoolState();
+        solverWriteSlot = getSolverWriteSlot();
+
+        expectedSolverWriteSlot.alternatingNonceBitmap = 7;
+        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 2;
+        expectedSolverWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
+        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
+        expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 2;
+
+        expectedState.reserve0 = preState.reserve0 + params.amountIn;
+        expectedState.reserve1 = preState.reserve1 - params.amountIn * 1997;
+        expectedState.sqrtSpotPriceX96 = getSqrtPriceX96(
+            2004 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+
+        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkPoolState(expectedState, postState);
     }
 
     function test_depositLiquidity() public {
@@ -810,6 +951,7 @@ contract SOTConcreteTest is SOTBase {
         * [*] Solver fee in BIPS is applied correctly
         * [*] Swap Math is correct, amountOut calculations are correct
         * [ ] Max quotes in a block
+        * [ ] Expired quotes should not be allowed 
 
     ==> AMM Swap
         * [*] Effects on AMM when very large swaps drain pool in one token, spot price etc.
@@ -841,4 +983,5 @@ contract SOTConcreteTest is SOTBase {
         * [ ] Write tests for LiquidityAmounts library especially at edges
         * [ ] What happens when spotPrice = spotPriceLow = spotPriceHigh, quote becomes infinite.
         * [ ] Check if maxVolume per quote is enforced in amountOut
+        * [ ] Without an SOT quote or deposits, the amm liquidity should never change by just amm swaps 
 */
