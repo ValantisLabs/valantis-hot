@@ -201,17 +201,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         _;
     }
 
-    modifier nonReentrant() {
-        // 1st bit of flags: ReentrancyLock
-        if (_ammState.getFlag(SOTConstants.REENTRANCY_FLAG)) {
-            revert SOT__reentrant();
-        }
-        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, true);
-        _;
-
-        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, false);
-    }
-
     /************************************************
      *  CONSTRUCTOR
      ***********************************************/
@@ -296,6 +285,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         view
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
     {
+        if (ISovereignPool(pool).isLocked()) {
+            revert SOT__reentrant();
+        }
         (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
     }
 
@@ -307,6 +299,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function getReservesAtPrice(
         uint160 sqrtSpotPriceX96New
     ) external view returns (uint256 reserve0, uint256 reserve1) {
+        if (ISovereignPool(pool).isLocked()) {
+            revert SOT__reentrant();
+        }
+
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
         (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
@@ -445,7 +441,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
         bytes calldata /*_verifierData*/
-    ) external override onlyPool onlyUnpaused nonReentrant returns (ALMLiquidityQuote memory liquidityQuote) {
+    ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
@@ -460,13 +456,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 _amount1,
         uint160 _expectedSqrtSpotPriceLowerX96,
         uint160 _expectedSqrtSpotPriceUpperX96
-    )
-        external
-        onlyLiquidityProvider
-        onlyUnpaused
-        nonReentrant
-        returns (uint256 amount0Deposited, uint256 amount1Deposited)
-    {
+    ) external onlyLiquidityProvider onlyUnpaused returns (uint256 amount0Deposited, uint256 amount1Deposited) {
         _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
@@ -484,7 +474,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         address _recipient,
         uint160 _expectedSqrtSpotPriceLowerX96,
         uint160 _expectedSqrtSpotPriceUpperX96
-    ) external onlyLiquidityProvider nonReentrant {
+    ) external onlyLiquidityProvider {
         _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
