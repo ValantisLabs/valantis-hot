@@ -104,7 +104,6 @@ struct SOTConstructorArgs {
     @notice Packed struct that contains all variables relevant to the state of the AMM.
         * flags (uint32):
             * bit 0: pause flag
-            * bit 1: reentrancy flag
         * a: sqrtSpotPriceX96
         * b: sqrtPriceLowX96
         * c: sqrtPriceHighX96
