@@ -66,7 +66,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__reentrant();
     error SOT__constructor_invalidFeeGrowthBounds();
     error SOT__constructor_invalidLiquidityProvider();
-    error SOT__constructor_invalidMinAmmFee();
+    error SOT__constructor_invalidMinAMMFee();
     error SOT__constructor_invalidManager();
     error SOT__constructor_invalidOraclePriceMaxDiffBips();
     error SOT__constructor_invalidSigner();
@@ -122,14 +122,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev SOT reverts if feeGrowthInPips exceeds these bounds.
 
      */
-    uint16 public immutable minAmmFeeGrowthInPips;
-    uint16 public immutable maxAmmFeeGrowthInPips;
+    uint16 public immutable minAMMFeeGrowthInPips;
+    uint16 public immutable maxAMMFeeGrowthInPips;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
 	    @dev SOT reverts if feeMin is below this value.
      */
-    uint16 public immutable minAmmFee;
+    uint16 public immutable minAMMFee;
 
     /************************************************
      *  STORAGE
@@ -257,18 +257,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
 
-        if (_args.minAmmFeeGrowthInPips > _args.maxAmmFeeGrowthInPips) {
+        if (_args.minAMMFeeGrowthInPips > _args.maxAMMFeeGrowthInPips) {
             revert SOT__constructor_invalidFeeGrowthBounds();
         }
-        minAmmFeeGrowthInPips = _args.minAmmFeeGrowthInPips;
+        minAMMFeeGrowthInPips = _args.minAMMFeeGrowthInPips;
 
-        maxAmmFeeGrowthInPips = _args.maxAmmFeeGrowthInPips;
+        maxAMMFeeGrowthInPips = _args.maxAMMFeeGrowthInPips;
 
-        if (_args.minAmmFee > SOTConstants.BIPS) {
-            revert SOT__constructor_invalidMinAmmFee();
+        if (_args.minAMMFee > SOTConstants.BIPS) {
+            revert SOT__constructor_invalidMinAMMFee();
         }
 
-        minAmmFee = _args.minAmmFee;
+        minAMMFee = _args.minAMMFee;
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
@@ -280,7 +280,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  GETTER FUNCTIONS
      ***********************************************/
 
-    function getAmmState()
+    // @audit Verify that this function is safe from view-only reentrancy.
+    function getAMMState()
         external
         view
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
@@ -437,6 +438,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  EXTERNAL FUNCTIONS
      ***********************************************/
 
+    // @audit Verify that we don't need a reentrancy guard for getLiquidityQuote/deposit/withdraw
     function getLiquidityQuote(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
@@ -637,8 +639,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             almLiquidityQuoteInput.feeInBips !=
             (
                 almLiquidityQuoteInput.isZeroToOne
-                    ? solverReadSlot.solverFeeBipsToken0
-                    : solverReadSlot.solverFeeBipsToken1
+                    ? solverReadSlotCache.solverFeeBipsToken0
+                    : solverReadSlotCache.solverFeeBipsToken1
             )
         ) {
             revert SOT__getLiquidityQuote_invalidFeePath();
@@ -666,7 +668,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        sot.validateFeeParams(minAmmFee, minAmmFeeGrowthInPips, maxAmmFeeGrowthInPips);
+        sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
 
         sot.validateBasicParams(
             liquidityQuote.amountOut,
@@ -689,6 +691,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Verify SOT quote signature
         // @audit: Verify that this is a safe way to check signatures
+        // @TODO: @audit: Verify that the typehash is correct in the SOTConstants file
         bytes32 sotHash = sot.hashParams();
         if (!solverReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();

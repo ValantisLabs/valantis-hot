@@ -74,9 +74,9 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
             maxOracleUpdateDurationFeed1: 1 hours,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 50, // 0.5%
-            minAmmFeeGrowthInPips: 100,
-            maxAmmFeeGrowthInPips: 10000,
-            minAmmFee: 1 // 0.01%
+            minAMMFeeGrowthInPips: 100,
+            maxAMMFeeGrowthInPips: 10000,
+            minAMMFee: 1 // 0.01%
         });
 
         SOT sot = new SOT(sotArgs);

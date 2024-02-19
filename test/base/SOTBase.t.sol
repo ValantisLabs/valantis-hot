@@ -86,9 +86,9 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 5000, // 50%
-            minAmmFeeGrowthInPips: 100,
-            maxAmmFeeGrowthInPips: 10000,
-            minAmmFee: 1 // 0.01%
+            minAMMFeeGrowthInPips: 100,
+            maxAMMFeeGrowthInPips: 10000,
+            minAMMFee: 1 // 0.01%
         });
 
         vm.startPrank(_pool.poolManager());
@@ -206,7 +206,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function getPoolState() public view returns (PoolState memory state) {
         (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
         (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
         state = PoolState({
             sqrtSpotPriceX96: sqrtSpotPriceX96,
