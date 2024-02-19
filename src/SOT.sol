@@ -609,6 +609,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtPriceHighX96Cache
         );
 
+        console.log('sot._ammSwap before computeSwapStep: ');
+        console.log('sot._ammSwap amountInMinusfee: ', almLiquidityQuoteInput.amountInMinusFee);
+
         // Calculate amountOut according to CPMM math
         uint160 sqrtSpotPriceX96New;
         (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
@@ -618,6 +621,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
+
+        // TODO: Add this check
+        // if(liquidityQuote.amountOut == 0) {
+        //     revert SOT__getLiquidityQuote_zeroAmountOut()
+        // }
+
+        console.log('sot._ammSwap after computeSwapStep: ');
 
         _ammState.setA(sqrtSpotPriceX96New);
     }
@@ -740,7 +750,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint160 _expectedSqrtSpotPriceLowerX96,
         uint160 _expectedSqrtSpotPriceUpperX96
     ) private view {
-        if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
+        if (_expectedSqrtSpotPriceUpperX96 != 0 || _expectedSqrtSpotPriceLowerX96 != 0) {
             uint160 sqrtSpotPriceX96 = _ammState.getA();
 
             // Check that spot price has not been manipulated before updating price bounds
