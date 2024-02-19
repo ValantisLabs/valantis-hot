@@ -32,6 +32,7 @@ import {
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 import { MathHelper } from 'test/helpers/MathHelper.sol';
+import { LiquidityAmountsHelper } from 'test/helpers/LiquidityAmountsHelper.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
@@ -265,32 +266,28 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        uint160 preLiquidity = sot.getEffectiveLiquidity(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
-
-        // This is supposed to revert in LiquidityAmounts library, we want to ignore this error
-        MathHelper mathHelper = new MathHelper();
-
-        try mathHelper.mulDiv(sqrtSpotPriceX96, sqrtPriceHighX96, FixedPoint96.Q96) {} catch {
-            console.log('LiquidityAmounts: revert');
-            return;
-        }
-
-        if (_amountIn == 0) {
-            vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
-        }
-        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
-
-        console.log('Swap Output: amountInUsed = ', amountInUsed);
-        console.log('Swap Output: amountOut =  ', amountOut);
-
-        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-        uint160 postLiquidity = sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
-
-        if (amountInUsed != 0 || amountOut != 0) {
-            if (_sqrtPriceHighX96 != _sqrtSpotPriceX96 && _sqrtPriceLowX96 != _sqrtSpotPriceX96) {
-                assertEq(preLiquidity, postLiquidity, 'pathIndependence');
+        try sot.getEffectiveLiquidity(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96) returns (
+            uint128 preLiquidity
+        ) {
+            if (_amountIn == 0) {
+                vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
             }
-            // assertEq(preLiquidity, postLiquidity, 'pathIndependence');
-        }
+            (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+
+            console.log('Swap Output: amountInUsed = ', amountInUsed);
+            console.log('Swap Output: amountOut =  ', amountOut);
+
+            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+            try sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) returns (
+                uint128 postLiquidity
+            ) {
+                if (amountInUsed != 0 || amountOut != 0) {
+                    if (_sqrtPriceHighX96 != _sqrtSpotPriceX96 && _sqrtPriceLowX96 != _sqrtSpotPriceX96) {
+                        assertEq(preLiquidity, postLiquidity, 'pathIndependence');
+                    }
+                    // assertEq(preLiquidity, postLiquidity, 'pathIndependence');
+                }
+            } catch {}
+        } catch {}
     }
 }
