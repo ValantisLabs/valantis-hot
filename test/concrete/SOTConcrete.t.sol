@@ -76,7 +76,7 @@ contract SOTConcreteTest is SOTBase {
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: true,
-            amountIn: 1e28, // Swap large amount to deplete 1 token
+            amountIn: 1e30, // Swap large amount to deplete 1 token
             amountOutMin: 0,
             recipient: address(this),
             deadline: block.timestamp + 2,
@@ -89,6 +89,9 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory postState = getPoolState();
 
+        // Check that sqrt spot price matches the left-most bound
+        assertEq(postState.sqrtSpotPriceX96, postState.sqrtPriceLowX96, 'Wrong sqrt spot price update');
+
         console.log('amountInUsed 1: ', amountInUsed);
         console.log('amountOut 1: ', amountOut);
         console.log('reserve0: ', postState.reserve0);
@@ -99,10 +102,9 @@ contract SOTConcreteTest is SOTBase {
 
         params.amountIn = 1e18;
 
+        // No more liquidity left to swap in this direction
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_zeroAmountOut.selector);
         (amountInUsed, amountOut) = pool.swap(params);
-
-        assertEq(amountInUsed, 0, 'amountInUsed Wrong Direction');
-        assertEq(amountOut, 0, 'amountOut Wrong Direction');
 
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
@@ -110,8 +112,11 @@ contract SOTConcreteTest is SOTBase {
         // It should be possible to make another swap in the reverse direction
         (amountInUsed, amountOut) = pool.swap(params);
 
+        postState = getPoolState();
+
         assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
         assertNotEq(amountOut, 0, 'amountOut Right Direction');
+        assertNotEq(postState.sqrtSpotPriceX96, postState.sqrtPriceLowX96, 'Wrong sqrt spot price update');
     }
 
     function test_swap_solver_contractSigner() public {
