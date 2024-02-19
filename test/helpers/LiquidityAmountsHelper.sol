@@ -8,7 +8,7 @@ contract LiquidityAmountsHelper {
         uint160 sqrtRatioAX96,
         uint160 sqrtRatioBX96,
         uint256 amount0
-    ) public view returns (uint128 liquidity) {
+    ) public pure returns (uint128 liquidity) {
         return LiquidityAmounts.getLiquidityForAmount0(sqrtRatioAX96, sqrtRatioBX96, amount0);
     }
 
@@ -16,7 +16,7 @@ contract LiquidityAmountsHelper {
         uint160 sqrtRatioAX96,
         uint160 sqrtRatioBX96,
         uint256 amount1
-    ) public view returns (uint128 liquidity) {
+    ) public pure returns (uint128 liquidity) {
         return LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96, sqrtRatioBX96, amount1);
     }
 }
