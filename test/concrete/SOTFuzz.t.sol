@@ -78,7 +78,7 @@ contract SOTFuzzTest is SOTBase {
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
 
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
         console.log(
             'effectiveLiquidityInAMM: ',
             sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96)
@@ -102,7 +102,7 @@ contract SOTFuzzTest is SOTBase {
         console.log(' Swap ===================> ');
 
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
-        (sqrtSpotPriceX96, , ) = sot.getAmmState();
+        (sqrtSpotPriceX96, , ) = sot.getAMMState();
 
         assertEq(
             sqrtSpotPriceX96,
@@ -122,7 +122,7 @@ contract SOTFuzzTest is SOTBase {
         });
 
         (amountInUsed, amountOut) = pool.swap(params);
-        (sqrtSpotPriceX96, , ) = sot.getAmmState();
+        (sqrtSpotPriceX96, , ) = sot.getAMMState();
 
         assertGt(amountIn, amountOut, 'pathIndependence');
         assertEq(
@@ -149,7 +149,7 @@ contract SOTFuzzTest is SOTBase {
     function test_computeSwapStep() public {
         bool isZeroToOne = false;
 
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
         uint160 sqrtSpotPriceX96New;
         uint256 amountIn = 1e18;
@@ -226,7 +226,7 @@ contract SOTFuzzTest is SOTBase {
         vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
 
         // Check that the amm state is setup correctly
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
         assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
         assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
@@ -251,7 +251,7 @@ contract SOTFuzzTest is SOTBase {
         }
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
-        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAmmState();
+        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
         uint160 postLiquidity = sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
         assertEq(preLiquidity, postLiquidity, 'pathIndependence');

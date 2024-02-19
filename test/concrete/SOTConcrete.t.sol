@@ -265,16 +265,18 @@ contract SOTConcreteTest is SOTBase {
         assertEq(amount0 + amount1, 0, 'pool not empty');
 
         // Depositing single sided liquidity
-        sot.depositLiquidity(5e18, 0, 0, 0);
+        // One unit of token1 is necessary, so that it can be concentrated to infinity
+        // when spotPrice = spotPriceLow. Without this, the effective liquidity becomes 0.
+        sot.depositLiquidity(5e18, 1, 0, 0);
 
         (amount0, amount1) = pool.getReserves();
 
         assertEq(amount0, 5e18, 'amount0');
-        assertEq(amount1, 0, 'amount1');
+        assertEq(amount1, 1, 'amount1');
 
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
-        (, uint160 sqrtSpotPriceLowX96, ) = sot.getAmmState();
+        (, uint160 sqrtSpotPriceLowX96, ) = sot.getAMMState();
         sotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96;
 
         // Update the Oracle so that it allows the spot price to be updated to the edge
@@ -308,7 +310,7 @@ contract SOTConcreteTest is SOTBase {
 
         // Assert that amount1 reserves are empty
         assertEq(amount0, 5e18, 'amount0');
-        assertEq(amount1, 0, 'amount1');
+        assertEq(amount1, 1, 'amount1');
 
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
@@ -855,7 +857,7 @@ contract SOTConcreteTest is SOTBase {
 
         // Exact spot price range for setPriceBounds, should work
         sot.setPriceBounds(sqrtPrice1999, sqrtPrice2001, sqrtPrice1991, sqrtPrice2005);
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
         assertEq(sqrtSpotPriceX96, sqrtPrice2000, 'sqrtSpotPriceX96');
         assertEq(sqrtPriceLowX96, sqrtPrice1999, 'sqrtPriceLowX96');
