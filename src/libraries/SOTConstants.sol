@@ -51,10 +51,4 @@ library SOTConstants {
             Responsible for pausing and unpausing all functions except withdrawal in the SOT.
      */
     uint8 internal constant PAUSE_FLAG = 0;
-
-    /**
-        @notice The index of the reentrancy flag in the flags bitmap.
-            Responsible for preventing reentrancy in SOT functions.
-     */
-    uint8 internal constant REENTRANCY_FLAG = 1;
 }

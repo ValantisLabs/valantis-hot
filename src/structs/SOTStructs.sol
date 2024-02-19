@@ -95,9 +95,9 @@ struct SOTConstructorArgs {
     uint32 maxOracleUpdateDurationFeed1;
     uint16 solverMaxDiscountBips;
     uint16 oraclePriceMaxDiffBips;
-    uint16 minAmmFeeGrowthInPips;
-    uint16 maxAmmFeeGrowthInPips;
-    uint16 minAmmFee;
+    uint16 minAMMFeeGrowthInPips;
+    uint16 maxAMMFeeGrowthInPips;
+    uint16 minAMMFee;
 }
 
 /**
