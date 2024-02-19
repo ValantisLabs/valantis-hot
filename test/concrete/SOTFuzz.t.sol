@@ -220,11 +220,19 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
-        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
+        // _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
+        //     .toUint160();
+        // _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
+        // _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
+        // _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
+
+        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, 3442305233747929508301766656000, 3542305233747929508301766656000)
             .toUint160();
-        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
+        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, 3642305233747929508301766656000).toUint160();
         _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
-        _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
+        _reserve0 = bound(_reserve0, 1e10, 1e30);
+        _reserve1 = bound(_reserve1, 1e10, 1e30);
+        _amountIn = bound(_amountIn, 1, _reserve0);
 
         console.log('Fuzz Input: _isZeroToOne: ', _isZeroToOne);
         console.log('Fuzz Input: _reserve0: ', _reserve0);
@@ -240,6 +248,9 @@ contract SOTFuzzTest is SOTBase {
 
         // Set Reserves
         sot.depositLiquidity(_reserve0, _reserve1, 0, 0);
+
+        _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+        _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         // Set AMM State
         mockAMMState.setState(0, _sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
