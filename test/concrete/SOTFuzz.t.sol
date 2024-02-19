@@ -84,7 +84,7 @@ contract SOTFuzzTest is SOTBase {
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
         console.log(
             'effectiveLiquidityInAMM: ',
-            sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96)
+            sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96)
         );
 
         SovereignPoolSwapContextData memory data;
@@ -160,7 +160,7 @@ contract SOTFuzzTest is SOTBase {
         uint256 amountOut;
 
         console.log(' Forward Direction ===================> ');
-        uint128 effectiveLiquidity = sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+        uint128 effectiveLiquidity = sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
         console.log('sqrtSpotPriceX96Initial: ', sqrtSpotPriceX96);
 
@@ -220,19 +220,21 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
-        // _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
-        //     .toUint160();
-        // _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
-        // _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
-        // _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
-
-        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, 3442305233747929508301766656000, 3542305233747929508301766656000)
+        // Comprehensive bounds that cover all scenarios
+        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
             .toUint160();
-        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, 3642305233747929508301766656000).toUint160();
+        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
         _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
-        _reserve0 = bound(_reserve0, 1e10, 1e30);
-        _reserve1 = bound(_reserve1, 1e10, 1e30);
-        _amountIn = bound(_amountIn, 1, _reserve0);
+        _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
+
+        // Restrictive bounds to real use cases
+        // _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, 3442305233747929508301766656000, 3542305233747929508301766656000)
+        //     .toUint160();
+        // _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, 3642305233747929508301766656000).toUint160();
+        // _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
+        // _reserve0 = bound(_reserve0, 1e10, 1e30);
+        // _reserve1 = bound(_reserve1, 1e10, 1e30);
+        // _amountIn = bound(_amountIn, 1, _reserve0);
 
         console.log('Fuzz Input: _isZeroToOne: ', _isZeroToOne);
         console.log('Fuzz Input: _reserve0: ', _reserve0);
@@ -277,7 +279,7 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        try sot.getEffectiveLiquidity(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96) returns (
+        try sot.getEffectiveAMMLiquidity(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96) returns (
             uint128 preLiquidity
         ) {
             if (_amountIn == 0) {
@@ -289,7 +291,7 @@ contract SOTFuzzTest is SOTBase {
             console.log('Swap Output: amountOut =  ', amountOut);
 
             (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-            try sot.getEffectiveLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) returns (
+            try sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) returns (
                 uint128 postLiquidity
             ) {
                 if (amountInUsed != 0 || amountOut != 0) {

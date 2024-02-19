@@ -177,6 +177,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     uint256 public maxToken0VolumeToQuote;
     uint256 public maxToken1VolumeToQuote;
 
+    uint256 public activeReserves0;
+    uint256 public activeReserves1;
+
     /************************************************
      *  MODIFIERS
      ***********************************************/
@@ -310,7 +313,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = getEffectiveLiquidity(
+        uint128 effectiveLiquidity = getEffectiveAMMLiquidity(
             sqrtSpotPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
@@ -450,9 +453,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         } else {
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
+
+            recalculateActiveReserves();
         }
     }
 
+    // TODO: Add reentrancy guard here
     function depositLiquidity(
         uint256 _amount0,
         uint256 _amount1,
@@ -468,6 +474,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             '',
             ''
         );
+
+        // TODO: This could be vulnerable to reentrancy
+        recalculateActiveReserves();
     }
 
     function withdrawLiquidity(
@@ -479,7 +488,23 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external onlyLiquidityProvider {
         _onlySpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
+        // (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
+
+        // uint256 passiveReserves0 = reserve0 - activeReserves0;
+        // uint256 passiveReserves1 = reserve1 - activeReserves1;
+
+        // // First empty all the passive reserves, only then withdraw from active reserves
+        // if (_amount0 > passiveReserves0) {
+        //     activeReserves0 -= _amount0 - passiveReserves0;
+        // }
+
+        // if (_amount1 > passiveReserves1) {
+        //     activeReserves1 -= _amount1 - passiveReserves1;
+        // }
+
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
+
+        recalculateActiveReserves();
     }
 
     function getSwapFeeInBips(
@@ -564,21 +589,52 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    function getEffectiveLiquidity(
-        uint160 sqrtSpotPriceX96,
-        uint160 sqrtPriceLowX96,
-        uint160 sqrtPriceHighX96
-    ) public view returns (uint128 effectiveLiquidity) {
-        // Query current reserves
-        // This already excludes poolManager and protocol fees
+    function recalculateActiveReserves() internal {
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
+
+        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
 
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtSpotPriceX96, sqrtPriceHighX96, reserve0);
 
         uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtPriceLowX96, sqrtSpotPriceX96, reserve1);
 
-        console.log('sot.getEffectiveLiquidity liquidity0: ', liquidity0);
-        console.log('sot.getEffectiveLiquidity liquidity1: ', liquidity1);
+        uint128 maxEffectiveLiquidity;
+
+        if (liquidity0 < liquidity1) {
+            maxEffectiveLiquidity = liquidity0;
+        } else {
+            maxEffectiveLiquidity = liquidity1;
+        }
+
+        (activeReserves0, activeReserves1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtSpotPriceX96,
+            sqrtPriceLowX96,
+            sqrtPriceHighX96,
+            maxEffectiveLiquidity
+        );
+    }
+
+    function getEffectiveAMMLiquidity(
+        uint160 sqrtSpotPriceX96,
+        uint160 sqrtPriceLowX96,
+        uint160 sqrtPriceHighX96
+    ) public view returns (uint128 effectiveLiquidity) {
+        // Query current reserves
+
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
+            sqrtSpotPriceX96,
+            sqrtPriceHighX96,
+            activeReserves0
+        );
+
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(
+            sqrtPriceLowX96,
+            sqrtSpotPriceX96,
+            activeReserves1
+        );
+
+        console.log('sot.getEffectiveAMMLiquidity liquidity0: ', liquidity0);
+        console.log('sot.getEffectiveAMMLiquidity liquidity1: ', liquidity1);
 
         if (liquidity0 < liquidity1) {
             effectiveLiquidity = liquidity0;
@@ -586,7 +642,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             effectiveLiquidity = liquidity1;
         }
 
-        console.log('sot.getEffectiveLiquidity effectiveLiquidity: ', effectiveLiquidity);
+        console.log('sot.getEffectiveAMMLiquidity effectiveLiquidity: ', effectiveLiquidity);
     }
 
     function _ammSwap(
@@ -603,7 +659,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             .getState();
 
         // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = getEffectiveLiquidity(
+        uint128 effectiveLiquidity = getEffectiveAMMLiquidity(
             sqrtSpotPriceX96Cache,
             sqrtPriceLowX96Cache,
             sqrtPriceHighX96Cache
@@ -621,6 +677,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
+
+        if (almLiquidityQuoteInput.isZeroToOne) {
+            activeReserves0 += almLiquidityQuoteInput.amountInMinusFee;
+            activeReserves1 -= liquidityQuote.amountOut;
+        } else {
+            activeReserves0 -= liquidityQuote.amountOut;
+            activeReserves1 += almLiquidityQuoteInput.amountInMinusFee;
+        }
 
         // TODO: Add this check
         // if(liquidityQuote.amountOut == 0) {
