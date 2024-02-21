@@ -6,15 +6,47 @@ import { Test } from 'forge-std/Test.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AMMState } from 'src/structs/SOTStructs.sol';
 
+contract TightPackHarness {
+    AMMState public harnessState;
+
+    function setState(uint32 flags, uint160 a, uint160 b, uint160 c) external {
+        TightPack.setState(harnessState, flags, a, b, c);
+    }
+
+    function getState() external view returns (uint32, uint160, uint160, uint160) {
+        return TightPack.getState(harnessState);
+    }
+
+    function setFlag(uint8 index, bool value) external {
+        TightPack.setFlag(harnessState, index, value);
+    }
+
+    function getFlag(uint8 index) external view returns (bool) {
+        return TightPack.getFlag(harnessState, index);
+    }
+
+    function setA(uint160 a) external {
+        TightPack.setA(harnessState, a);
+    }
+
+    function getA() external view returns (uint160) {
+        return TightPack.getA(harnessState);
+    }
+}
+
 contract TestTightPack is Test {
     using TightPack for AMMState;
 
-    AMMState state;
+    TightPackHarness public harness;
 
-    function testPackSlotsUint160(uint32 flags, uint160 a, uint160 b, uint160 c) public {
-        state.setState(flags, a, b, c);
+    function setUp() public {
+        harness = new TightPackHarness();
+    }
 
-        (uint32 flags2, uint160 a2, uint160 b2, uint160 c2) = state.getState();
+    function test_PackSlotsUint160(uint32 flags, uint160 a, uint160 b, uint160 c) public {
+        harness.setState(flags, a, b, c);
+
+        (uint32 flags2, uint160 a2, uint160 b2, uint160 c2) = harness.getState();
 
         assertEq(flags, flags2, 'incorrect flags value');
         assertEq(a, a2, 'incorrect a value');
@@ -22,34 +54,40 @@ contract TestTightPack is Test {
         assertEq(c, c2, 'incorrect c value');
     }
 
-    function testFlags(uint32 flags, uint160 a, uint160 b, uint160 c, uint8 rand) public {
-        state.setState(flags, a, b, c);
+    function test_flags(uint32 flags, uint160 a, uint160 b, uint160 c, uint8 index) public {
+        index = uint8(bound(index, 0, 31));
 
-        if (rand > 31) {
-            vm.expectRevert(TightPack.TightPack__invalidIndex.selector);
-        }
+        harness.setState(flags, a, b, c);
 
-        state.setFlag(rand, true);
-        assertTrue(state.getFlag(rand), 'flag not set');
+        harness.setFlag(index, true);
+        assertTrue(harness.getFlag(index), 'flag not set');
 
-        state.setFlag(rand, false);
+        harness.setFlag(index, false);
 
-        assertFalse(state.getFlag(rand), 'flag not unset');
+        assertFalse(harness.getFlag(index), 'flag not unset');
 
-        (, uint160 a2, uint160 b2, uint160 c2) = state.getState();
+        (, uint160 a2, uint160 b2, uint160 c2) = harness.getState();
 
         assertEq(a, a2, 'incorrect a value');
         assertEq(b, b2, 'incorrect b value');
         assertEq(c, c2, 'incorrect c value');
     }
 
-    function testSetA(uint32 flags, uint160 a, uint160 b, uint160 c, uint160 a2) public {
-        state.setState(flags, a, b, c);
+    function test_flags_indexOutOfBounds() public {
+        vm.expectRevert(TightPack.TightPack__invalidIndex.selector);
+        harness.setFlag(32, true);
 
-        assertEq(a, state.getA(), 'incorrect getA');
+        vm.expectRevert(TightPack.TightPack__invalidIndex.selector);
+        harness.getFlag(32);
+    }
 
-        state.setA(a2);
+    function test_setA(uint32 flags, uint160 a, uint160 b, uint160 c, uint160 a2) public {
+        harness.setState(flags, a, b, c);
 
-        assertEq(a2, state.getA(), 'incorrect setA');
+        assertEq(a, harness.getA(), 'incorrect getA');
+
+        harness.setA(a2);
+
+        assertEq(a2, harness.getA(), 'incorrect setA');
     }
 }

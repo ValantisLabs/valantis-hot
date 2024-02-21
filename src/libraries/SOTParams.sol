@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+
 import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 /**
@@ -25,6 +26,7 @@ library SOTParams {
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
     error SOTParams__validateBasicParams_unauthorizedRecipient();
+    error SOTParams__validateBasicParams_invalidSignatureTimestamp();
     error SOTParams__validateFeeParams_insufficientFee();
     error SOTParams__validateFeeParams_invalidfeeGrowthInPips();
     error SOTParams__validateFeeParams_invalidFeeMax();
@@ -56,6 +58,10 @@ library SOTParams {
 
         if (sot.expiry > maxDelay) revert SOTParams__validateBasicParams_excessiveExpiryTime();
 
+        if (sot.signatureTimestamp > block.timestamp) revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
+
+        // Also equivalent to: signatureTimestamp >= block.timestamp - maxDelay
+        // So, block.timestamp - maxDelay <= signatureTimestamp <= block.timestamp
         if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
 
         if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();

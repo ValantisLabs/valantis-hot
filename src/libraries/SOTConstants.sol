@@ -23,7 +23,7 @@ library SOTConstants {
     bytes32 internal constant SOT_TYPEHASH =
         keccak256(
             // solhint-disable-next-line max-line-length
-            'SolverOrderType(uint256 amountInMax,uint160 sqrtSolverPriceX96Discounted,uint160 sqrtSolverPriceX96Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthInPipsToken0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthInPipsToken1,uint8 nonce,uint8 expectedFlag)'
+            'SolverOrderType(uint256 amountInMax,uint256 solverPriceX192Discounted,uint256 solverPriceX192Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthInPipsToken0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthInPipsToken1,uint8 nonce,uint8 expectedFlag)'
         );
 
     /**
@@ -44,17 +44,11 @@ library SOTConstants {
     /**
         @notice The maximum number of SOT quotes that can be processed in a single block.
      */
-    uint256 internal constant MAX_SOT_QUOTES_IN_BLOCK = 32;
+    uint256 internal constant MAX_SOT_QUOTES_IN_BLOCK = 56;
 
     /**
         @notice The index of the pause flag in the flags bitmap.
             Responsible for pausing and unpausing all functions except withdrawal in the SOT.
      */
     uint8 internal constant PAUSE_FLAG = 0;
-
-    /**
-        @notice The index of the reentrancy flag in the flags bitmap.
-            Responsible for preventing reentrancy in SOT functions.
-     */
-    uint8 internal constant REENTRANCY_FLAG = 1;
 }

@@ -18,6 +18,8 @@ import {
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { MockToken } from 'test/mocks/MockToken.sol';
+import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
+
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoolDeployer.sol';
 
@@ -52,9 +54,11 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
 
         SOTLiquidityProvider liquidityProvider = new SOTLiquidityProvider();
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
+        // AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
+        // AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
 
+        AggregatorV3Interface feedToken0 = new MockChainlinkOracle(8);
+        AggregatorV3Interface feedToken1 = new MockChainlinkOracle(8);
         SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
             pool: address(pool),
             manager: vm.envAddress('SEPOLIA_PUBLIC_KEY'),
@@ -70,9 +74,9 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
             maxOracleUpdateDurationFeed1: 1 hours,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 50, // 0.5%
-            minAmmFeeGrowth: 100,
-            maxAmmFeeGrowth: 10000,
-            minAmmFee: 1 // 0.01%
+            minAMMFeeGrowthInPips: 100,
+            maxAMMFeeGrowthInPips: 10000,
+            minAMMFee: 1 // 0.01%
         });
 
         SOT sot = new SOT(sotArgs);

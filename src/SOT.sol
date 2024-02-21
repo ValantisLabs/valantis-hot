@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
-
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
@@ -62,8 +61,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__onlyLiquidityProvider();
     error SOT__onlyUnpaused();
     error SOT__reentrant();
+    error SOT__constructor_invalidFeeGrowthBounds();
     error SOT__constructor_invalidLiquidityProvider();
-    error SOT__constructor_invalidMinAmmFee();
+    error SOT__constructor_invalidMinAMMFee();
     error SOT__constructor_invalidManager();
     error SOT__constructor_invalidOraclePriceMaxDiffBips();
     error SOT__constructor_invalidSigner();
@@ -74,6 +74,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+    error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
@@ -119,21 +120,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev SOT reverts if feeGrowthInPips exceeds these bounds.
 
      */
-    uint16 public immutable minAmmFeeGrowthInPips;
-    uint16 public immutable maxAmmFeeGrowthInPips;
+    uint16 public immutable minAMMFeeGrowthInPips;
+    uint16 public immutable maxAMMFeeGrowthInPips;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
-	    @dev SOT reverts if feeMin is below this value.
+	    @dev SOT reverts if feeMinToken{0,1} is below this value.
      */
-    uint16 public immutable minAmmFee;
+    uint16 public immutable minAMMFee;
 
     /************************************************
      *  STORAGE
      ***********************************************/
 
     /**
-        @notice Tight packed storage slots for - 
+        @notice Tightly packed storage slots for:
             * sqrtSpotPriceX96 (a): AMM square-root spot price, in Q64.96 format.
             * sqrtPriceLowX96 (b): square-root lower price bound, in Q64.96 format.
             * sqrtPriceHighX96 (c): square-root upper price bound, in Q64.96 format.
@@ -168,11 +169,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /**
 	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
         @dev Can be updated by `manager`.
-	    @dev Since there can only be one SOT per block, this is also a maximum
-             allowed SOT quote volume per block.
      */
     uint256 public maxToken0VolumeToQuote;
     uint256 public maxToken1VolumeToQuote;
+
+    /**
+        @notice Liquidity which gets utilized on AMM swaps. 
+     */
+    uint128 private _effectiveAMMLiquidity;
 
     /************************************************
      *  MODIFIERS
@@ -198,15 +202,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         _;
     }
 
-    modifier nonReentrant() {
-        // 1st bit of flags: ReentrancyLock
-        if (_ammState.getFlag(SOTConstants.REENTRANCY_FLAG)) {
-            revert SOT__reentrant();
-        }
-        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, true);
+    modifier poolNonReentrant() {
+        _poolNonReentrant();
         _;
-
-        _ammState.setFlag(SOTConstants.REENTRANCY_FLAG, false);
     }
 
     /************************************************
@@ -226,7 +224,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             _args.maxOracleUpdateDurationFeed1
         )
     {
-        if (_args.pool == address(0)) {
+        if (_args.pool == address(0) || ISovereignPool(_args.pool).sovereignVault() != _args.pool) {
             revert SOT__constructor_invalidSovereignPool();
         }
 
@@ -265,15 +263,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
 
-        minAmmFeeGrowthInPips = _args.minAmmFeeGrowthInPips;
+        if (_args.minAMMFeeGrowthInPips > _args.maxAMMFeeGrowthInPips) {
+            revert SOT__constructor_invalidFeeGrowthBounds();
+        }
+        minAMMFeeGrowthInPips = _args.minAMMFeeGrowthInPips;
 
-        maxAmmFeeGrowthInPips = _args.maxAmmFeeGrowthInPips;
+        maxAMMFeeGrowthInPips = _args.maxAMMFeeGrowthInPips;
 
-        if (_args.minAmmFee > SOTConstants.BIPS) {
-            revert SOT__constructor_invalidMinAmmFee();
+        if (_args.minAMMFee > SOTConstants.BIPS) {
+            revert SOT__constructor_invalidMinAMMFee();
         }
 
-        minAmmFee = _args.minAmmFee;
+        minAMMFee = _args.minAMMFee;
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
@@ -285,9 +286,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  GETTER FUNCTIONS
      ***********************************************/
 
-    function getAmmState()
+    function effectiveAMMLiquidity() external view poolNonReentrant returns (uint128) {
+        return _effectiveAMMLiquidity;
+    }
+
+    // @audit Verify that this function is safe from view-only reentrancy.
+    function getAMMState()
         external
         view
+        poolNonReentrant
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
     {
         (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
@@ -298,42 +305,40 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev this is a temporary implementation of the function.
         // TODO: add correct reserves calculation.
      */
-    function getReservesAtPrice(uint160 sqrtPriceX96New) external view returns (uint256 reserve0, uint256 reserve1) {
+    function getReservesAtPrice(
+        uint160 sqrtSpotPriceX96New
+    ) external view poolNonReentrant returns (uint256 reserve0, uint256 reserve1) {
+        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
+
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
-        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
-            .getState();
-
-        // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = _getEffectiveLiquidity(
-            sqrtPriceX96Cache,
-            sqrtPriceLowX96Cache,
-            sqrtPriceHighX96Cache
+        (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtSpotPriceX96,
+            sqrtPriceLowX96,
+            sqrtPriceHighX96,
+            _effectiveAMMLiquidity
         );
 
-        (uint256 activeAmount0, uint256 activeAmount1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96Cache,
-            sqrtPriceLowX96Cache,
-            sqrtPriceHighX96Cache,
-            effectiveLiquidity
+        uint256 passiveReserve0 = reserve0 - activeReserve0;
+        uint256 passiveReserve1 = reserve1 - activeReserve1;
+
+        (activeReserve0, activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtSpotPriceX96New,
+            sqrtPriceLowX96,
+            sqrtPriceHighX96,
+            _effectiveAMMLiquidity
         );
 
-        uint256 passiveAmount0 = reserve0 - activeAmount0;
-        uint256 passiveAmount1 = reserve1 - activeAmount1;
-
-        (uint256 postSwapActiveAmount0, uint256 postSwapActiveAmount1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtPriceX96New,
-            sqrtPriceLowX96Cache,
-            sqrtPriceHighX96Cache,
-            effectiveLiquidity
-        );
-
-        reserve0 = passiveAmount0 + postSwapActiveAmount0;
-        reserve1 = passiveAmount1 + postSwapActiveAmount1;
+        reserve0 = passiveReserve0 + activeReserve0;
+        reserve1 = passiveReserve1 + activeReserve1;
     }
 
     function domainSeparatorV4() external view returns (bytes32) {
         return _domainSeparatorV4();
+    }
+
+    function isPaused() external view returns (bool) {
+        return _ammState.getFlag(SOTConstants.PAUSE_FLAG);
     }
 
     /************************************************
@@ -341,21 +346,27 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     /**
-        @notice Changes the manager of the pool ( To be protected by timelock )
+        @notice Changes the `manager` of this contract.
+        @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
      */
     function setManager(address _manager) external onlyManager {
         manager = _manager;
     }
 
     /**
-        @notice Changes the signer of the pool ( To be protected by timelock )
+        @notice Changes the signer of the pool.
+        @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
      */
     function setSigner(address _signer) external onlyManager {
         solverReadSlot.signer = _signer;
     }
 
     /**
-        @notice Changes the maximum token volumes available for a single SOT quote ( To be protected by timelock )
+        @notice Changes the maximum token volumes available for a single SOT quote.
+        @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
      */
     function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
         maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
@@ -363,7 +374,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     /**
-        @notice Changes the standard fee charged on all solver swaps ( To be protected by timelock )
+        @notice Changes the standard fee charged on all solver swaps.
+        @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
      */
     function setSolverFeeInBips(uint16 _solverFeeBipsToken0, uint16 _solverFeeBipsToken1) external onlyManager {
         if (
@@ -377,36 +390,47 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         solverReadSlot.solverFeeBipsToken1 = _solverFeeBipsToken1;
     }
 
+    /**
+        @notice Updates the maximum number of SOT quotes allowed on a single block. 
+        @dev Only callable by `manager`.
+     */
     function setMaxAllowedQuotes(uint8 _maxAllowedQuotes) external onlyManager {
         if (_maxAllowedQuotes > SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
             revert SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
         }
+
         solverReadSlot.maxAllowedQuotes = _maxAllowedQuotes;
     }
 
     /**
-        @notice Toggles the pause flag which instantly pauses all critical functions except withdrawals
+        @notice Updates the pause flag, which instantly pauses all critical functions except withdrawals.
+        @dev Only callable by `manager`.
      */
     function setPause(bool _value) external onlyManager {
         _ammState.setFlag(SOTConstants.PAUSE_FLAG, _value);
     }
 
     /**
-        @notice Sets the AMM position's square-root upper and lower price bounds
-        @param _sqrtPriceLowX96 New square-root lower price bound
-        @param _sqrtPriceHighX96 New square-root upper price bound
-        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price when setting new bounds
-        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price when setting new bounds
-        @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain
+        @notice Sets the AMM position's square-root upper and lower price bounds.
+        @param _sqrtPriceLowX96 New square-root lower price bound.
+        @param _sqrtPriceHighX96 New square-root upper price bound.
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price (inclusive).
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price (inclusive).
+        @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain.
+        @dev Only callable by `liquidityProvider`.
+        NOTE: This function should come with a small timelock, to protect against malicious LP attacks.
      */
     function setPriceBounds(
         uint160 _sqrtPriceLowX96,
         uint160 _sqrtPriceHighX96,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     ) external onlyLiquidityProvider {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
-        // Check that lower bound is smaller than upper bound, and both are not 0
+        // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
+        // to protect against its manipulation
+        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
+
+        // Check that lower bound is smaller than upper bound
         if (_sqrtPriceLowX96 >= _sqrtPriceHighX96) {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
@@ -422,39 +446,57 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         _ammState.setState(flags, sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
+        // Update AMM liquidity with new price bounds
+        _updateAMMLiquidity();
     }
 
     /************************************************
      *  EXTERNAL FUNCTIONS
      ***********************************************/
 
+    // @audit Verify that we don't need a reentrancy guard for getLiquidityQuote/deposit/withdraw
     function getLiquidityQuote(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
         bytes calldata /*_verifierData*/
-    ) external override onlyPool onlyUnpaused nonReentrant returns (ALMLiquidityQuote memory liquidityQuote) {
+    ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
+
+            // TODO: Do we need this check anymore?
+            if (liquidityQuote.amountOut == 0) {
+                revert SOT__getLiquidityQuote_zeroAmountOut();
+            }
         } else {
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
+            // TODO: Check if it is safe to allow zero amount out for the SOT.
+            // @audit: Check if it is safe to allow zero amount out for the SOT.
+
+            // NOTE: Zero amountOut check is not used here so that manager can cheaply update SOT if needed.
+            // By providing 1 amountIn and receive 0 amountOut, which updates SOT without changing reserves.
+            // Note that if amountOut is 0, then amountIn is automatically converted to 0 by Sovereign Pool.
+            liquidityQuote.isCallbackOnSwap = true;
+
+            // TODO: temp check, to be removed once necessary changes are made in Sovereign Pool
+            if (liquidityQuote.amountOut == 0) {
+                _updateAMMLiquidity();
+            }
         }
     }
 
+    // TODO: Add reentrancy guard here?
     function depositLiquidity(
         uint256 _amount0,
         uint256 _amount1,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
-    )
-        external
-        onlyLiquidityProvider
-        onlyUnpaused
-        nonReentrant
-        returns (uint256 amount0Deposited, uint256 amount1Deposited)
-    {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
+    ) external onlyLiquidityProvider onlyUnpaused returns (uint256 amount0Deposited, uint256 amount1Deposited) {
+        // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
+        // to protect against its manipulation
+        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
             _amount0,
@@ -463,18 +505,27 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             '',
             ''
         );
+
+        // TODO: This could be vulnerable to reentrancy
+        // Update AMM liquidity with post-deposit reserves
+        _updateAMMLiquidity();
     }
 
     function withdrawLiquidity(
         uint256 _amount0,
         uint256 _amount1,
         address _recipient,
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
-    ) external onlyLiquidityProvider nonReentrant {
-        _onlySpotPriceRange(_expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
+    ) external onlyLiquidityProvider {
+        // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
+        // to protect against its manipulation
+        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
+
+        // Update AMM liquidity with post-withdrawal reserves
+        _updateAMMLiquidity();
     }
 
     function getSwapFeeInBips(
@@ -486,7 +537,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Verification of branches is done during getLiquidityQuote
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
-            swapFeeModuleData.feeInBips = _getSolverFeeInBips(_isZeroToOne);
+            swapFeeModuleData.feeInBips = _isZeroToOne
+                ? solverReadSlot.solverFeeBipsToken0
+                : solverReadSlot.solverFeeBipsToken1;
         } else {
             // AMM Branch
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
@@ -500,7 +553,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
     ) external {
-        // Fee Module callback for Universal Pool ( not needed here)
+        // Fee Module callback for Universal Pool (not needed here)
     }
 
     function callbackOnSwapEnd(
@@ -509,7 +562,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
     ) external {
-        // Fee Module callback for Sovereign Pool ( not needed here)
+        // Fee Module callback for Sovereign Pool (not needed here)
     }
 
     function onDepositLiquidityCallback(
@@ -518,25 +571,25 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bytes memory /*_data*/
     ) external override onlyPool {
         if (_amount0 > 0) {
-            IERC20(ISovereignPool(pool).token0()).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
+            address token0 = ISovereignPool(pool).token0();
+            IERC20(token0).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
         }
 
         if (_amount1 > 0) {
-            IERC20(ISovereignPool(pool).token1()).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
+            address token1 = ISovereignPool(pool).token1();
+            IERC20(token1).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
         }
     }
 
     function onSwapCallback(bool /*_isZeroToOne*/, uint256 /*_amountIn*/, uint256 /*_amountOut*/) external override {
-        // Liquidity Quote callback by Sovereign Pool ( not needed here)
+        // Even if amountIn == 0, and amountOut == 0, liquidity still needs to be updated,
+        // because amm spot price might have changed.
+        _updateAMMLiquidity();
     }
 
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    function _getSolverFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
-        feeInBips = isZeroToOne ? solverReadSlot.solverFeeBipsToken0 : solverReadSlot.solverFeeBipsToken1;
-    }
 
     function _getAMMFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
         // TODO: Test if all the calculations are in bips.
@@ -549,35 +602,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             ? solverWriteSlotCache.feeGrowthInPipsToken0
             : solverWriteSlotCache.feeGrowthInPipsToken1;
 
-        feeInBips = Math
-            .mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100)
-            .toUint32();
+        feeInBips =
+            uint32(feeMin) +
+            Math
+                .mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100)
+                .toUint32();
 
-        // Add minimum fee
-        feeInBips += uint32(feeMin);
         // Cap fee if necessary
         if (feeInBips > uint32(feeMax)) {
             feeInBips = uint32(feeMax);
-        }
-    }
-
-    function _getEffectiveLiquidity(
-        uint160 sqrtRatioX96Cache,
-        uint160 sqrtRatioAX96Cache,
-        uint160 sqrtRatioBX96Cache
-    ) internal view returns (uint128 effectiveLiquidity) {
-        // Query current reserves
-        // This already excludes poolManager and protocol fees
-        (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
-
-        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(sqrtRatioX96Cache, sqrtRatioBX96Cache, reserve0);
-
-        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(sqrtRatioAX96Cache, sqrtRatioX96Cache, reserve1);
-
-        if (liquidity0 < liquidity1) {
-            effectiveLiquidity = liquidity0;
-        } else {
-            effectiveLiquidity = liquidity1;
         }
     }
 
@@ -591,36 +624,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         // Cache sqrt spot price, lower bound, and upper bound
-        (, uint160 sqrtPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
-        // Calculate liquidity available to be utilized in this swap
-        uint128 effectiveLiquidity = _getEffectiveLiquidity(
-            sqrtPriceX96Cache,
-            sqrtPriceLowX96Cache,
-            sqrtPriceHighX96Cache
-        );
-
-        uint160 sqrtSpotPriceX96New;
-
         // Calculate amountOut according to CPMM math
-        if (almLiquidityQuoteInput.isZeroToOne) {
-            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
-                sqrtPriceX96Cache,
-                sqrtPriceLowX96Cache,
-                effectiveLiquidity,
-                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
-                0 // fees have already been deducted
-            );
-        } else {
-            (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
-                sqrtPriceX96Cache,
-                sqrtPriceHighX96Cache,
-                effectiveLiquidity,
-                almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
-                0 // fees have already been deducted
-            );
-        }
+        uint160 sqrtSpotPriceX96New;
+        (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
+            sqrtSpotPriceX96Cache,
+            almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
+            _effectiveAMMLiquidity,
+            almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
+            0 // fees have already been deducted
+        );
 
         _ammState.setA(sqrtSpotPriceX96New);
     }
@@ -630,13 +645,22 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
+        // @audit Verify if this is safe ( more info in SOTConcrete.t.sol with @audit tag)
         (SolverOrderType memory sot, bytes memory signature) = abi.decode(externalContext, (SolverOrderType, bytes));
 
         // Execute SOT swap
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
+        SolverReadSlot memory solverReadSlotCache = solverReadSlot;
 
         // Check that the fee path was chosen correctly
-        if (almLiquidityQuoteInput.feeInBips != _getSolverFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
+        if (
+            almLiquidityQuoteInput.feeInBips !=
+            (
+                almLiquidityQuoteInput.isZeroToOne
+                    ? solverReadSlotCache.solverFeeBipsToken0
+                    : solverReadSlotCache.solverFeeBipsToken1
+            )
+        ) {
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
@@ -646,9 +670,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bool isDiscountedSolver = block.timestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
             (solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
 
-        uint8 updatedBlockQuoteCount = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
+        uint8 quotesInCurrentBlock = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
             ? 1
             : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
+
+        if (quotesInCurrentBlock > solverReadSlotCache.maxAllowedQuotes) {
+            revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+        }
 
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
 
@@ -658,7 +686,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
-        sot.validateFeeParams(minAmmFee, minAmmFeeGrowthInPips, maxAmmFeeGrowthInPips);
+        sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
 
         sot.validateBasicParams(
             liquidityQuote.amountOut,
@@ -681,15 +709,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Verify SOT quote signature
         // @audit: Verify that this is a safe way to check signatures
+        // @TODO: @audit: Verify that the typehash is correct in the SOTConstants file
         bytes32 sotHash = sot.hashParams();
-        if (!solverReadSlot.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
+        if (!solverReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT__getLiquidityQuote_invalidSignature();
         }
 
         // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
             solverWriteSlot = SolverWriteSlot({
-                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
+                lastProcessedBlockQuoteCount: quotesInCurrentBlock,
                 feeGrowthInPipsToken0: sot.feeGrowthInPipsToken0,
                 feeMaxToken0: sot.feeMaxToken0,
                 feeMinToken0: sot.feeMinToken0,
@@ -704,23 +733,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
             _ammState.setA(sot.sqrtSpotPriceX96New);
         } else {
-            if (solverWriteSlotCache.lastProcessedBlockQuoteCount == SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
-                revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
-            }
+            solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
+            solverWriteSlotCache.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+            solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(
+                sot.nonce
+            );
 
-            solverWriteSlot = SolverWriteSlot({
-                lastProcessedBlockQuoteCount: updatedBlockQuoteCount,
-                feeGrowthInPipsToken0: solverWriteSlotCache.feeGrowthInPipsToken0,
-                feeMaxToken0: solverWriteSlotCache.feeMaxToken0,
-                feeMinToken0: solverWriteSlotCache.feeMinToken0,
-                feeGrowthInPipsToken1: solverWriteSlotCache.feeGrowthInPipsToken1,
-                feeMaxToken1: solverWriteSlotCache.feeMaxToken1,
-                feeMinToken1: solverWriteSlotCache.feeMinToken1,
-                lastStateUpdateTimestamp: solverWriteSlotCache.lastStateUpdateTimestamp,
-                lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
-                lastProcessedSignatureTimestamp: solverWriteSlotCache.lastProcessedSignatureTimestamp,
-                alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
-            });
+            solverWriteSlot = solverWriteSlotCache;
         }
     }
 
@@ -728,21 +747,47 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  PRIVATE FUNCTIONS
      ***********************************************/
 
+    function _updateAMMLiquidity() private {
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+            .getState();
+
+        // Query current reserves
+        (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
+
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
+            sqrtSpotPriceX96Cache,
+            sqrtPriceHighX96Cache,
+            reserve0
+        );
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(
+            sqrtPriceLowX96Cache,
+            sqrtSpotPriceX96Cache,
+            reserve1
+        );
+
+        if (liquidity0 < liquidity1) {
+            _effectiveAMMLiquidity = liquidity0;
+        } else {
+            _effectiveAMMLiquidity = liquidity1;
+        }
+    }
+
     /**
         @notice Checks that the current AMM spot price is within the expected range.
-        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price.
-        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price.
-        @dev if both _expectedSqrtSpotPriceUpperX96 and _expectedSqrtSpotPriceLowerX96 are 0,
+        @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price. ( inclusive )
+        @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price. ( inclusive )
+        @dev If both `_expectedSqrtSpotPriceLowerX96` and `_expectedSqrtSpotPriceUpperX96` are 0,
              then no check is performed.
       */
-    function _onlySpotPriceRange(
-        uint160 _expectedSqrtSpotPriceUpperX96,
-        uint160 _expectedSqrtSpotPriceLowerX96
+    function _checkSpotPriceRange(
+        uint160 _expectedSqrtSpotPriceLowerX96,
+        uint160 _expectedSqrtSpotPriceUpperX96
     ) private view {
-        if (_expectedSqrtSpotPriceUpperX96 + _expectedSqrtSpotPriceLowerX96 != 0) {
+        bool checkSqrtSpotPriceAbsDiff = _expectedSqrtSpotPriceUpperX96 != 0 || _expectedSqrtSpotPriceLowerX96 != 0;
+        if (checkSqrtSpotPriceAbsDiff) {
             uint160 sqrtSpotPriceX96 = _ammState.getA();
 
-            // Check that spot price has not been manipulated before updating price bounds
+            // Check that spot price has not been manipulated
             if (
                 sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
             ) {
@@ -773,6 +818,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function _onlyLiquidityProvider() private view {
         if (msg.sender != liquidityProvider) {
             revert SOT__onlyLiquidityProvider();
+        }
+    }
+
+    function _poolNonReentrant() private view {
+        if (ISovereignPool(pool).isLocked()) {
+            revert SOT__reentrant();
         }
     }
 }

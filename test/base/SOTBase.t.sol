@@ -2,30 +2,26 @@
 pragma solidity 0.8.19;
 
 import 'forge-std/console.sol';
-
 import {
     SovereignPool,
     SovereignPoolBase,
     SovereignPoolConstructorArgs
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { Base } from 'valantis-core/test/base/Base.sol';
-
-import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-
-import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, AMMState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
-import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
-
-import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
-
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+
+import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
+import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
+import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
+import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;
@@ -86,9 +82,9 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
             oraclePriceMaxDiffBips: 5000, // 50%
-            minAmmFeeGrowthInPips: 100,
-            maxAmmFeeGrowthInPips: 10000,
-            minAmmFee: 1 // 0.01%
+            minAMMFeeGrowthInPips: 100,
+            maxAMMFeeGrowthInPips: 10000,
+            minAMMFee: 1 // 0.01%
         });
 
         vm.startPrank(_pool.poolManager());
@@ -206,7 +202,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function getPoolState() public view returns (PoolState memory state) {
         (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
         (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAmmState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
         state = PoolState({
             sqrtSpotPriceX96: sqrtSpotPriceX96,
@@ -217,6 +213,37 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             managerFee0: managerFee0,
             managerFee1: managerFee1
         });
+    }
+
+    function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
+        // This pattern is used to prevent stack too deep errors
+        (
+            ,
+            ,
+            ,
+            ,
+            slot.feeGrowthInPipsToken1,
+            slot.feeMaxToken1,
+            slot.feeMinToken1,
+            slot.lastStateUpdateTimestamp,
+            slot.lastProcessedQuoteTimestamp,
+            slot.lastProcessedSignatureTimestamp,
+            slot.alternatingNonceBitmap
+        ) = sot.solverWriteSlot();
+
+        (
+            slot.lastProcessedBlockQuoteCount,
+            slot.feeGrowthInPipsToken0,
+            slot.feeMaxToken0,
+            slot.feeMinToken0,
+            ,
+            ,
+            ,
+            ,
+            ,
+            ,
+
+        ) = sot.solverWriteSlot();
     }
 
     function checkPoolState(PoolState memory actual, PoolState memory expected) public {

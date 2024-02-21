@@ -95,16 +95,15 @@ struct SOTConstructorArgs {
     uint32 maxOracleUpdateDurationFeed1;
     uint16 solverMaxDiscountBips;
     uint16 oraclePriceMaxDiffBips;
-    uint16 minAmmFeeGrowthInPips;
-    uint16 maxAmmFeeGrowthInPips;
-    uint16 minAmmFee;
+    uint16 minAMMFeeGrowthInPips;
+    uint16 maxAMMFeeGrowthInPips;
+    uint16 minAMMFee;
 }
 
 /**
     @notice Packed struct that contains all variables relevant to the state of the AMM.
         * flags (uint32):
             * bit 0: pause flag
-            * bit 1: reentrancy flag
         * a: sqrtSpotPriceX96
         * b: sqrtPriceLowX96
         * c: sqrtPriceHighX96

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.5.0;
+pragma solidity 0.8.19;
 
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
@@ -44,6 +44,8 @@ library LiquidityAmounts {
     ) internal pure returns (uint128 liquidity) {
         // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
+        if (amount0 == 0) return 0;
+
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;
 
         uint256 intermediate = FullMath.mulDiv(sqrtRatioAX96, sqrtRatioBX96, FixedPoint96.Q96);
@@ -67,6 +69,7 @@ library LiquidityAmounts {
     ) internal pure returns (uint128 liquidity) {
         // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
+        if (amount1 == 0) return 0;
 
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;
 
@@ -83,7 +86,7 @@ library LiquidityAmounts {
     /// @param amount0 The amount of token0 being sent in
     /// @param amount1 The amount of token1 being sent in
     /// @return liquidity The maximum amount of liquidity received
-    function getLiquidityForAmounts(
+    function getLiquidityForAmountsCapped(
         uint160 sqrtRatioX96,
         uint160 sqrtRatioAX96,
         uint160 sqrtRatioBX96,
