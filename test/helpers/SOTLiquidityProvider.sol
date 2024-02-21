@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { SolverOrderType } from 'src/structs/SOTStructs.sol';
-import { SOT } from 'src/SOT.sol';
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
+
+import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SOT } from 'src/SOT.sol';
 
 contract SOTLiquidityProvider {
     using SafeERC20 for IERC20;

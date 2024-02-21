@@ -2,17 +2,8 @@
 pragma solidity 0.8.19;
 
 import { console } from 'forge-std/console.sol';
-
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
-
-import { SOT } from 'src/SOT.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { TightPack } from 'src/libraries/utils/TightPack.sol';
-
-import { SOTBase } from 'test/base/SOTBase.t.sol';
-
 import {
     SovereignPool,
     SovereignPoolBase,
@@ -20,7 +11,13 @@ import {
     SovereignPoolSwapParams,
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
+import { SOT } from 'src/SOT.sol';
+import { SOTParams } from 'src/libraries/SOTParams.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import {
     SOTConstructorArgs,
     SolverOrderType,
@@ -29,12 +26,10 @@ import {
     AMMState
 } from 'src/structs/SOTStructs.sol';
 
+import { SOTBase } from 'test/base/SOTBase.t.sol';
 import { SOTSigner } from 'test/helpers/SOTSigner.sol';
-
 import { MathHelper } from 'test/helpers/MathHelper.sol';
 import { LiquidityAmountsHelper } from 'test/helpers/LiquidityAmountsHelper.sol';
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;
