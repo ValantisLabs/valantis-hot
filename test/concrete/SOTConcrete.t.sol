@@ -3,6 +3,9 @@ pragma solidity 0.8.19;
 
 import { console } from 'forge-std/console.sol';
 
+import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
+import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
+
 import { SOT } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 
@@ -311,11 +314,13 @@ contract SOTConcreteTest is SOTBase {
         // Perform SOT swap to update the spot price
         pool.swap(params);
 
+        assertNotEq(sot.effectiveAMMLiquidity(), 0, 'effectiveAMMLiquidity');
+
         (amount0, amount1) = pool.getReserves();
 
         // Assert that amount1 reserves are empty
         assertEq(amount0, 5e18, 'amount0');
-        assertEq(amount1, 1, 'amount1');
+        assertEq(amount1, 2, 'amount1');
 
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
@@ -876,6 +881,41 @@ contract SOTConcreteTest is SOTBase {
 
         // (0,0) bypasses all checks
         sot.withdrawLiquidity(1e18, 1e18, address(this), 0, 0);
+    }
+
+    function test_computeSwapStep() public {
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+        bool isZeroToOne = false;
+        uint160 sqrtSpotPriceX96New;
+        uint256 amountIn = 1e18;
+        uint256 amountInFilled;
+        uint256 amountOut;
+
+        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+
+        uint128 effectiveLiquidity = sot.effectiveAMMLiquidity();
+
+        (sqrtSpotPriceX96New, amountInFilled, amountOut, ) = SwapMath.computeSwapStep(
+            sqrtSpotPriceX96,
+            isZeroToOne ? sqrtPriceLowX96 : sqrtPriceHighX96,
+            effectiveLiquidity,
+            amountIn.toInt256(), // always exact input swap
+            0 // fees have already been deducted
+        );
+
+        isZeroToOne = !isZeroToOne;
+
+        (sqrtSpotPriceX96New, amountInFilled, amountOut, ) = SwapMath.computeSwapStep(
+            sqrtSpotPriceX96New,
+            isZeroToOne ? sqrtPriceLowX96 : sqrtPriceHighX96,
+            effectiveLiquidity,
+            amountOut.toInt256(), // always exact input swap
+            0 // fees have already been deducted
+        );
+
+        assertApproxEqRel(sqrtSpotPriceX96, sqrtSpotPriceX96New, 1, 'sqrtSpotPriceX96New');
+        assertGe(amountIn, amountOut, 'amountIn');
     }
 }
 

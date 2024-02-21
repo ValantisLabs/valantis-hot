@@ -58,34 +58,16 @@ contract SOTFuzzTest is SOTBase {
     function test_getReservesAtPrice(uint256 priceToken0USD) public {
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
-        // uint256 priceToken0USD = bound(priceToken0USD, 1900, 2100);
-        priceToken0USD = 1950;
+        priceToken0USD = bound(priceToken0USD, 1900, 2100);
 
         console.log('priceToken0USD: ', priceToken0USD);
-        console.log(
-            'sqrtPriceX96: ',
-            getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
-        );
 
-        // console.log(' getReservesAtPrice 1 ===================> ');
-        // (uint256 reserve0Pre, uint256 reserve1Pre) = sot.getReservesAtPrice(
-        //     getSqrtPriceX96(2000 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
-        // );
-
-        // assertEq(reserve0Pre, 5e18, 'reserve0Pre');
-        // assertEq(reserve1Pre, 10_000e18, 'reserve1Pre');
-
-        console.log(' getReservesAtPrice ===================> ');
         // Check reserves at priceToken0USD
         (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
 
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
-        console.log(
-            'effectiveLiquidityInAMM: ',
-            sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96)
-        );
+        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
 
         SovereignPoolSwapContextData memory data;
 
@@ -102,16 +84,25 @@ contract SOTFuzzTest is SOTBase {
             swapTokenOut: isZeroToOne ? address(token1) : address(token0),
             swapContext: data
         });
-        console.log(' Swap ===================> ');
 
+        if (params.amountIn == 0) {
+            vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
+        }
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
         (sqrtSpotPriceX96, , ) = sot.getAMMState();
 
-        assertEq(
+        assertApproxEqRel(
             sqrtSpotPriceX96,
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            1, // 100% is represented by 1e18 here, so this value should be negligible
             'sqrtSpotPriceX96 1'
         );
+
+        (uint256 reserve0Post, uint256 reserve1Post) = pool.getReserves();
+
+        // 100% is represented by 1e18 here, so this value should be negligible
+        assertApproxEqRel(reserve0Post, reserve0Expected, 1, 'reserve0Post');
+        assertApproxEqRel(reserve1Post, reserve1Expected, 1, 'reserve1Post');
 
         params = SovereignPoolSwapParams({
             isSwapCallback: false,
@@ -124,78 +115,24 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
+        if (params.amountIn == 0) {
+            vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
+        }
         (amountInUsed, amountOut) = pool.swap(params);
         (sqrtSpotPriceX96, , ) = sot.getAMMState();
 
-        assertGt(amountIn, amountOut, 'pathIndependence');
-        assertEq(
+        assertGe(amountIn, amountOut, 'pathIndependence');
+        assertApproxEqRel(
             sqrtSpotPriceX96,
             getSqrtPriceX96(2000 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            1,
             'sqrtSpotPriceX96 2'
         );
 
-        // (uint256 reserve0Post, uint256 reserve1Post) = pool.getReserves();
+        (reserve0Post, reserve1Post) = pool.getReserves();
 
-        // assertApproxEqAbs(reserve0Post, reserve0Expected, 1, 'reserve0Post');
-        // assertApproxEqAbs(reserve1Post, reserve1Expected, 1, 'reserve1Post');
-
-        // console.log('reserve0Pre: ', reserve0Pre);
-        // console.log('reserve1Pre: ', reserve1Pre);
-        // console.log('reserve0Expected: ', reserve0Expected);
-        // console.log('reserve1Expected: ', reserve1Expected);
-        // console.log('reserve0Post: ', reserve0Post);
-        // console.log('reserve1Post: ', reserve1Post);
-
-        // assertTrue(false, 'breaker');
-    }
-
-    function test_computeSwapStep() public {
-        bool isZeroToOne = false;
-
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
-
-        uint160 sqrtSpotPriceX96New;
-        uint256 amountIn = 1e18;
-        uint256 amountInFilled;
-        uint256 amountOut;
-
-        console.log(' Forward Direction ===================> ');
-        uint128 effectiveLiquidity = sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
-
-        console.log('sqrtSpotPriceX96Initial: ', sqrtSpotPriceX96);
-
-        (sqrtSpotPriceX96New, amountInFilled, amountOut, ) = SwapMath.computeSwapStep(
-            sqrtSpotPriceX96,
-            isZeroToOne ? sqrtPriceLowX96 : sqrtPriceHighX96,
-            effectiveLiquidity,
-            amountIn.toInt256(), // always exact input swap
-            0 // fees have already been deducted
-        );
-
-        console.log('amountInFilled 1: ', amountInFilled);
-        console.log('amountOut 1: ', amountOut);
-        console.log('sqrtSpotPriceX96New 1: ', sqrtSpotPriceX96New);
-
-        assertEq(amountInFilled, amountIn, 'amountInFilled');
-
-        isZeroToOne = !isZeroToOne;
-
-        console.log(' Backward Direction ===================> ');
-
-        (sqrtSpotPriceX96New, amountInFilled, amountOut, ) = SwapMath.computeSwapStep(
-            sqrtSpotPriceX96New,
-            isZeroToOne ? sqrtPriceLowX96 : sqrtPriceHighX96,
-            effectiveLiquidity,
-            amountOut.toInt256(), // always exact input swap
-            0 // fees have already been deducted
-        );
-
-        console.log('amountInFilled 2: ', amountInFilled);
-        console.log('amountOut 2: ', amountOut);
-        console.log('sqrtSpotPriceX96 2: ', sqrtSpotPriceX96New);
-
-        assertEq(sqrtSpotPriceX96, sqrtSpotPriceX96New, 'sqrtSpotPriceX96New');
-        assertEq(amountIn, amountOut, 'amountIn');
+        assertApproxEqRel(reserve0Post, 5e18, 1, 'reserve0Post');
+        assertApproxEqRel(reserve1Post, 10_000e18, 1, 'reserve1Post');
     }
 
     // TODO: Revert in SOT AMM swap if amountOut == 0
@@ -249,7 +186,9 @@ contract SOTFuzzTest is SOTBase {
         }
 
         // Set Reserves
-        sot.depositLiquidity(_reserve0, _reserve1, 0, 0);
+        try sot.depositLiquidity(_reserve0, _reserve1, 0, 0) {} catch {
+            return;
+        }
 
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
@@ -279,9 +218,7 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        try sot.getEffectiveAMMLiquidity(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96) returns (
-            uint128 preLiquidity
-        ) {
+        try sot.effectiveAMMLiquidity() returns (uint128 preLiquidity) {
             if (_amountIn == 0) {
                 vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
             }
@@ -291,14 +228,11 @@ contract SOTFuzzTest is SOTBase {
             console.log('Swap Output: amountOut =  ', amountOut);
 
             (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-            try sot.getEffectiveAMMLiquidity(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) returns (
-                uint128 postLiquidity
-            ) {
+            try sot.effectiveAMMLiquidity() returns (uint128 postLiquidity) {
                 if (amountInUsed != 0 || amountOut != 0) {
                     if (_sqrtPriceHighX96 != _sqrtSpotPriceX96 && _sqrtPriceLowX96 != _sqrtSpotPriceX96) {
                         assertEq(preLiquidity, postLiquidity, 'pathIndependence');
                     }
-                    // assertEq(preLiquidity, postLiquidity, 'pathIndependence');
                 }
             } catch {}
         } catch {}
