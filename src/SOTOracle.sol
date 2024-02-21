@@ -21,8 +21,8 @@ contract SOTOracle {
 
     error SOTOracle__constructor_invalidFeedToken0();
     error SOTOracle__constructor_invalidFeedToken1();
-    error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___getOraclePriceUSD_stalePrice();
+    error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
 
     /************************************************
      *  IMMUTABLES

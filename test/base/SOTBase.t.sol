@@ -2,30 +2,26 @@
 pragma solidity 0.8.19;
 
 import 'forge-std/console.sol';
-
 import {
     SovereignPool,
     SovereignPoolBase,
     SovereignPoolConstructorArgs
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { Base } from 'valantis-core/test/base/Base.sol';
-
-import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-
-import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, AMMState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
-import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
-
-import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
-
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
+
+import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
+import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
+import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
+import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;

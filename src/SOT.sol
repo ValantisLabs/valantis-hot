@@ -2,7 +2,6 @@
 pragma solidity 0.8.19;
 
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
-
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
@@ -75,11 +74,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+    error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
-    error SOT__getLiquidityQuote_zeroAmountOut();
 
     /************************************************
      *  IMMUTABLES
