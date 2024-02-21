@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
-import { console2 } from 'forge-std/console2.sol';
-
 import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
 
@@ -26,7 +24,6 @@ library LiquidityAmounts {
     /// @return y The passed value, downcasted to uint128
     function capToUint128(uint256 x) private pure returns (uint128 y) {
         if (x > type(uint128).max) {
-            console2.log('liquidityAmounts: liquidityCapped');
             return type(uint128).max;
         } else {
             return uint128(x);
@@ -47,10 +44,8 @@ library LiquidityAmounts {
     ) internal pure returns (uint128 liquidity) {
         // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
-        console2.log('liquidityAmounts: amount0 = ', amount0);
         if (amount0 == 0) return 0;
 
-        console2.log('liquidityAmounts: sqrtRatioEquality = ', sqrtRatioAX96 == sqrtRatioBX96);
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;
 
         uint256 intermediate = FullMath.mulDiv(sqrtRatioAX96, sqrtRatioBX96, FixedPoint96.Q96);
@@ -74,10 +69,8 @@ library LiquidityAmounts {
     ) internal pure returns (uint128 liquidity) {
         // @audit: Verify changes to this function.
         if (sqrtRatioAX96 > sqrtRatioBX96) (sqrtRatioAX96, sqrtRatioBX96) = (sqrtRatioBX96, sqrtRatioAX96);
-        console2.log('liquidityAmounts: amount1 = ', amount1);
         if (amount1 == 0) return 0;
 
-        console2.log('liquidityAmounts: sqrtRatioEquality = ', sqrtRatioAX96 == sqrtRatioBX96);
         if (sqrtRatioAX96 == sqrtRatioBX96) return type(uint128).max;
 
         unchecked {
