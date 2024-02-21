@@ -480,6 +480,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             // By providing 1 amountIn and receive 0 amountOut, which updates SOT without changing reserves.
             // Note that if amountOut is 0, then amountIn is automatically converted to 0 by Sovereign Pool.
             liquidityQuote.isCallbackOnSwap = true;
+
+            // TODO: temp check, to be removed once necessary changes are made in Sovereign Pool
+            if (liquidityQuote.amountOut == 0) {
+                _updateAMMLiquidity();
+            }
         }
     }
 
