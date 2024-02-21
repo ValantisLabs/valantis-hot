@@ -3,13 +3,15 @@ pragma solidity 0.8.19;
 
 import { Test } from 'forge-std/Test.sol';
 import { console } from 'forge-std/console.sol';
+import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTParamsHelper } from 'test/helpers/SOTParamsHelper.sol';
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 contract TestSOTParams is SOTBase {
     using SafeCast for uint256;
@@ -183,4 +185,83 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMin.selector);
         sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
     }
+
+
+    function test_validatePriceConsistency() public {
+
+        sotParamsHelper.setState(0, 100, 1, 1000);
+
+        // more than 20%
+        uint160 solverPrice = 121;
+        uint160 newPrice = 100;
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation.selector);
+        sotParamsHelper.validatePriceConsistency(
+            solverPrice,
+            newPrice,
+            100,
+            2000,
+            2000
+        );
+
+        solverPrice = 101;
+        uint160 oraclePrice = 126;
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation.selector);
+        sotParamsHelper.validatePriceConsistency(
+            solverPrice,
+            newPrice,
+            oraclePrice,
+            2000,
+            2000
+        );
+
+        oraclePrice = 120;
+        newPrice = 95;
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation.selector);
+        sotParamsHelper.validatePriceConsistency(
+            solverPrice,
+            newPrice,
+            oraclePrice,
+            2000,
+            2000
+        );
+
+        oraclePrice = 120;
+        newPrice = 100;
+
+        sotParamsHelper.validatePriceConsistency(
+            solverPrice,
+            newPrice,
+            oraclePrice,
+            2000,
+            2000  
+        );
+    }
+
+    function test_validatePriceBounds() public {
+        uint160 priceLow = 10;
+        uint160 priceHigh = 1000;
+
+        uint160 price = 5;
+
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+
+        price = 2000;
+
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+
+        price = 11;
+        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+    }
+
+    function test_hashParams() public {
+
+        SolverOrderType memory sotParams;
+
+        bytes32 expectedHash = keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams));
+
+        assertEq(expectedHash, sotParamsHelper.hashParams(sotParams));
+    }
+
 }
