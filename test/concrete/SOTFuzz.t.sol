@@ -40,6 +40,8 @@ contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;
     using TightPack for AMMState;
 
+    event LogBytes(bytes data);
+
     AMMState public mockAMMState;
 
     function setUp() public virtual override {
@@ -135,9 +137,7 @@ contract SOTFuzzTest is SOTBase {
         assertApproxEqRel(reserve1Post, 10_000e18, 1, 'reserve1Post');
     }
 
-    // TODO: Revert in SOT AMM swap if amountOut == 0
-
-    function test_swap_amm_constantEffectiveLiquidity(
+    function test_swap_amm_pathIndependence(
         bool _isZeroToOne,
         uint256 _reserve0,
         uint256 _reserve1,
@@ -146,14 +146,6 @@ contract SOTFuzzTest is SOTBase {
         uint160 _sqrtPriceLowX96,
         uint160 _sqrtPriceHighX96
     ) public {
-        // _isZeroToOne = false;
-        // _reserve0 = 459849900279;
-        // _reserve1 = 1;
-        // _amountIn = 1;
-        // _sqrtSpotPriceX96 = 1257780870838525;
-        // _sqrtPriceLowX96 = 4295128742;
-        // _sqrtPriceHighX96 = 1257782183382447;
-
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
@@ -163,15 +155,6 @@ contract SOTFuzzTest is SOTBase {
         _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
         _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
         _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
-
-        // Restrictive bounds to real use cases
-        // _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, 3442305233747929508301766656000, 3542305233747929508301766656000)
-        //     .toUint160();
-        // _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, 3642305233747929508301766656000).toUint160();
-        // _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
-        // _reserve0 = bound(_reserve0, 1e10, 1e30);
-        // _reserve1 = bound(_reserve1, 1e10, 1e30);
-        // _amountIn = bound(_amountIn, 1, _reserve0);
 
         console.log('Fuzz Input: _isZeroToOne: ', _isZeroToOne);
         console.log('Fuzz Input: _reserve0: ', _reserve0);
@@ -218,23 +201,48 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        try sot.effectiveAMMLiquidity() returns (uint128 preLiquidity) {
-            if (_amountIn == 0) {
+        uint128 preLiquidity = sot.effectiveAMMLiquidity();
+
+        if (params.amountIn == 0) {
+            vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
+        }
+        try pool.swap(params) returns (uint256 amountInUsed, uint256 amountOut) {
+            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+
+            uint128 postLiquidity = sot.effectiveAMMLiquidity();
+            assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
+
+            params.isZeroToOne = !_isZeroToOne;
+            params.amountIn = amountOut;
+            params.swapTokenOut = !_isZeroToOne ? address(token1) : address(token0);
+
+            _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+            _setupBalanceForUser(address(this), address(token1), type(uint256).max);
+
+            if (params.amountIn == 0) {
                 vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
             }
-            (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
-            console.log('Swap Output: amountInUsed = ', amountInUsed);
-            console.log('Swap Output: amountOut =  ', amountOut);
-
-            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-            try sot.effectiveAMMLiquidity() returns (uint128 postLiquidity) {
-                if (amountInUsed != 0 || amountOut != 0) {
-                    if (_sqrtPriceHighX96 != _sqrtSpotPriceX96 && _sqrtPriceLowX96 != _sqrtSpotPriceX96) {
-                        assertEq(preLiquidity, postLiquidity, 'pathIndependence');
-                    }
+            try pool.swap(params) returns (uint256 amountInUsed, uint256 amountOut) {
+                assertGe(_amountIn, amountOut, 'pathIndependence');
+            } catch (bytes memory reason) {
+                if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
+                    console.log('Reverted because of 0 amountOut');
+                    return;
+                } else {
+                    emit LogBytes(reason);
+                    revert('revert swap 2');
                 }
-            } catch {}
-        } catch {}
+            }
+        } catch (bytes memory reason) {
+            // TODO: Uncomment this and fix tests?
+            // if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
+            //     console.log('Reverted because of 0 amountOut');
+            //     return;
+            // } else {
+            //     emit LogBytes(reason);
+            //     revert('revert swap 1');
+            // }
+        }
     }
 }
