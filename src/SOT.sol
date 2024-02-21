@@ -477,7 +477,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
 
         // Update AMM liquidity with new price bounds
-        _updateAMMLiquidity();
+        _updateTotalAMMLiquidity();
     }
 
     /************************************************
@@ -526,7 +526,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         );
 
         // Update AMM liquidity with post-deposit reserves
-        _updateAMMLiquidity();
+        // All new liquidity is deposited directly into active reserves, if the liquidity is imbalanced
+        // then the rest of the liquidity is added to passive reserves.
+        _updateActiveAMMLiquidity(true, amount0Deposited, amount1Deposited);
     }
 
     // @audit: Do we need a reentrancy guard here?
@@ -541,10 +543,49 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // to protect against its manipulation
         _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
+        (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
 
-        // Update AMM liquidity with post-withdrawal reserves
-        _updateAMMLiquidity();
+        {
+            (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
+
+            // These are the reserves that are currently utilized by the AMM
+            (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
+                sqrtSpotPriceX96,
+                sqrtPriceLowX96,
+                sqrtPriceHighX96,
+                _effectiveAMMLiquidity
+            );
+
+            // These are the reserves that were sitting idle because they were not pro rata
+            uint256 passiveReserve0 = reserve0 - activeReserve0;
+            uint256 passiveReserve1 = reserve1 - activeReserve1;
+
+            // Withdraw from passive reserves first
+            if (_amount0 > passiveReserve0) {
+                // If passive reserves are not enough to cover withdrawal, then use active reserves
+                _amount0 -= passiveReserve0;
+                passiveReserve0 = 0;
+            } else {
+                // If passive reserves are enough
+                passiveReserve0 -= _amount0;
+                _amount0 = 0;
+            }
+
+            // Do the same for amount1
+            if (_amount1 > passiveReserve1) {
+                _amount1 -= passiveReserve1;
+                passiveReserve1 = 0;
+            } else {
+                passiveReserve1 -= _amount1;
+                _amount1 = 0;
+            }
+
+            // If any amount needs to be withdrawn from active reserves, update effective liquidity accordingly
+            if (_amount0 > 0 && _amount1 > 0) {
+                _updateActiveAMMLiquidity(false, _amount0, _amount1);
+            }
+        }
     }
 
     function getSwapFeeInBips(
@@ -773,8 +814,43 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  PRIVATE FUNCTIONS
      ***********************************************/
 
-    function _updateAMMLiquidity() private {
-        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+    function _updateActiveAMMLiquidity(bool isDeposit, uint256 amount0, uint256 amount1) internal {
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+            .getState();
+
+        (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
+            sqrtSpotPriceX96Cache,
+            sqrtPriceLowX96Cache,
+            sqrtPriceHighX96Cache,
+            _effectiveAMMLiquidity
+        );
+
+        // Increase or decrease the active reserves depending on withdraw/deposit
+        activeReserve0 = isDeposit ? activeReserve0 + amount0 : activeReserve0 - amount0;
+        activeReserve1 = isDeposit ? activeReserve1 + amount1 : activeReserve1 - amount1;
+
+        // Find the max available liquidity with the new active reserves
+        uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
+            sqrtSpotPriceX96Cache,
+            sqrtPriceHighX96Cache,
+            activeReserve0
+        );
+        uint128 liquidity1 = LiquidityAmounts.getLiquidityForAmount1(
+            sqrtPriceLowX96Cache,
+            sqrtSpotPriceX96Cache,
+            activeReserve1
+        );
+
+        // Take the min of both tokens, any tokens that are left, are automatically added to passive reserves
+        if (liquidity0 < liquidity1) {
+            _effectiveAMMLiquidity = liquidity0;
+        } else {
+            _effectiveAMMLiquidity = liquidity1;
+        }
+    }
+
+    function _updateTotalAMMLiquidity() private {
+        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Query current reserves
