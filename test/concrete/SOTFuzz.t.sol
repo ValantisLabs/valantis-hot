@@ -206,14 +206,15 @@ contract SOTFuzzTest is SOTBase {
         if (params.amountIn == 0) {
             vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
         }
-        try pool.swap(params) returns (uint256 amountInUsed, uint256 amountOut) {
+
+        try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
             (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
 
             uint128 postLiquidity = sot.effectiveAMMLiquidity();
             assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
 
             params.isZeroToOne = !_isZeroToOne;
-            params.amountIn = amountOut;
+            params.amountIn = amountOutFirst;
             params.swapTokenOut = !_isZeroToOne ? address(token1) : address(token0);
 
             _setupBalanceForUser(address(this), address(token0), type(uint256).max);
@@ -223,8 +224,8 @@ contract SOTFuzzTest is SOTBase {
                 vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
             }
 
-            try pool.swap(params) returns (uint256 amountInUsed, uint256 amountOut) {
-                assertGe(_amountIn, amountOut, 'pathIndependence');
+            try pool.swap(params) returns (uint256, uint256 amountOutSecond) {
+                assertGe(_amountIn, amountOutSecond, 'pathIndependence');
             } catch (bytes memory reason) {
                 if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
                     console.log('Reverted because of 0 amountOut');
@@ -234,7 +235,7 @@ contract SOTFuzzTest is SOTBase {
                     revert('revert swap 2');
                 }
             }
-        } catch (bytes memory reason) {
+        } catch {
             // TODO: Uncomment this and fix tests?
             // if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
             //     console.log('Reverted because of 0 amountOut');
