@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import 'forge-std/Script.sol';
 import { SOT } from 'src/SOT.sol';
 
-import { SOTLiquidityProvider } from 'test/helpers/SOTLiquidityProvider.sol';
+import { MockLiquidityProvider } from 'test/mocks/MockLiquidityProvider.sol';
 
 import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 
@@ -52,7 +52,7 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
         // SovereignPool pool = this.deploySovereignPool(poolArgs);
         SovereignPool pool = new SovereignPool(poolArgs);
 
-        SOTLiquidityProvider liquidityProvider = new SOTLiquidityProvider();
+        MockLiquidityProvider liquidityProvider = new MockLiquidityProvider();
 
         // AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
         // AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));

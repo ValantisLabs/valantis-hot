@@ -7,7 +7,7 @@ import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/m
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 import { SOT } from 'src/SOT.sol';
-import { SOTLiquidityProvider } from 'test/helpers/SOTLiquidityProvider.sol';
+import { MockLiquidityProvider } from 'test/mocks/MockLiquidityProvider.sol';
 import { SOTConstructorArgs, SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
@@ -62,12 +62,12 @@ contract SepoliaSOTSwapScript is Script {
         MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
 
         SOT sot = SOT(vm.envAddress('SEPOLIA_SOT'));
-        SOTLiquidityProvider liquidityProvider = SOTLiquidityProvider(vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER'));
+        MockLiquidityProvider liquidityProvider = MockLiquidityProvider(vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER'));
 
         console.log('Pool address: ', address(pool));
         console.log('Token0 address: ', address(token0));
         console.log('Token1 address: ', address(token1));
-        console.log('SOTLiquidityProvider address: ', address(liquidityProvider));
+        console.log('MockLiquidityProvider address: ', address(liquidityProvider));
         console.log('SOT address: ', address(sot));
 
         // Note: Use this to depositLiquidity and approve tokens for the pool

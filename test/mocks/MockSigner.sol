@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 
-contract SOTSigner {
+contract MockSigner {
     /**
      * @dev EIP-1271 magic value
      * bytes4(keccak256("isValidSignature(bytes32,bytes)")

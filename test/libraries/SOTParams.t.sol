@@ -6,17 +6,88 @@ import { console } from 'forge-std/console.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTParamsHelper } from 'test/helpers/SOTParamsHelper.sol';
-import { SolverOrderType } from 'src/structs/SOTStructs.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
+import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 
+contract SOTParamsHarness {
+    using TightPack for AMMState;
+
+    AMMState public ammStateStorage;
+
+    function setState(uint32 flags, uint160 a, uint160 b, uint160 c) public {
+        ammStateStorage.setState(flags, a, b, c);
+    }
+
+
+    function validateBasicParams(
+        SolverOrderType memory sot,
+        uint256 amountOut,
+        address sender,
+        address recipient,
+        uint256 amountIn,
+        uint256 tokenOutMaxBound,
+        uint32 maxDelay,
+        uint56 alternatingNonceBitmap
+    ) public view {
+        SOTParams.validateBasicParams(
+            sot,
+            amountOut,
+            sender,
+            recipient,
+            amountIn,
+            tokenOutMaxBound,
+            maxDelay,
+            alternatingNonceBitmap
+        );
+    }
+
+    function validateFeeParams(
+        SolverOrderType memory sot,
+        uint16 feeMinBound,
+        uint16 feeGrowthMinBound,
+        uint16 feeGrowthMaxBound
+    ) public pure {
+        SOTParams.validateFeeParams(sot, feeMinBound, feeGrowthMinBound, feeGrowthMaxBound);
+    }
+
+    function validatePriceConsistency(
+        uint160 sqrtSolverPriceX96,
+        uint160 sqrtSpotPriceNewX96,
+        uint160 sqrtOraclePriceX96,
+        uint256 oraclePriceMaxDiffBips,
+        uint256 solverMaxDiscountBips
+    ) public view {
+        SOTParams.validatePriceConsistency(
+            ammStateStorage,
+            sqrtSolverPriceX96,
+            sqrtSpotPriceNewX96,
+            sqrtOraclePriceX96,
+            oraclePriceMaxDiffBips,
+            solverMaxDiscountBips
+        );
+    }
+
+    function validatePriceBounds(
+        uint160 sqrtSpotPriceX96,
+        uint160 sqrtPriceLowX96,
+        uint160 sqrtPriceHighX96
+    ) public pure {
+        SOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+    }
+
+    function hashParams(SolverOrderType memory sotParams) public pure returns (bytes32) {
+        return SOTParams.hashParams(sotParams);
+    }
+}
+
 contract TestSOTParams is SOTBase {
     using SafeCast for uint256;
 
-    SOTParamsHelper sotParamsHelper;
+    SOTParamsHarness harness;
 
     // Default Contract Storage
     uint256 public tokenOutMaxBound = 1000e18;
@@ -25,9 +96,8 @@ contract TestSOTParams is SOTBase {
 
     function setUp() public override {
         super.setUp();
-
         vm.warp(1e6);
-        sotParamsHelper = new SOTParamsHelper();
+        harness = new SOTParamsHarness();
     }
 
     function test_validateBasicParams() public {
@@ -35,7 +105,7 @@ contract TestSOTParams is SOTBase {
 
         sotParams.expectedFlag = 1;
         // Correct Case
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -51,7 +121,7 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
         sotParams.signatureTimestamp = (block.timestamp - 25).toUint32();
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_quoteExpired.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -68,7 +138,7 @@ contract TestSOTParams is SOTBase {
         sotParams.expiry = 37;
 
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveExpiryTime.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -85,7 +155,7 @@ contract TestSOTParams is SOTBase {
 
         // Incorrect Recipient
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedRecipient.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -98,7 +168,7 @@ contract TestSOTParams is SOTBase {
 
         // Incorrect Sender
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedSender.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: makeAddr('WRONG_SENDER'),
@@ -114,7 +184,7 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenInAmount.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -126,7 +196,7 @@ contract TestSOTParams is SOTBase {
         });
 
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 1000e18 + 1,
             sender: address(this),
@@ -143,7 +213,7 @@ contract TestSOTParams is SOTBase {
 
         sotParams.expectedFlag = 0;
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
-        sotParamsHelper.validateBasicParams({
+        harness.validateBasicParams({
             sot: sotParams,
             amountOut: 500e18,
             sender: address(this),
@@ -159,43 +229,43 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
         // Correct Case
-        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
+        harness.validateFeeParams(sotParams, 1, 100, 1000);
 
         // // Incorrect Cases
         // 1. Fee Growth out of min & max bounds
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 600, 1000);
+        harness.validateFeeParams(sotParams, 1, 600, 1000);
 
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 400);
+        harness.validateFeeParams(sotParams, 1, 100, 400);
 
         // 2. Insufficient Fee Min
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_insufficientFee.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 11, 100, 1000);
+        harness.validateFeeParams(sotParams, 11, 100, 1000);
 
         // 3. Invalid Fee Max
         sotParams.feeMaxToken0 = 1e4;
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMax.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
+        harness.validateFeeParams(sotParams, 1, 100, 1000);
 
         // 4. Invalid Fee Min
         sotParams.feeMaxToken0 = 1e2;
         sotParams.feeMinToken0 = 1e2 + 1;
 
         vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidFeeMin.selector);
-        sotParamsHelper.validateFeeParams(sotParams, 1, 100, 1000);
+        harness.validateFeeParams(sotParams, 1, 100, 1000);
     }
 
 
     function test_validatePriceConsistency() public {
 
-        sotParamsHelper.setState(0, 100, 1, 1000);
+        harness.setState(0, 100, 1, 1000);
 
         // more than 20%
         uint160 solverPrice = 121;
         uint160 newPrice = 100;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation.selector);
-        sotParamsHelper.validatePriceConsistency(
+        harness.validatePriceConsistency(
             solverPrice,
             newPrice,
             100,
@@ -206,7 +276,7 @@ contract TestSOTParams is SOTBase {
         solverPrice = 101;
         uint160 oraclePrice = 126;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation.selector);
-        sotParamsHelper.validatePriceConsistency(
+        harness.validatePriceConsistency(
             solverPrice,
             newPrice,
             oraclePrice,
@@ -217,7 +287,7 @@ contract TestSOTParams is SOTBase {
         oraclePrice = 120;
         newPrice = 95;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation.selector);
-        sotParamsHelper.validatePriceConsistency(
+        harness.validatePriceConsistency(
             solverPrice,
             newPrice,
             oraclePrice,
@@ -228,7 +298,7 @@ contract TestSOTParams is SOTBase {
         oraclePrice = 120;
         newPrice = 100;
 
-        sotParamsHelper.validatePriceConsistency(
+        harness.validatePriceConsistency(
             solverPrice,
             newPrice,
             oraclePrice,
@@ -244,15 +314,15 @@ contract TestSOTParams is SOTBase {
         uint160 price = 5;
 
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
-        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
 
         price = 2000;
 
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
-        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
 
         price = 11;
-        sotParamsHelper.validatePriceBounds(price, priceLow, priceHigh);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
     }
 
     function test_hashParams() public {
@@ -261,7 +331,7 @@ contract TestSOTParams is SOTBase {
 
         bytes32 expectedHash = keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams));
 
-        assertEq(expectedHash, sotParamsHelper.hashParams(sotParams));
+        assertEq(expectedHash, harness.hashParams(sotParams));
     }
 
 }

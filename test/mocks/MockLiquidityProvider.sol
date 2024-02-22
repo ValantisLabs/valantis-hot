@@ -8,7 +8,7 @@ import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPoo
 import { SolverOrderType } from 'src/structs/SOTStructs.sol';
 import { SOT } from 'src/SOT.sol';
 
-contract SOTLiquidityProvider {
+contract MockLiquidityProvider {
     using SafeERC20 for IERC20;
 
     address public owner;

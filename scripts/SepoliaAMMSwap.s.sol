@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import 'forge-std/Script.sol';
 import { SOT } from 'src/SOT.sol';
 
-import { SOTLiquidityProvider } from 'test/helpers/SOTLiquidityProvider.sol';
+import { MockLiquidityProvider } from 'test/mocks/MockLiquidityProvider.sol';
 
 import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
 
@@ -36,12 +36,12 @@ contract SepoliaSOTSwapScript is Script {
         MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
 
         SOT sot = SOT(vm.envAddress('SEPOLIA_SOT'));
-        SOTLiquidityProvider liquidityProvider = SOTLiquidityProvider(vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER'));
+        MockLiquidityProvider liquidityProvider = MockLiquidityProvider(vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER'));
 
         console.log('Pool address: ', address(pool));
         console.log('Token0 address: ', address(token0));
         console.log('Token1 address: ', address(token1));
-        console.log('SOTLiquidityProvider address: ', address(liquidityProvider));
+        console.log('MockLiquidityProvider address: ', address(liquidityProvider));
         console.log('SOT address: ', address(sot));
 
         liquidityProvider.depositLiquidity(address(pool), 5e18, 10_000e6, 0, 0);
