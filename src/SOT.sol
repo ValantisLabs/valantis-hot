@@ -580,6 +580,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
                 passiveReserve1 -= _amount1;
                 _amount1 = 0;
             }
+            // @audit: Verify that taking out passive reserves and adding to active reserve
+            // does not lead to liquidity attacks.
 
             // If any amount needs to be withdrawn from active reserves, update effective liquidity accordingly
             if (_amount0 > 0 && _amount1 > 0) {
