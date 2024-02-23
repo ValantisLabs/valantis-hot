@@ -27,9 +27,6 @@ import {
 } from 'src/structs/SOTStructs.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
-import { SOTSigner } from 'test/helpers/SOTSigner.sol';
-import { MathHelper } from 'test/helpers/MathHelper.sol';
-import { LiquidityAmountsHelper } from 'test/helpers/LiquidityAmountsHelper.sol';
 
 contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;

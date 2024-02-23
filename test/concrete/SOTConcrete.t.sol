@@ -19,7 +19,6 @@ import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
-import { SOTSigner } from 'test/helpers/SOTSigner.sol';
 
 
 contract SOTConcreteTest is SOTBase {

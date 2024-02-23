@@ -20,7 +20,7 @@ import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-import { SOTSigner } from 'test/helpers/SOTSigner.sol';
+import { MockSigner } from 'test/mocks/MockSigner.sol';
 
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
@@ -42,7 +42,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     SOT public sot;
 
-    SOTSigner public mockSigner;
+    MockSigner public mockSigner;
 
     MockChainlinkOracle public feedToken0;
     MockChainlinkOracle public feedToken1;
@@ -52,7 +52,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
         (feedToken0, feedToken1) = deployChainlinkOracles(8, 8);
 
-        mockSigner = new SOTSigner();
+        mockSigner = new MockSigner();
 
         // Set initial price to 2000 for token0 and 1 for token1 (Similar to Eth/USDC pair)
         feedToken0.updateAnswer(2000e8);
