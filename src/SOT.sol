@@ -34,8 +34,7 @@ import { SOTOracle } from 'src/SOTOracle.sol';
 
 /**
     @title Solver Order Type.
-    @notice Valantis Sovereign Liquidity Module.
-    TODO: Remove unnecessary reentrancy guards if any
+    @notice Valantis Sovereign Liquidity Modules
     TODO: Add checks for state of Sovereign Pool like - 
             * feeModule should be set to SOT
             * no sovereign vault/ no verifier module/
@@ -258,7 +257,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         liquidityProvider = _args.liquidityProvider;
 
-        // TODO: Bound
         maxDelay = _args.maxDelay;
 
         if (_args.solverMaxDiscountBips > SOTConstants.BIPS) {
@@ -288,7 +286,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
-        // TODO: Should LM initially be paused?
         _ammState.setState(0, _args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
     }
 
@@ -313,7 +310,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /**
         @notice Returns the AMM reserves assuming some AMM spot price
         @dev this is a temporary implementation of the function.
-        // TODO: add correct reserves calculation.
      */
     function getReservesAtPrice(
         uint160 sqrtSpotPriceX96New
@@ -485,12 +481,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         } else {
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
-            // TODO: Check if it is safe to allow zero amount out for the SOT.
-            // @audit: Check if it is safe to allow zero amount out for the SOT.
 
-            // NOTE: Zero amountOut check is not used here so that manager can cheaply update SOT if needed.
-            // By providing 1 amountIn and receive 0 amountOut, which updates SOT without changing reserves.
-            // Note that if amountOut is 0, then amountIn is automatically converted to 0 by Sovereign Pool.
+            // Solver swap needs a swap callback, to update reserves correctly
             liquidityQuote.isCallbackOnSwap = true;
         }
 
@@ -608,8 +600,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     function _getAMMFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
-        // TODO: Test if all the calculations are in bips.
-        // TODO: Add some min and max bounds to AMM fee.
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
         uint16 feeMin = isZeroToOne ? solverWriteSlotCache.feeMinToken0 : solverWriteSlotCache.feeMinToken1;

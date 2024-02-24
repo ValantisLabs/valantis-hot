@@ -117,7 +117,6 @@ contract SOTOracle {
         }
 
         // TODO: Add checks for L2 sequencer uptime
-
         oraclePriceUSD = oraclePriceUSDInt.toUint256();
     }
 
