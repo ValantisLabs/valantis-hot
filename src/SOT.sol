@@ -593,7 +593,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    function onSwapCallback(bool /*_isZeroToOne*/, uint256 /*_amountIn*/, uint256 /*_amountOut*/) external override {
+    function onSwapCallback(
+        bool /*_isZeroToOne*/,
+        uint256 /*_amountIn*/,
+        uint256 /*_amountOut*/
+    ) external override onlyPool {
         // Even if amountIn == 0, and amountOut == 0, liquidity still needs to be updated,
         // because amm spot price might have changed.
         _updateAMMLiquidity();

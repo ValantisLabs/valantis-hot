@@ -15,7 +15,7 @@ import {
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOT } from 'src/SOT.sol';
+import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 
@@ -37,6 +37,25 @@ contract SOTConcreteTest is SOTBase {
         vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
+    }
+
+    function test_onlyPool() public {
+        vm.expectRevert(SOT.SOT__onlyPool.selector);
+        sot.onSwapCallback(false, 0, 0);
+
+        vm.expectRevert(SOT.SOT__onlyPool.selector);
+        sot.onDepositLiquidityCallback(0, 0, bytes(''));
+
+        vm.expectRevert(SOT.SOT__onlyPool.selector);
+        ALMLiquidityQuoteInput memory poolInput = ALMLiquidityQuoteInput(
+            false,
+            0,
+            0,
+            address(0),
+            address(0),
+            address(0)
+        );
+        sot.getLiquidityQuote(poolInput, bytes(''), bytes(''));
     }
 
     function test_swap_amm() public {
