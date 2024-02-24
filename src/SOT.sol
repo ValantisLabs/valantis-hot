@@ -72,8 +72,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
-    error SOT__setPriceBounds_invalidPriceBounds();
     error SOT__setSolverFeeInBips_invalidSolverFee();
+    error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
 
     /************************************************
      *  EVENTS
@@ -292,14 +292,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         minAMMFee = _args.minAMMFee;
 
-        if (
-            _args.sqrtPriceLowX96 >= _args.sqrtPriceHighX96 ||
-            _args.sqrtPriceLowX96 < SOTConstants.MIN_SQRT_PRICE ||
-            _args.sqrtPriceHighX96 > SOTConstants.MAX_SQRT_PRICE
-        ) {
-            revert SOT__constructor_invalidSqrtPriceBounds();
-        }
-
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
         // AMM State is initialized as unpaused
@@ -472,19 +464,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // to protect against its manipulation
         _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
 
-        // Check that lower bound is smaller than upper bound
-        if (_sqrtPriceLowX96 >= _sqrtPriceHighX96) {
-            revert SOT__setPriceBounds_invalidPriceBounds();
-        }
-
-        // Check that the price bounds are within the MAX and MIN sqrt prices
-        if (_sqrtPriceLowX96 < SOTConstants.MIN_SQRT_PRICE || _sqrtPriceHighX96 > SOTConstants.MAX_SQRT_PRICE) {
-            revert SOT__setPriceBounds_invalidPriceBounds();
-        }
-
         (uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
 
-        // Check that new price bounds don't exclude current spot price
+        // Check that new bounds are valid,
+        // and do not exclude current spot price
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         _ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
@@ -829,7 +812,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             if (
                 sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
             ) {
-                revert SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+                revert SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
             }
         }
     }

@@ -827,16 +827,21 @@ contract SOTConcreteTest is SOTBase {
 
         uint160 sqrtPrice1996 = getSqrtPriceX96(1996 * token0Base, 1 * token1Base);
         uint160 sqrtPrice2000 = getSqrtPriceX96(2000 * token0Base, 1 * token1Base);
+        uint160 sqrtPrice2001 = getSqrtPriceX96(2001 * token0Base, 1 * token1Base);
         uint160 sqrtPrice2004 = getSqrtPriceX96(2004 * token0Base, 1 * token1Base);
 
-        vm.expectRevert(SOT.SOT__setPriceBounds_invalidPriceBounds.selector);
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
         sot.setPriceBounds(sqrtPrice2004, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
 
-        vm.expectRevert(SOT.SOT__setPriceBounds_invalidPriceBounds.selector);
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
         sot.setPriceBounds(SOTConstants.MIN_SQRT_PRICE - 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
 
-        vm.expectRevert(SOT.SOT__setPriceBounds_invalidPriceBounds.selector);
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
         sot.setPriceBounds(SOTConstants.MAX_SQRT_PRICE + 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
+
+        // New sqrt price bounds much include current sqrt spot price
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        sot.setPriceBounds(sqrtPrice2001, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
 
         sot.setPriceBounds(sqrtPrice1996, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
         (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
@@ -978,7 +983,11 @@ contract SOTConcreteTest is SOTBase {
 
         // Spot price is out of range, deposit should revert
         vm.expectRevert(
+<<<<<<< HEAD
             abi.encodeWithSelector(SOT.SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+=======
+            abi.encodeWithSelector(SOT.SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+>>>>>>> 2b3a74c (chore: refactor AMM prices validation + fix tests + fix naming convention for some custom errors)
         );
         sot.depositLiquidity(1, 1, sqrtPrice2001, sqrtPrice2005);
 
@@ -992,7 +1001,11 @@ contract SOTConcreteTest is SOTBase {
 
         // Spot price is out of range, setPriceBounds should revert
         vm.expectRevert(
+<<<<<<< HEAD
             abi.encodeWithSelector(SOT.SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+=======
+            abi.encodeWithSelector(SOT.SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+>>>>>>> 2b3a74c (chore: refactor AMM prices validation + fix tests + fix naming convention for some custom errors)
         );
         sot.setPriceBounds(sqrtPrice1999, sqrtPrice2005, sqrtPrice1991, sqrtPrice1999);
 

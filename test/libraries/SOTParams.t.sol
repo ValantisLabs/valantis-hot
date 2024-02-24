@@ -260,40 +260,56 @@ contract TestSOTParams is SOTBase {
         // more than 20%
         uint160 solverPrice = 121;
         uint160 newPrice = 100;
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation.selector);
+        vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation.selector);
         harness.validatePriceConsistency(solverPrice, newPrice, 100, 2000, 2000);
 
         solverPrice = 101;
         uint160 oraclePrice = 126;
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation.selector);
+        vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation.selector);
         harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
 
         oraclePrice = 120;
         newPrice = 95;
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation.selector);
+        vm.expectRevert(
+            SOTParams.SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation.selector
+        );
         harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
 
-        oraclePrice = 120;
-        newPrice = 100;
+        harness.setState(
+            0,
+            SOTConstants.MIN_SQRT_PRICE + 100,
+            SOTConstants.MIN_SQRT_PRICE + 1,
+            SOTConstants.MIN_SQRT_PRICE + 1000
+        );
 
-        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
+        solverPrice = SOTConstants.MIN_SQRT_PRICE + 101;
+        oraclePrice = SOTConstants.MIN_SQRT_PRICE + 120;
+        newPrice = SOTConstants.MIN_SQRT_PRICE + 100;
+
+        harness.validatePriceConsistency(
+            solverPrice,
+            newPrice,
+            oraclePrice,
+            SOTConstants.MIN_SQRT_PRICE + 2000,
+            SOTConstants.MIN_SQRT_PRICE + 2000
+        );
     }
 
     function test_validatePriceBounds() public {
-        uint160 priceLow = 10;
-        uint160 priceHigh = 1000;
+        uint160 priceLow = SOTConstants.MIN_SQRT_PRICE + 10;
+        uint160 priceHigh = SOTConstants.MIN_SQRT_PRICE + 1000;
 
-        uint160 price = 5;
-
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
-        harness.validatePriceBounds(price, priceLow, priceHigh);
-
-        price = 2000;
+        uint160 price = SOTConstants.MIN_SQRT_PRICE + 5;
 
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
         harness.validatePriceBounds(price, priceLow, priceHigh);
 
-        price = 11;
+        price = SOTConstants.MIN_SQRT_PRICE + 2000;
+
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
+
+        price = SOTConstants.MIN_SQRT_PRICE + 11;
         harness.validatePriceBounds(price, priceLow, priceHigh);
     }
 
