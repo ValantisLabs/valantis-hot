@@ -13,6 +13,7 @@ import {
     SovereignPoolSwapParams,
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
+import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
 import { SOT } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
@@ -913,6 +914,111 @@ contract SOTConcreteTest is SOTBase {
         assertApproxEqRel(sqrtSpotPriceX96, sqrtSpotPriceX96New, 1, 'sqrtSpotPriceX96New');
         assertGe(amountIn, amountOut, 'amountIn');
     }
+
+    function test_getSwapFeeInBips_ammSwap() public {
+
+        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+
+        solverWriteSlot.lastProcessedSignatureTimestamp = uint32(block.timestamp);
+
+        // for token0
+        solverWriteSlot.feeGrowthInPipsToken0 = 10;
+        solverWriteSlot.feeMinToken0 = 20;
+        solverWriteSlot.feeMaxToken0 = 1000;
+
+        // for token1
+        solverWriteSlot.feeGrowthInPipsToken1 = 100;
+        solverWriteSlot.feeMinToken1 = 10;
+        solverWriteSlot.feeMaxToken1 = 1000;
+
+        _setSolverWriteSlot(solverWriteSlot);
+
+        solverWriteSlot = getSolverWriteSlot();
+
+        assertEq(solverWriteSlot.feeGrowthInPipsToken0, 10);
+
+        uint256 snapshot = vm.snapshot();
+
+        vm.warp(block.timestamp + 100);
+
+        // for token0
+        uint32 feeInBips = solverWriteSlot.feeMinToken0 + uint32(Math
+                .mulDiv(solverWriteSlot.feeGrowthInPipsToken0, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+
+        if(feeInBips > solverWriteSlot.feeMaxToken0){
+            feeInBips = solverWriteSlot.feeMaxToken0;
+        }
+
+        vm.prank(address(pool));
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(0));
+
+        assertEq(swapFeeModuleData.feeInBips, feeInBips);
+
+        // for token1
+        feeInBips = solverWriteSlot.feeMinToken1 + uint32(Math
+                .mulDiv(solverWriteSlot.feeGrowthInPipsToken1, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+
+        if(feeInBips > solverWriteSlot.feeMaxToken1){
+            feeInBips = solverWriteSlot.feeMaxToken1;
+        }
+
+        vm.prank(address(pool));
+        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(0));
+
+        assertEq(swapFeeModuleData.feeInBips, feeInBips);
+
+        vm.revertTo(snapshot);
+
+        vm.warp(block.timestamp + 10000);
+
+        // for token0
+        feeInBips = solverWriteSlot.feeMinToken0 + uint32(Math
+                .mulDiv(solverWriteSlot.feeGrowthInPipsToken0, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+
+        if(feeInBips > solverWriteSlot.feeMaxToken0){
+            feeInBips = solverWriteSlot.feeMaxToken0;
+        }
+
+        vm.prank(address(pool));
+
+        swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(0));
+
+        assertEq(swapFeeModuleData.feeInBips, feeInBips);
+
+        // for token1
+        feeInBips = solverWriteSlot.feeMinToken1 + uint32(Math
+                .mulDiv(solverWriteSlot.feeGrowthInPipsToken1, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+
+        if(feeInBips > solverWriteSlot.feeMaxToken1){
+            feeInBips = solverWriteSlot.feeMaxToken1;
+        }
+
+        vm.prank(address(pool));
+        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(0));
+
+        assertEq(swapFeeModuleData.feeInBips, feeInBips);
+    }
+
+    function test_getSwapFeeInBips_solverSwap() public {
+        SolverReadSlot memory solverReadSlot = getSolverReadSlot();
+
+        solverReadSlot.maxAllowedQuotes = 5;
+        solverReadSlot.solverFeeBipsToken0 = 10;
+        solverReadSlot.solverFeeBipsToken1 = 20;
+
+        _setSolverReadSlot(solverReadSlot);
+
+        vm.prank(address(pool));
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
+
+        assertEq(swapFeeModuleData.feeInBips, 10);
+
+        vm.prank(address(pool));
+        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(1));
+
+        assertEq(swapFeeModuleData.feeInBips, 20);
+    }
+
 }
 
 /**

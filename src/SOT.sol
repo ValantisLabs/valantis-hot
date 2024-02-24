@@ -52,6 +52,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
 
+
+    event ManagerUpdate(address indexed manager);
+    event SignerUpdate(address indexed signer);
+    event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
+    event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
+    event MaxAllowedQuoteSet(uint8 maxQuotes);
+    event PauseSet(bool pause);
+    event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
+    event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
+    event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
+
     /************************************************
      *  CUSTOM ERRORS
      ***********************************************/
@@ -352,6 +363,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      */
     function setManager(address _manager) external onlyManager {
         manager = _manager;
+        emit ManagerUpdate(_manager);
     }
 
     /**
@@ -361,6 +373,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      */
     function setSigner(address _signer) external onlyManager {
         solverReadSlot.signer = _signer;
+        emit SignerUpdate(_signer);
     }
 
     /**
@@ -371,6 +384,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
         maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
         maxToken1VolumeToQuote = _maxToken1VolumeToQuote;
+        emit MaxTokenVolumeSet(_maxToken0VolumeToQuote, _maxToken1VolumeToQuote);
     }
 
     /**
@@ -388,6 +402,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         solverReadSlot.solverFeeBipsToken0 = _solverFeeBipsToken0;
         solverReadSlot.solverFeeBipsToken1 = _solverFeeBipsToken1;
+        emit SolverFeeSet(_solverFeeBipsToken0, _solverFeeBipsToken1);
     }
 
     /**
@@ -400,6 +415,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         solverReadSlot.maxAllowedQuotes = _maxAllowedQuotes;
+        emit MaxAllowedQuoteSet(_maxAllowedQuotes);
     }
 
     /**
@@ -408,6 +424,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      */
     function setPause(bool _value) external onlyManager {
         _ammState.setFlag(SOTConstants.PAUSE_FLAG, _value);
+        emit PauseSet(_value);
     }
 
     /**
@@ -446,6 +463,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         _ammState.setState(flags, sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
+        emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
 
         // Update AMM liquidity with new price bounds
         _updateAMMLiquidity();
@@ -638,6 +657,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         );
 
         _ammState.setA(sqrtSpotPriceX96New);
+        emit SpotPriceUpdate(sqrtSpotPriceX96New);
     }
 
     function _solverSwap(
@@ -732,6 +752,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             });
 
             _ammState.setA(sot.sqrtSpotPriceX96New);
+            emit SpotPriceUpdate(sot.sqrtSpotPriceX96New);
         } else {
             solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
             solverWriteSlotCache.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
@@ -770,6 +791,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         } else {
             _effectiveAMMLiquidity = liquidity1;
         }
+        emit EffectiveAMMLiquidityUpdate(_effectiveAMMLiquidity);
     }
 
     /**
