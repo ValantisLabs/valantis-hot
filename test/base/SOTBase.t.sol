@@ -13,7 +13,7 @@ import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/m
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, AMMState } from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot, AMMState } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
@@ -215,6 +215,15 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         });
     }
 
+    function getSolverReadSlot() public view returns (SolverReadSlot memory slot) {
+        (
+            slot.maxAllowedQuotes, 
+            slot.solverFeeBipsToken0,
+            slot.solverFeeBipsToken1,
+            slot.signer
+        ) = sot.solverReadSlot();
+    }
+
     function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
         // This pattern is used to prevent stack too deep errors
         (
@@ -297,4 +306,35 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             'checkSolverWriteSlot: alternatingNonceBitmap'
         );
     }
+
+    function _setSolverWriteSlot(SolverWriteSlot memory slot) internal {
+        bytes memory encodedData = abi.encodePacked(
+                slot.alternatingNonceBitmap,
+                slot.lastProcessedSignatureTimestamp,
+                slot.lastProcessedQuoteTimestamp,
+                slot.lastStateUpdateTimestamp,
+                slot.feeMinToken1,
+                slot.feeMaxToken1,
+                slot.feeGrowthInPipsToken1,
+                slot.feeMinToken0,
+                slot.feeMaxToken0,
+                slot.feeGrowthInPipsToken0,
+                slot.lastProcessedBlockQuoteCount
+            );
+        bytes32 data = bytes32(encodedData);
+        vm.store(address(sot), bytes32(uint256(4)), data);
+    }
+
+    function _setSolverReadSlot(SolverReadSlot memory slot) internal {
+        bytes memory encodedData = abi.encodePacked(
+            bytes7(0),
+            slot.signer,
+            slot.solverFeeBipsToken1,
+            slot.solverFeeBipsToken0,
+            slot.maxAllowedQuotes
+        );
+        bytes32 data = bytes32(encodedData);
+        vm.store(address(sot), bytes32(uint256(5)), data);
+    }
+
 }
