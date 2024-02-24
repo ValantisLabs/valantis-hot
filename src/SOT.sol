@@ -52,7 +52,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
 
-
     event ManagerUpdate(address indexed manager);
     event SignerUpdate(address indexed signer);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
@@ -483,11 +482,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (_externalContext.length == 0) {
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
-
-            // TODO: Do we need this check anymore?
-            if (liquidityQuote.amountOut == 0) {
-                revert SOT__getLiquidityQuote_zeroAmountOut();
-            }
         } else {
             // Solver Swap
             _solverSwap(_almLiquidityQuoteInput, _externalContext, liquidityQuote);
@@ -498,11 +492,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             // By providing 1 amountIn and receive 0 amountOut, which updates SOT without changing reserves.
             // Note that if amountOut is 0, then amountIn is automatically converted to 0 by Sovereign Pool.
             liquidityQuote.isCallbackOnSwap = true;
+        }
 
-            // TODO: temp check, to be removed once necessary changes are made in Sovereign Pool
-            if (liquidityQuote.amountOut == 0) {
-                _updateAMMLiquidity();
-            }
+        if (liquidityQuote.amountOut == 0) {
+            revert SOT__getLiquidityQuote_zeroAmountOut();
         }
     }
 

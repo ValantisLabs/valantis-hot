@@ -21,7 +21,6 @@ import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } 
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
-
 contract SOTConcreteTest is SOTBase {
     using SafeCast for uint256;
 
@@ -287,7 +286,7 @@ contract SOTConcreteTest is SOTBase {
         feedToken0.updateAnswer(1500e8);
         sotParams.solverPriceX192Discounted = 1500 << 192;
 
-        // Set Spot price to priceLow with empty SOT
+        // Set Spot price to priceLow with a minimal SOT
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
             externalContext: mockSigner.getSignedQuote(sotParams),
             verifierContext: bytes(''),
@@ -295,11 +294,12 @@ contract SOTConcreteTest is SOTBase {
             swapFeeModuleContext: bytes('1')
         });
 
-        // AmountIn is set to 1, so that SovereignPool doesn't revert
+        // AmountIn is set to 2000, so that amountOut is just 1,
+        // to prevent SOT from reverting with amountOut == 0 error
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: false,
-            amountIn: 1,
+            amountIn: 2000,
             amountOutMin: 0,
             recipient: makeAddr('RECIPIENT'),
             deadline: block.timestamp + 2,
@@ -308,16 +308,15 @@ contract SOTConcreteTest is SOTBase {
         });
 
         // Perform SOT swap to update the spot price
-        pool.swap(params);
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
         assertNotEq(sot.effectiveAMMLiquidity(), 0, 'effectiveAMMLiquidity');
 
         (amount0, amount1) = pool.getReserves();
 
-        // Assert that amount1 reserves are empty
-        assertEq(amount0, 5e18, 'amount0');
-        // TODO: Needs to be changed back to 2, after Sovereign Pool fix
-        assertEq(amount1, 1, 'amount1');
+        // Assert that amount1 reserves are almost empty
+        assertEq(amount0, 5e18 - 1, 'amount0');
+        assertEq(amount1, 1 + 2000, 'amount1');
 
         data.swapFeeModuleContext = bytes('');
         data.externalContext = bytes('');
@@ -325,7 +324,7 @@ contract SOTConcreteTest is SOTBase {
         params.amountIn = 1e18;
         params.swapContext = data;
 
-        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+        (amountInUsed, amountOut) = pool.swap(params);
 
         assertNotEq(amountInUsed, 0, 'amountInUsed Right Direction');
         assertNotEq(amountOut, 0, 'amountOut Right Direction');
@@ -916,7 +915,6 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_getSwapFeeInBips_ammSwap() public {
-
         SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
 
         solverWriteSlot.lastProcessedSignatureTimestamp = uint32(block.timestamp);
@@ -942,10 +940,16 @@ contract SOTConcreteTest is SOTBase {
         vm.warp(block.timestamp + 100);
 
         // for token0
-        uint32 feeInBips = solverWriteSlot.feeMinToken0 + uint32(Math
-                .mulDiv(solverWriteSlot.feeGrowthInPipsToken0, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+        uint32 feeInBips = solverWriteSlot.feeMinToken0 +
+            uint32(
+                Math.mulDiv(
+                    solverWriteSlot.feeGrowthInPipsToken0,
+                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    100
+                )
+            );
 
-        if(feeInBips > solverWriteSlot.feeMaxToken0){
+        if (feeInBips > solverWriteSlot.feeMaxToken0) {
             feeInBips = solverWriteSlot.feeMaxToken0;
         }
 
@@ -955,10 +959,17 @@ contract SOTConcreteTest is SOTBase {
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
         // for token1
-        feeInBips = solverWriteSlot.feeMinToken1 + uint32(Math
-                .mulDiv(solverWriteSlot.feeGrowthInPipsToken1, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+        feeInBips =
+            solverWriteSlot.feeMinToken1 +
+            uint32(
+                Math.mulDiv(
+                    solverWriteSlot.feeGrowthInPipsToken1,
+                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    100
+                )
+            );
 
-        if(feeInBips > solverWriteSlot.feeMaxToken1){
+        if (feeInBips > solverWriteSlot.feeMaxToken1) {
             feeInBips = solverWriteSlot.feeMaxToken1;
         }
 
@@ -972,10 +983,17 @@ contract SOTConcreteTest is SOTBase {
         vm.warp(block.timestamp + 10000);
 
         // for token0
-        feeInBips = solverWriteSlot.feeMinToken0 + uint32(Math
-                .mulDiv(solverWriteSlot.feeGrowthInPipsToken0, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+        feeInBips =
+            solverWriteSlot.feeMinToken0 +
+            uint32(
+                Math.mulDiv(
+                    solverWriteSlot.feeGrowthInPipsToken0,
+                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    100
+                )
+            );
 
-        if(feeInBips > solverWriteSlot.feeMaxToken0){
+        if (feeInBips > solverWriteSlot.feeMaxToken0) {
             feeInBips = solverWriteSlot.feeMaxToken0;
         }
 
@@ -986,10 +1004,17 @@ contract SOTConcreteTest is SOTBase {
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
         // for token1
-        feeInBips = solverWriteSlot.feeMinToken1 + uint32(Math
-                .mulDiv(solverWriteSlot.feeGrowthInPipsToken1, (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp), 100));
+        feeInBips =
+            solverWriteSlot.feeMinToken1 +
+            uint32(
+                Math.mulDiv(
+                    solverWriteSlot.feeGrowthInPipsToken1,
+                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    100
+                )
+            );
 
-        if(feeInBips > solverWriteSlot.feeMaxToken1){
+        if (feeInBips > solverWriteSlot.feeMaxToken1) {
             feeInBips = solverWriteSlot.feeMaxToken1;
         }
 
@@ -1018,7 +1043,6 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(swapFeeModuleData.feeInBips, 20);
     }
-
 }
 
 /**
