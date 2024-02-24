@@ -17,8 +17,8 @@ contract SOTParamsHarness {
 
     AMMState public ammStateStorage;
 
-    function setState(uint32 flags, uint160 a, uint160 b, uint160 c) public {
-        ammStateStorage.setState(flags, a, b, c);
+    function setState(uint160 a, uint160 b, uint160 c) public {
+        ammStateStorage.setState(a, b, c);
     }
 
     function validateBasicParams(
@@ -255,7 +255,7 @@ contract TestSOTParams is SOTBase {
     }
 
     function test_validatePriceConsistency() public {
-        harness.setState(0, 100, 1, 1000);
+        harness.setState(100, 1, 1000);
 
         // more than 20%
         uint160 solverPrice = 121;

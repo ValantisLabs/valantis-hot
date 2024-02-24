@@ -182,6 +182,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     uint256 public maxToken0VolumeToQuote;
     uint256 public maxToken1VolumeToQuote;
 
+    bool public isPaused;
+
     /**
         @notice Liquidity which gets utilized on AMM swaps. 
      */
@@ -286,7 +288,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
-        _ammState.setState(0, _args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
+        _ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
     }
 
     /************************************************
@@ -304,7 +306,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         poolNonReentrant
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
     {
-        (, sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
+        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
     }
 
     /**
@@ -314,7 +316,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function getReservesAtPrice(
         uint160 sqrtSpotPriceX96New
     ) external view poolNonReentrant returns (uint256 reserve0, uint256 reserve1) {
-        (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
 
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
@@ -341,10 +343,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     function domainSeparatorV4() external view returns (bytes32) {
         return _domainSeparatorV4();
-    }
-
-    function isPaused() external view returns (bool) {
-        return _ammState.getFlag(SOTConstants.PAUSE_FLAG);
     }
 
     /************************************************
@@ -419,7 +417,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev Only callable by `manager`.
      */
     function setPause(bool _value) external onlyManager {
-        _ammState.setFlag(SOTConstants.PAUSE_FLAG, _value);
+        isPaused = _value;
         emit PauseSet(_value);
     }
 
@@ -453,12 +451,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             revert SOT__setPriceBounds_invalidPriceBounds();
         }
 
-        (uint32 flags, uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
+        (uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
 
         // Check that new price bounds don't exclude current spot price
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
-        _ammState.setState(flags, sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
+        _ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
 
@@ -631,7 +629,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         // Cache sqrt spot price, lower bound, and upper bound
-        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Calculate amountOut according to CPMM math
@@ -644,7 +642,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             0 // fees have already been deducted
         );
 
-        _ammState.setA(sqrtSpotPriceX96New);
+        _ammState.setSqrtSpotPriceX96(sqrtSpotPriceX96New);
         emit SpotPriceUpdate(sqrtSpotPriceX96New);
     }
 
@@ -739,7 +737,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
                 alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
 
-            _ammState.setA(sot.sqrtSpotPriceX96New);
+            _ammState.setSqrtSpotPriceX96(sot.sqrtSpotPriceX96New);
             emit SpotPriceUpdate(sot.sqrtSpotPriceX96New);
         } else {
             solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
@@ -757,7 +755,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     function _updateAMMLiquidity() private {
-        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Query current reserves
@@ -795,7 +793,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) private view {
         bool checkSqrtSpotPriceAbsDiff = _expectedSqrtSpotPriceUpperX96 != 0 || _expectedSqrtSpotPriceLowerX96 != 0;
         if (checkSqrtSpotPriceAbsDiff) {
-            uint160 sqrtSpotPriceX96 = _ammState.getA();
+            uint160 sqrtSpotPriceX96 = _ammState.getSqrtSpotPriceX96();
 
             // Check that spot price has not been manipulated
             if (
@@ -819,8 +817,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     function _onlyUnpaused() private view {
-        // 0th bit of flags: Pause
-        if (_ammState.getFlag(SOTConstants.PAUSE_FLAG)) {
+        if (isPaused) {
             revert SOT__onlyUnpaused();
         }
     }
