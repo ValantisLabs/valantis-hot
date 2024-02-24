@@ -51,6 +51,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
 
+    /************************************************
+     * EVENTS
+     ***********************************************/
+
     event ManagerUpdate(address indexed manager);
     event SignerUpdate(address indexed signer);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
@@ -80,13 +84,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
+    error SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setPriceBounds_invalidPriceBounds();
-    error SOT__setPriceBounds_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT__setSolverFeeInBips_invalidSolverFee();
 
     /************************************************
@@ -799,7 +803,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             if (
                 sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
             ) {
-                revert SOT__setPriceBounds_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+                revert SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
             }
         }
     }
