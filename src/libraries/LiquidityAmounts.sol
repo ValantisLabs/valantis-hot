@@ -5,15 +5,15 @@ import '@uniswap/v3-core/contracts/libraries/FullMath.sol';
 import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
 
 /**
-    @title Liquidity amount functions
+    @title Liquidity Amounts library functions.
     @notice 
-    Source: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol
+        Source: https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol
 
-    @notice Provides functions for computing liquidity amounts from token amounts and prices
+        Provides functions for computing liquidity amounts from token amounts and prices
 
     @dev The only difference between this implementation and the original is that it does not give an
         error when liquidity is > uint128.max. Instead, it caps the liquidity to uint128.max.
-        The relevant changes can be found in the following functions - 
+        The relevant changes can be found in the following functions:
         - capToUint128
         - getLiquidityForAmount0
         - getLiquidityForAmount1

@@ -66,7 +66,6 @@ contract SOTOracle {
         _token0Base = 10 ** IERC20Metadata(_token0).decimals();
         _token1Base = 10 ** IERC20Metadata(_token1).decimals();
 
-        // TODO: Enforce sensible bound
         maxOracleUpdateDurationFeed0 = _maxOracleUpdateDurationFeed0;
         maxOracleUpdateDurationFeed1 = _maxOracleUpdateDurationFeed1;
 
@@ -116,7 +115,6 @@ contract SOTOracle {
             revert SOTOracle___getOraclePriceUSD_stalePrice();
         }
 
-        // TODO: Add checks for L2 sequencer uptime
         oraclePriceUSD = oraclePriceUSDInt.toUint256();
     }
 
@@ -143,7 +141,7 @@ contract SOTOracle {
 
         uint256 oraclePriceX96 = Math.mulDiv(
             oraclePrice0USD * oracle1Base * _token1Base,
-            1 << 96,
+            SOTConstants.Q96,
             oraclePrice1USD * oracle0Base * _token0Base
         );
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();
