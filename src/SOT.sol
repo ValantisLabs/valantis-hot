@@ -803,11 +803,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         if (liquidity0 < liquidity1) {
             _ammLiquidityState.liquidity = liquidity0;
+            emit EffectiveAMMLiquidityUpdate(liquidity0);
         } else {
             _ammLiquidityState.liquidity = liquidity1;
+            emit EffectiveAMMLiquidityUpdate(liquidity1);
         }
-
-        emit EffectiveAMMLiquidityUpdate(_effectiveAMMLiquidity);
     }
 
     /**
