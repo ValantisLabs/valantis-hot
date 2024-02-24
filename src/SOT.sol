@@ -28,7 +28,8 @@ import {
     SolverWriteSlot,
     SolverReadSlot,
     SOTConstructorArgs,
-    AMMState
+    AMMState,
+    AMMLiquidityState
 } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
@@ -66,7 +67,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidSqrtPriceBounds();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
-    error SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
+    error SOT__getLiquidityQuote_ammLocked();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
@@ -186,7 +187,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /**
         @notice Liquidity which gets utilized on AMM swaps. 
      */
-    uint128 private _effectiveAMMLiquidity;
+    AMMLiquidityState private _ammLiquidityState;
 
     /************************************************
      *  MODIFIERS
@@ -307,7 +308,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @notice Returns active AMM liquidity (which gets utilized during AMM swaps).
      */
     function effectiveAMMLiquidity() external view poolNonReentrant returns (uint128) {
-        return _effectiveAMMLiquidity;
+        return _ammLiquidityState.liquidity;
+    }
+
+    function isAMMUnlocked() external view poolNonReentrant returns (bool) {
+        return _ammLiquidityState.isAMMUnlocked;
     }
 
     // @audit Verify that this function is safe from view-only reentrancy.
@@ -340,7 +345,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtSpotPriceX96,
             sqrtPriceLowX96,
             sqrtPriceHighX96,
-            _effectiveAMMLiquidity
+            _ammLiquidityState.liquidity
         );
 
         uint256 passiveReserve0 = reserve0 - activeReserve0;
@@ -350,7 +355,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtSpotPriceX96New,
             sqrtPriceLowX96,
             sqrtPriceHighX96,
-            _effectiveAMMLiquidity
+            _ammLiquidityState.liquidity
         );
 
         reserve0 = passiveReserve0 + activeReserve0;
@@ -477,6 +482,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Update AMM liquidity with new price bounds
         _updateAMMLiquidity();
+
+        _ammLiquidityState.isAMMUnlocked = true;
     }
 
     /************************************************
@@ -490,6 +497,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bytes calldata /*_verifierData*/
     ) external override onlyPool onlyUnpaused returns (ALMLiquidityQuote memory liquidityQuote) {
         if (_externalContext.length == 0) {
+            if (!_ammLiquidityState.isAMMUnlocked) {
+                revert SOT__getLiquidityQuote_ammLocked();
+            }
             // AMM Swap
             _ammSwap(_almLiquidityQuoteInput, liquidityQuote);
         } else {
@@ -501,8 +511,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         if (liquidityQuote.amountOut == 0) {
-            revert SOT__getLiquidityQuote_zeroAmountOut();
+            _updateAMMLiquidity();
         }
+
+        _ammLiquidityState.isAMMUnlocked = true;
     }
 
     // @audit: Do we need a reentrancy guard here?
@@ -526,6 +538,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Update AMM liquidity with post-deposit reserves
         _updateAMMLiquidity();
+
+        _ammLiquidityState.isAMMUnlocked = false;
     }
 
     // @audit: Do we need a reentrancy guard here?
@@ -544,6 +558,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Update AMM liquidity with post-withdrawal reserves
         _updateAMMLiquidity();
+
+        _ammLiquidityState.isAMMUnlocked = false;
     }
 
     function getSwapFeeInBips(
@@ -650,7 +666,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
             sqrtSpotPriceX96Cache,
             almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
-            _effectiveAMMLiquidity,
+            _ammLiquidityState.liquidity,
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
@@ -786,9 +802,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         );
 
         if (liquidity0 < liquidity1) {
-            _effectiveAMMLiquidity = liquidity0;
+            _ammLiquidityState.liquidity = liquidity0;
         } else {
-            _effectiveAMMLiquidity = liquidity1;
+            _ammLiquidityState.liquidity = liquidity1;
         }
 
         emit EffectiveAMMLiquidityUpdate(_effectiveAMMLiquidity);

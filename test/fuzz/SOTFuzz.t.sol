@@ -51,6 +51,9 @@ contract SOTFuzzTest is SOTBase {
 
     function test_getReservesAtPrice(uint256 priceToken0USD) public {
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+        // Unlocks the amm swap
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        sot.setPriceBounds(sqrtPriceLowX96, sqrtPriceHighX96, sqrtSpotPriceX96, sqrtSpotPriceX96);
 
         priceToken0USD = bound(priceToken0USD, 1900, 2100);
 
@@ -61,7 +64,7 @@ contract SOTFuzzTest is SOTBase {
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
 
-        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (sqrtSpotPriceX96, , ) = sot.getAMMState();
 
         SovereignPoolSwapContextData memory data;
 
@@ -193,40 +196,45 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        uint128 preLiquidity = sot.effectiveAMMLiquidity();
-
         if (params.amountIn == 0) {
             vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
         }
 
-        try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
-            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+        // Unlocks the amm swap
+        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
 
-            uint128 postLiquidity = sot.effectiveAMMLiquidity();
-            assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
+        try sot.setPriceBounds(sqrtPriceLowX96, sqrtPriceHighX96, sqrtSpotPriceX96, sqrtSpotPriceX96) {
+            uint128 preLiquidity = sot.effectiveAMMLiquidity();
 
-            params.isZeroToOne = !_isZeroToOne;
-            params.amountIn = amountOutFirst;
-            params.swapTokenOut = !_isZeroToOne ? address(token1) : address(token0);
+            try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
+                (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
 
-            _setupBalanceForUser(address(this), address(token0), type(uint256).max);
-            _setupBalanceForUser(address(this), address(token1), type(uint256).max);
+                uint128 postLiquidity = sot.effectiveAMMLiquidity();
+                assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
 
-            if (params.amountIn == 0) {
-                vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
-            }
+                params.isZeroToOne = !_isZeroToOne;
+                params.amountIn = amountOutFirst;
+                params.swapTokenOut = !_isZeroToOne ? address(token1) : address(token0);
 
-            try pool.swap(params) returns (uint256, uint256 amountOutSecond) {
-                assertGe(_amountIn, amountOutSecond, 'pathIndependence');
-            } catch (bytes memory reason) {
-                if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
-                    console.log('Reverted because of 0 amountOut');
-                    return;
-                } else {
-                    emit LogBytes(reason);
-                    revert('revert swap 2');
+                _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+                _setupBalanceForUser(address(this), address(token1), type(uint256).max);
+
+                if (params.amountIn == 0) {
+                    vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
                 }
-            }
+
+                try pool.swap(params) returns (uint256, uint256 amountOutSecond) {
+                    assertGe(_amountIn, amountOutSecond, 'pathIndependence');
+                } catch (bytes memory reason) {
+                    if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {
+                        console.log('Reverted because of 0 amountOut');
+                        return;
+                    } else {
+                        emit LogBytes(reason);
+                        revert('revert swap 2');
+                    }
+                }
+            } catch {}
         } catch {
             // TODO: Uncomment this and fix tests?
             // if (keccak256(reason) == keccak256(abi.encodePacked(hex'd19ac625'))) {

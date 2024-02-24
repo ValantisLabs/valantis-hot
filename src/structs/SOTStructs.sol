@@ -127,3 +127,9 @@ struct AMMState {
     uint256 slot1;
     uint256 slot2;
 }
+
+// Note: AMM is locked by default
+struct AMMLiquidityState {
+    bool isAMMUnlocked;
+    uint128 liquidity;
+}

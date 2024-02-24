@@ -34,6 +34,11 @@ contract SOTConcreteTest is SOTBase {
 
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+        // Unlocks the amm swap
+        sot.setPriceBounds(sqrtPriceLowX96, sqrtPriceHighX96, sqrtSpotPriceX96, sqrtSpotPriceX96);
+
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
         vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
@@ -1168,6 +1173,61 @@ contract SOTConcreteTest is SOTBase {
         swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(1));
 
         assertEq(swapFeeModuleData.feeInBips, 20);
+    }
+
+    function test_amm_unlock() public {
+        // Lock the pool by depositing liquidity
+        assertTrue(sot.isAMMUnlocked(), 'isAMMUnlocked error 1');
+        sot.depositLiquidity(1, 1, 0, 0);
+
+        SovereignPoolSwapContextData memory data;
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_ammLocked.selector);
+        pool.swap(params);
+
+        // Set Price Bounds unlocks the pool
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        sot.setPriceBounds(sqrtPriceLowX96, sqrtPriceHighX96, sqrtSpotPriceX96, sqrtSpotPriceX96);
+
+        pool.swap(params);
+
+        // Lock the pool again using withdrawLiquidity
+        sot.withdrawLiquidity(1, 1, address(this), 0, 0);
+
+        assertFalse(sot.isAMMUnlocked(), 'isAMMUnlocked error 2');
+
+        data = SovereignPoolSwapContextData({
+            externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+        // Solver Swap unlocks the amm
+        pool.swap(params);
+
+        assertTrue(sot.isAMMUnlocked(), 'isAMMUnlocked error 3');
     }
 }
 
