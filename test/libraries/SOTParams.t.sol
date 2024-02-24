@@ -12,16 +12,14 @@ import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
-
 contract SOTParamsHarness {
     using TightPack for AMMState;
 
     AMMState public ammStateStorage;
 
-    function setState(uint32 flags, uint160 a, uint160 b, uint160 c) public {
-        ammStateStorage.setState(flags, a, b, c);
+    function setState(uint160 a, uint160 b, uint160 c) public {
+        ammStateStorage.setState(a, b, c);
     }
-
 
     function validateBasicParams(
         SolverOrderType memory sot,
@@ -256,55 +254,29 @@ contract TestSOTParams is SOTBase {
         harness.validateFeeParams(sotParams, 1, 100, 1000);
     }
 
-
     function test_validatePriceConsistency() public {
-
-        harness.setState(0, 100, 1, 1000);
+        harness.setState(100, 1, 1000);
 
         // more than 20%
         uint160 solverPrice = 121;
         uint160 newPrice = 100;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation.selector);
-        harness.validatePriceConsistency(
-            solverPrice,
-            newPrice,
-            100,
-            2000,
-            2000
-        );
+        harness.validatePriceConsistency(solverPrice, newPrice, 100, 2000, 2000);
 
         solverPrice = 101;
         uint160 oraclePrice = 126;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation.selector);
-        harness.validatePriceConsistency(
-            solverPrice,
-            newPrice,
-            oraclePrice,
-            2000,
-            2000
-        );
+        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
 
         oraclePrice = 120;
         newPrice = 95;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation.selector);
-        harness.validatePriceConsistency(
-            solverPrice,
-            newPrice,
-            oraclePrice,
-            2000,
-            2000
-        );
+        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
 
         oraclePrice = 120;
         newPrice = 100;
 
-        harness.validatePriceConsistency(
-            solverPrice,
-            newPrice,
-            oraclePrice,
-            2000,
-            2000  
-        );
+        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
     }
 
     function test_validatePriceBounds() public {
@@ -326,12 +298,10 @@ contract TestSOTParams is SOTBase {
     }
 
     function test_hashParams() public {
-
         SolverOrderType memory sotParams;
 
         bytes32 expectedHash = keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams));
 
         assertEq(expectedHash, harness.hashParams(sotParams));
     }
-
 }

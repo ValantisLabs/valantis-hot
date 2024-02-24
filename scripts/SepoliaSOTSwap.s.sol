@@ -62,7 +62,9 @@ contract SepoliaSOTSwapScript is Script {
         MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
 
         SOT sot = SOT(vm.envAddress('SEPOLIA_SOT'));
-        MockLiquidityProvider liquidityProvider = MockLiquidityProvider(vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER'));
+        MockLiquidityProvider liquidityProvider = MockLiquidityProvider(
+            vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER')
+        );
 
         console.log('Pool address: ', address(pool));
         console.log('Token0 address: ', address(token0));

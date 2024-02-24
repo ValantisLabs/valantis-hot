@@ -13,7 +13,13 @@ import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/m
 
 import { SOT } from 'src/SOT.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot, AMMState } from 'src/structs/SOTStructs.sol';
+import {
+    SOTConstructorArgs,
+    SolverOrderType,
+    SolverWriteSlot,
+    SolverReadSlot,
+    AMMState
+} from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
@@ -21,7 +27,6 @@ import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
 import { MockSigner } from 'test/mocks/MockSigner.sol';
-
 
 contract SOTBase is SovereignPoolBase, SOTDeployer {
     using SafeCast for uint256;
@@ -216,12 +221,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     }
 
     function getSolverReadSlot() public view returns (SolverReadSlot memory slot) {
-        (
-            slot.maxAllowedQuotes, 
-            slot.solverFeeBipsToken0,
-            slot.solverFeeBipsToken1,
-            slot.signer
-        ) = sot.solverReadSlot();
+        (slot.maxAllowedQuotes, slot.solverFeeBipsToken0, slot.solverFeeBipsToken1, slot.signer) = sot.solverReadSlot();
     }
 
     function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
@@ -309,18 +309,18 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     function _setSolverWriteSlot(SolverWriteSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
-                slot.alternatingNonceBitmap,
-                slot.lastProcessedSignatureTimestamp,
-                slot.lastProcessedQuoteTimestamp,
-                slot.lastStateUpdateTimestamp,
-                slot.feeMinToken1,
-                slot.feeMaxToken1,
-                slot.feeGrowthInPipsToken1,
-                slot.feeMinToken0,
-                slot.feeMaxToken0,
-                slot.feeGrowthInPipsToken0,
-                slot.lastProcessedBlockQuoteCount
-            );
+            slot.alternatingNonceBitmap,
+            slot.lastProcessedSignatureTimestamp,
+            slot.lastProcessedQuoteTimestamp,
+            slot.lastStateUpdateTimestamp,
+            slot.feeMinToken1,
+            slot.feeMaxToken1,
+            slot.feeGrowthInPipsToken1,
+            slot.feeMinToken0,
+            slot.feeMaxToken0,
+            slot.feeGrowthInPipsToken0,
+            slot.lastProcessedBlockQuoteCount
+        );
         bytes32 data = bytes32(encodedData);
         vm.store(address(sot), bytes32(uint256(4)), data);
     }
@@ -336,5 +336,4 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         bytes32 data = bytes32(encodedData);
         vm.store(address(sot), bytes32(uint256(5)), data);
     }
-
 }

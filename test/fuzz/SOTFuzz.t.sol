@@ -169,7 +169,7 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         // Set AMM State
-        mockAMMState.setState(0, _sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
+        mockAMMState.setState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
         vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));

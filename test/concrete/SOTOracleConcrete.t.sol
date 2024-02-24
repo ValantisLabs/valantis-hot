@@ -12,7 +12,6 @@ import { MockToken } from 'test/mocks/MockToken.sol';
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
 
-
 contract SOTOracleConcrete is SOTBase {
     SOTOracle public oracle;
 
