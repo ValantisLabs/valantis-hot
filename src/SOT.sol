@@ -403,6 +403,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     /**
         @notice Updates the maximum number of SOT quotes allowed on a single block. 
         @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
      */
     function setMaxAllowedQuotes(uint8 _maxAllowedQuotes) external onlyManager {
         if (_maxAllowedQuotes > SOTConstants.MAX_SOT_QUOTES_IN_BLOCK) {
@@ -437,7 +438,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint160 _sqrtPriceHighX96,
         uint160 _expectedSqrtSpotPriceLowerX96,
         uint160 _expectedSqrtSpotPriceUpperX96
-    ) external onlyLiquidityProvider {
+    ) external poolNonReentrant onlyLiquidityProvider {
         // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
         // to protect against its manipulation
         _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
@@ -491,7 +492,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
     }
 
-    // TODO: Add reentrancy guard here?
+    // @audit: Do we need a reentrancy guard here?
     function depositLiquidity(
         uint256 _amount0,
         uint256 _amount1,
@@ -510,11 +511,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             ''
         );
 
-        // TODO: This could be vulnerable to reentrancy
         // Update AMM liquidity with post-deposit reserves
         _updateAMMLiquidity();
     }
 
+    // @audit: Do we need a reentrancy guard here?
     function withdrawLiquidity(
         uint256 _amount0,
         uint256 _amount1,
