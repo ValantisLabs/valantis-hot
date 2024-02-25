@@ -29,7 +29,8 @@ import {
     SolverWriteSlot,
     SolverReadSlot,
     SOTConstructorArgs,
-    AMMState
+    AMMState,
+    AMMLiquidityState
 } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
@@ -88,7 +89,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     event MaxAllowedQuoteSet(uint8 maxQuotes);
     event PauseSet(bool pause);
     event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
-    event MaxDepositOracleDeviationSet(uint256 maxDepositOracleDeviation);
+    event MaxDepositOracleDeviationSet(uint16 maxDepositOracleDeviationInBips);
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
     event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
     event PostWithdrawalLiquidityCapped(
@@ -189,15 +190,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     uint256 public maxToken0VolumeToQuote;
     uint256 public maxToken1VolumeToQuote;
 
-    uint256 public maxDepositOracleDeviation;
-
-    bool public isPaused;
-
     /**
         @notice Liquidity which gets utilized on AMM swaps. 
      */
-    uint128 private _effectiveAMMLiquidity;
-
+    AMMLiquidityState private _ammLiquidityState;
     /************************************************
      *  MODIFIERS
      ***********************************************/
@@ -314,10 +310,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     /**
+        @notice Returns true if the SOT is paused, false otherwise.
+     */
+    function isPaused() external view returns (bool) {
+        return _ammLiquidityState.isPaused;
+    }
+
+    /**
         @notice Returns active AMM liquidity (which gets utilized during AMM swaps).
      */
     function effectiveAMMLiquidity() external view poolNonReentrant returns (uint128) {
-        return _effectiveAMMLiquidity;
+        return _ammLiquidityState.effectiveAMMLiquidity;
+    }
+
+    function maxDepositOracleDeviationInBips() external view returns (uint16) {
+        return _ammLiquidityState.maxDepositOracleDeviationInBips;
     }
 
     // @audit Verify that this function is safe from view-only reentrancy.
@@ -346,11 +353,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
+        uint128 effectiveAMMLiquidityCache = _ammLiquidityState.effectiveAMMLiquidity;
+
         (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
             sqrtSpotPriceX96,
             sqrtPriceLowX96,
             sqrtPriceHighX96,
-            _effectiveAMMLiquidity
+            effectiveAMMLiquidityCache
         );
 
         uint256 passiveReserve0 = reserve0 - activeReserve0;
@@ -360,7 +369,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             sqrtSpotPriceX96New,
             sqrtPriceLowX96,
             sqrtPriceHighX96,
-            _effectiveAMMLiquidity
+            effectiveAMMLiquidityCache
         );
 
         reserve0 = passiveReserve0 + activeReserve0;
@@ -451,7 +460,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev Only callable by `manager`.
      */
     function setPause(bool _value) external onlyManager {
-        isPaused = _value;
+        _ammLiquidityState.isPaused = _value;
         emit PauseSet(_value);
     }
 
@@ -490,10 +499,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
-    function setMaxDepositOracleDeviation(uint16 _maxDepositOracleDeviation) external onlyLiquidityProvider {
-        maxDepositOracleDeviation = _maxDepositOracleDeviation;
+    function setMaxDepositOracleDeviationInBips(
+        uint16 _maxDepositOracleDeviationInBips
+    ) external onlyLiquidityProvider {
+        _ammLiquidityState.maxDepositOracleDeviationInBips = _maxDepositOracleDeviationInBips;
 
-        emit MaxDepositOracleDeviationSet(_maxDepositOracleDeviation);
+        emit MaxDepositOracleDeviationSet(_maxDepositOracleDeviationInBips);
     }
 
     /************************************************
@@ -543,7 +554,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             ? sqrtSpotPriceX96Cache - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceX96Cache;
 
-        if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > maxDepositOracleDeviation * sqrtOraclePriceX96) {
+        if (
+            spotPriceAndOracleAbsDiff * SOTConstants.BIPS >
+            _ammLiquidityState.maxDepositOracleDeviationInBips * sqrtOraclePriceX96
+        ) {
             revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
         }
 
@@ -574,7 +588,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
-        uint128 preWithdrawalLiquidity = _effectiveAMMLiquidity;
+        uint128 preWithdrawalLiquidity = _ammLiquidityState.effectiveAMMLiquidity;
 
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
 
@@ -584,7 +598,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Liquidity can never increase after a withdrawal, even if some passive reserves are added.
         if (postWithdrawalLiquidity > preWithdrawalLiquidity) {
             // Cap liquidity to pre withdrawal values.
-            _effectiveAMMLiquidity = preWithdrawalLiquidity;
+            _ammLiquidityState.effectiveAMMLiquidity = preWithdrawalLiquidity;
             emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
@@ -693,7 +707,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
             sqrtSpotPriceX96Cache,
             almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
-            _effectiveAMMLiquidity,
+            _ammLiquidityState.effectiveAMMLiquidity,
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
@@ -834,10 +848,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         );
 
         if (liquidity0 < liquidity1) {
-            _effectiveAMMLiquidity = liquidity0;
+            _ammLiquidityState.effectiveAMMLiquidity = liquidity0;
             updatedLiquidity = liquidity0;
         } else {
-            _effectiveAMMLiquidity = liquidity1;
+            _ammLiquidityState.effectiveAMMLiquidity = liquidity1;
             updatedLiquidity = liquidity1;
         }
 
@@ -881,7 +895,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     function _onlyUnpaused() private view {
-        if (isPaused) {
+        if (_ammLiquidityState.isPaused) {
             revert SOT__onlyUnpaused();
         }
     }

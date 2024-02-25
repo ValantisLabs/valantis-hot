@@ -780,7 +780,11 @@ contract SOTConcreteTest is SOTBase {
         params.isZeroToOne = true;
         params.amountIn = 1e10;
         params.swapTokenOut = address(token1);
+        uint256 preGas = gasleft();
         pool.swap(params);
+        uint256 postGas = gasleft();
+
+        console.log('gas base solver warm: ', preGas - postGas);
 
         postState = getPoolState();
         solverWriteSlot = getSolverWriteSlot();
@@ -815,7 +819,11 @@ contract SOTConcreteTest is SOTBase {
         params.isZeroToOne = true;
         params.amountIn = 1e10;
         params.swapTokenOut = address(token1);
+
+        preGas = gasleft();
         pool.swap(params);
+        postGas = gasleft();
+        console.log('gas discounted solver warm: ', preGas - postGas);
 
         postState = getPoolState();
         solverWriteSlot = getSolverWriteSlot();

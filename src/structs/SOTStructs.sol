@@ -127,3 +127,9 @@ struct AMMState {
     uint256 slot1;
     uint256 slot2;
 }
+
+struct AMMLiquidityState {
+    bool isPaused;
+    uint16 maxDepositOracleDeviationInBips;
+    uint128 effectiveAMMLiquidity;
+}
