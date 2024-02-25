@@ -547,7 +547,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
 
         {
-            (, uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
+            (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
 
             // These are the reserves that are currently utilized by the AMM
             (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
@@ -648,7 +648,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 /*_amountIn*/,
         uint256 /*_amountOut*/
     ) external override onlyPool {
-        _updateAMMLiquidity();
+        _updateTotalAMMLiquidity();
     }
 
     /************************************************
@@ -817,7 +817,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     function _updateActiveAMMLiquidity(bool isDeposit, uint256 amount0, uint256 amount1) internal {
-        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
@@ -852,7 +852,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     function _updateTotalAMMLiquidity() private {
-        (, uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
         // Query current reserves
