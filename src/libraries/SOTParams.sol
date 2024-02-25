@@ -90,7 +90,9 @@ library SOTParams {
             revert SOTParams__validateFeeParams_invalidfeeGrowthInPips();
         }
 
-        // feeMax should be strictly less than 100%
+        // feeMax should be strictly less than 50% of total amountIn.
+        // Note: A fee of 10_000 bips represents that for X amountIn swapped, we will charge X fee.
+        // So, if amountIn = A, and feeBips = 100%, then amountInMinusFee = A/2, and effectiveFee = A/2.
         if (sot.feeMaxToken0 >= SOTConstants.BIPS || sot.feeMaxToken1 >= SOTConstants.BIPS)
             revert SOTParams__validateFeeParams_invalidFeeMax();
 
