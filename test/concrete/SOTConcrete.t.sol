@@ -1169,6 +1169,14 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(swapFeeModuleData.feeInBips, 20);
     }
+
+    function test_unusedCallbacks() public {
+        // Test is used to cover unused callbacks to correct coverage report.
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
+        sot.callbackOnSwapEnd(0, 0, 0, 0, swapFeeModuleData);
+
+        sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
+    }
 }
 
 /**
