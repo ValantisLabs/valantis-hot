@@ -88,6 +88,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     event MaxAllowedQuoteSet(uint8 maxQuotes);
     event PauseSet(bool pause);
     event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
+    event MaxDepositOracleDeviationSet(uint256 maxDepositOracleDeviation);
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
     event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
     event PostWithdrawalLiquidityCapped(
@@ -472,9 +473,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external poolNonReentrant onlyLiquidityProvider {
         // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
         // to protect against its manipulation
-        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
-
-        (uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
+        uint160 sqrtSpotPriceX96Cache = _checkSpotPriceRange(
+            _expectedSqrtSpotPriceLowerX96,
+            _expectedSqrtSpotPriceUpperX96
+        );
 
         // Check that new bounds are valid,
         // and do not exclude current spot price
@@ -482,14 +484,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         _ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
-        emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
-
         // Update AMM liquidity with new price bounds
         _updateAMMLiquidity();
+
+        emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
     function setMaxDepositOracleDeviation(uint16 _maxDepositOracleDeviation) external onlyLiquidityProvider {
         maxDepositOracleDeviation = _maxDepositOracleDeviation;
+
+        emit MaxDepositOracleDeviationSet(_maxDepositOracleDeviation);
     }
 
     /************************************************
@@ -527,9 +531,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external onlyLiquidityProvider onlyUnpaused returns (uint256 amount0Deposited, uint256 amount1Deposited) {
         // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
         // to protect against its manipulation
-        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
+        uint160 sqrtSpotPriceX96Cache = _checkSpotPriceRange(
+            _expectedSqrtSpotPriceLowerX96,
+            _expectedSqrtSpotPriceUpperX96
+        );
 
-        (uint160 sqrtSpotPriceX96Cache, , ) = _ammState.getState();
         uint160 sqrtOraclePriceX96 = getSqrtOraclePriceX96();
 
         // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
@@ -563,7 +569,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     ) external onlyLiquidityProvider {
         // Allow `liquidityProvider` to cross-check sqrt spot price against expected bounds,
         // to protect against its manipulation
-        _checkSpotPriceRange(_expectedSqrtSpotPriceLowerX96, _expectedSqrtSpotPriceUpperX96);
+        uint160 sqrtSpotPriceX96Cache = _checkSpotPriceRange(
+            _expectedSqrtSpotPriceLowerX96,
+            _expectedSqrtSpotPriceUpperX96
+        );
 
         uint128 preWithdrawalLiquidity = _effectiveAMMLiquidity;
 
@@ -576,10 +585,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (postWithdrawalLiquidity > preWithdrawalLiquidity) {
             // Cap liquidity to pre withdrawal values.
             _effectiveAMMLiquidity = preWithdrawalLiquidity;
-
-            (uint160 sqrtSpotPriceX96, , ) = _ammState.getState();
-
-            emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96, preWithdrawalLiquidity, postWithdrawalLiquidity);
+            emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
 
@@ -848,16 +854,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function _checkSpotPriceRange(
         uint160 _expectedSqrtSpotPriceLowerX96,
         uint160 _expectedSqrtSpotPriceUpperX96
-    ) private view {
+    ) private view returns (uint160 sqrtSpotPriceX96Cache) {
+        sqrtSpotPriceX96Cache = _ammState.getSqrtSpotPriceX96();
         bool checkSqrtSpotPriceAbsDiff = _expectedSqrtSpotPriceUpperX96 != 0 || _expectedSqrtSpotPriceLowerX96 != 0;
         if (checkSqrtSpotPriceAbsDiff) {
-            uint160 sqrtSpotPriceX96 = _ammState.getSqrtSpotPriceX96();
-
             // Check that spot price has not been manipulated
             if (
-                sqrtSpotPriceX96 > _expectedSqrtSpotPriceUpperX96 || sqrtSpotPriceX96 < _expectedSqrtSpotPriceLowerX96
+                sqrtSpotPriceX96Cache > _expectedSqrtSpotPriceUpperX96 ||
+                sqrtSpotPriceX96Cache < _expectedSqrtSpotPriceLowerX96
             ) {
-                revert SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96);
+                revert SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96Cache);
             }
         }
     }
