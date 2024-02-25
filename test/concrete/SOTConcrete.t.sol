@@ -120,22 +120,38 @@ contract SOTConcreteTest is SOTBase {
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
-            isZeroToOne: true,
+            isZeroToOne: false,
             amountIn: 1e30, // Swap large amount to deplete 1 token
             amountOutMin: 0,
             recipient: address(this),
             deadline: block.timestamp + 2,
-            swapTokenOut: address(token1),
+            swapTokenOut: address(token0),
             swapContext: data
         });
 
-        // Deplete liquidity in one token
-        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+        // Deplete liquidity in one token, but spot price reaches the edge
+        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
+        pool.swap(params);
 
+        (, uint160 sqrtPriceLowX96, ) = sot.getAMMState();
+
+        (uint256 amount0, ) = sot.getReservesAtPrice(sqrtPriceLowX96 + 1);
+        (uint256 reserve0, ) = pool.getReserves();
+
+        params.isZeroToOne = !params.isZeroToOne;
+        params.swapTokenOut = params.isZeroToOne ? address(token1) : address(token0);
+
+        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
+        pool.swap(params);
+
+        // Extra one is substracted for precision issues
+        params.amountIn = amount0 - reserve0 - 1;
+
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
         PoolState memory postState = getPoolState();
 
-        // Check that sqrt spot price matches the left-most bound
-        assertEq(postState.sqrtSpotPriceX96, postState.sqrtPriceLowX96, 'Wrong sqrt spot price update');
+        // Check that sqrt spot price is near the lower bound
+        assertApproxEqRel(postState.sqrtSpotPriceX96, postState.sqrtPriceLowX96 + 1, 1, 'Wrong sqrt spot price update');
 
         console.log('amountInUsed 1: ', amountInUsed);
         console.log('amountOut 1: ', amountOut);
@@ -145,15 +161,15 @@ contract SOTConcreteTest is SOTBase {
         console.log('sqrtPriceLowX96: ', postState.sqrtPriceLowX96);
         console.log('sqrtPriceHighX96: ', postState.sqrtPriceHighX96);
 
-        params.amountIn = 1e18;
+        params.amountIn = 1;
 
-        // No more liquidity left to swap in this direction
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_zeroAmountOut.selector);
+        // Trying to swap even 1 amount on the other side results in revert
+        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
         (amountInUsed, amountOut) = pool.swap(params);
 
-        params.isZeroToOne = false;
-        params.swapTokenOut = address(token0);
-
+        params.isZeroToOne = !params.isZeroToOne;
+        params.swapTokenOut = params.isZeroToOne ? address(token1) : address(token0);
+        params.amountIn = 1e18;
         // It should be possible to make another swap in the reverse direction
         (amountInUsed, amountOut) = pool.swap(params);
 
@@ -362,7 +378,8 @@ contract SOTConcreteTest is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
         (, uint160 sqrtSpotPriceLowX96, ) = sot.getAMMState();
-        sotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96;
+        // Exactly sqrtPriceLow will cause revert
+        sotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96 + 1;
 
         // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
@@ -1168,6 +1185,32 @@ contract SOTConcreteTest is SOTBase {
         swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(1));
 
         assertEq(swapFeeModuleData.feeInBips, 20);
+    }
+
+    function test_poolNonReentrant() public {
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(2)));
+
+        assertEq(pool.isLocked(), true, 'Pool Not Locked');
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.effectiveAMMLiquidity();
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.getAMMState();
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.getReservesAtPrice(0);
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.setPriceBounds(0, 0, 0, 0);
+    }
+
+    function test_unusedCallbacks() public {
+        // Test is used to cover unused callbacks to correct coverage report.
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
+        sot.callbackOnSwapEnd(0, 0, 0, 0, swapFeeModuleData);
+
+        sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
     }
 }
 

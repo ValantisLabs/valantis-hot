@@ -299,12 +299,18 @@ contract TestSOTParams is SOTBase {
         uint160 priceHigh = SOTConstants.MIN_SQRT_PRICE + 1000;
 
         uint160 price = SOTConstants.MIN_SQRT_PRICE + 5;
-
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
         harness.validatePriceBounds(price, priceLow, priceHigh);
 
         price = SOTConstants.MIN_SQRT_PRICE + 2000;
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
 
+        price = SOTConstants.MIN_SQRT_PRICE;
+        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        harness.validatePriceBounds(price, priceLow, priceHigh);
+
+        price = SOTConstants.MAX_SQRT_PRICE;
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
         harness.validatePriceBounds(price, priceLow, priceHigh);
 
