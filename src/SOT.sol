@@ -294,8 +294,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
-        // AMM State is initialized as unpaused
         _ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
+
+        // AMM State is initialized as unpaused
     }
 
     /************************************************
