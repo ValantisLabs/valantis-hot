@@ -112,8 +112,6 @@ struct SOTConstructorArgs {
 /**
     @notice Packed struct that contains all variables relevant to the state of the AMM.
     
-    * flags (uint32):
-        * bit 0: pause flag
     * a sqrtSpotPriceX96
     * b sqrtPriceLowX96
     * c sqrtPriceHighX96
@@ -122,7 +120,7 @@ struct SOTConstructorArgs {
     
     @dev Should never be used directly without the help of the TightPack library.
 
-    @dev slot1: << 32 flag bits | upper 64 bits of b | all 160 bits of a >>
+    @dev slot1: << 32 free bits | upper 64 bits of b | all 160 bits of a >>
          slot2: << lower 96 bits of b | all 160 bits of c >>
  */
 struct AMMState {
