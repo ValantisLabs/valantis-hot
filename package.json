@@ -10,6 +10,7 @@
     }
   },
   "scripts": {
+    "coverage:lcov": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info.pruned 'test' && genhtml lcov.info.pruned -o coverage/html && open coverage/html/index.html",
     "lint": "solhint 'src/**/*.sol'",
     "format": "npx prettier --write .",
     "format:contracts": "npx prettier --write src/**/*.sol",

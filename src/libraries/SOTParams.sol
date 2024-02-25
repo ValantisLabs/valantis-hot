@@ -31,10 +31,11 @@ library SOTParams {
     error SOTParams__validateFeeParams_invalidfeeGrowthInPips();
     error SOTParams__validateFeeParams_invalidFeeMax();
     error SOTParams__validateFeeParams_invalidFeeMin();
-    error SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
+    error SOTParams__validatePriceBounds_invalidPriceBounds();
     error SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
-    error SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
-    error SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
+    error SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
+    error SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
+    error SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
 
     /************************************************
      *  FUNCTIONS
@@ -114,7 +115,7 @@ library SOTParams {
             : sqrtSpotPriceNewX96 - sqrtSolverPriceX96;
 
         if (solverAndSpotPriceNewAbsDiff * SOTConstants.BIPS > solverMaxDiscountBips * sqrtSpotPriceNewX96) {
-            revert SOTParams__validatePriceBounds_solverAndSpotPriceNewExcessiveDeviation();
+            revert SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
         }
 
         // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
@@ -123,7 +124,7 @@ library SOTParams {
             : sqrtOraclePriceX96 - sqrtSpotPriceX96;
 
         if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
-            revert SOTParams__validatePriceBounds_spotAndOraclePricesExcessiveDeviation();
+            revert SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
         }
 
         // New AMM sqrt spot price (provided by SOT quote) and oracle sqrt price cannot differ
@@ -133,7 +134,7 @@ library SOTParams {
             : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
 
         if (spotPriceNewAndOracleAbsDiff * SOTConstants.BIPS > oraclePriceMaxDiffBips * sqrtOraclePriceX96) {
-            revert SOTParams__validatePriceBounds_newSpotAndOraclePricesExcessiveDeviation();
+            revert SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
         }
 
         validatePriceBounds(sqrtSpotPriceNewX96, sqrtPriceLowX96, sqrtPriceHighX96);
@@ -144,6 +145,16 @@ library SOTParams {
         uint160 sqrtPriceLowX96,
         uint160 sqrtPriceHighX96
     ) internal pure {
+        // Check that lower bound is smaller than upper bound,
+        // and price bounds are within the MAX and MIN sqrt prices
+        if (
+            sqrtPriceLowX96 >= sqrtPriceHighX96 ||
+            sqrtPriceLowX96 < SOTConstants.MIN_SQRT_PRICE ||
+            sqrtPriceHighX96 > SOTConstants.MAX_SQRT_PRICE
+        ) {
+            revert SOTParams__validatePriceBounds_invalidPriceBounds();
+        }
+
         // sqrt spot price cannot exceed lower nor upper AMM position's bounds
         if (sqrtSpotPriceX96 < sqrtPriceLowX96 || sqrtSpotPriceX96 > sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();

@@ -21,6 +21,7 @@ node_modules
 
 # Coverage files
 lcov.info
+lcov.info.pruned
 report/
 
 # Hardhat files
