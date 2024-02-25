@@ -2,6 +2,8 @@
 pragma solidity 0.8.19;
 
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
+import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
@@ -20,7 +22,7 @@ import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-mo
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
-import { LiquidityAmounts } from 'src/libraries/LiquidityAmounts.sol';
+// import { LiquidityAmounts } from 'src/libraries/LiquidityAmounts.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import {
@@ -66,7 +68,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidSqrtPriceBounds();
     error SOT__constructor_invalidToken0();
     error SOT__constructor_invalidToken1();
-    error SOT__checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
+    error SOT___ammSwap_invalidSpotPriceAfterSwap();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_invalidSignature();
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
@@ -654,6 +656,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
+
+        // New spot price cannot be at the edge of the price range, otherwise
+        if (sqrtSpotPriceX96New == sqrtPriceLowX96Cache || sqrtSpotPriceX96New == sqrtPriceHighX96Cache) {
+            revert SOT___ammSwap_invalidSpotPriceAfterSwap();
+        }
 
         _ammState.setSqrtSpotPriceX96(sqrtSpotPriceX96New);
         emit SpotPriceUpdate(sqrtSpotPriceX96New);

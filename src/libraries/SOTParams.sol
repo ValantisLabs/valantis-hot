@@ -157,8 +157,8 @@ library SOTParams {
             revert SOTParams__validatePriceBounds_invalidPriceBounds();
         }
 
-        // sqrt spot price cannot exceed lower nor upper AMM position's bounds
-        if (sqrtSpotPriceX96 < sqrtPriceLowX96 || sqrtSpotPriceX96 > sqrtPriceHighX96) {
+        // sqrt spot price cannot exceed or equal lower/upper AMM position's bounds
+        if (sqrtSpotPriceX96 <= sqrtPriceLowX96 || sqrtSpotPriceX96 >= sqrtPriceHighX96) {
             revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
     }
