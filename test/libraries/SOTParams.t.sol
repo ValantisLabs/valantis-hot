@@ -276,7 +276,6 @@ contract TestSOTParams is SOTBase {
         harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
 
         harness.setState(
-            0,
             SOTConstants.MIN_SQRT_PRICE + 100,
             SOTConstants.MIN_SQRT_PRICE + 1,
             SOTConstants.MIN_SQRT_PRICE + 1000
