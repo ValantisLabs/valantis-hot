@@ -22,7 +22,6 @@ import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-mo
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
-// import { LiquidityAmounts } from 'src/libraries/LiquidityAmounts.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import {
@@ -657,7 +656,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             0 // fees have already been deducted
         );
 
-        // New spot price cannot be at the edge of the price range, otherwise
+        // New spot price cannot be at the edge of the price range, otherwise LiquidityAmounts library reverts.
         if (sqrtSpotPriceX96New == sqrtPriceLowX96Cache || sqrtSpotPriceX96New == sqrtPriceHighX96Cache) {
             revert SOT___ammSwap_invalidSpotPriceAfterSwap();
         }
