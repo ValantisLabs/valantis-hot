@@ -511,7 +511,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         }
 
         if (liquidityQuote.amountOut == 0) {
-            _updateAMMLiquidity();
+            revert SOT__getLiquidityQuote_zeroAmountOut();
         }
 
         _ammLiquidityState.isAMMUnlocked = true;
