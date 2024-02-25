@@ -1170,6 +1170,24 @@ contract SOTConcreteTest is SOTBase {
         assertEq(swapFeeModuleData.feeInBips, 20);
     }
 
+    function test_poolNonReentrant() public {
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(2)));
+
+        assertEq(pool.isLocked(), true, 'Pool Not Locked');
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.effectiveAMMLiquidity();
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.getAMMState();
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.getReservesAtPrice(0);
+
+        vm.expectRevert(SOT.SOT__reentrant.selector);
+        sot.setPriceBounds(0, 0, 0, 0);
+    }
+
     function test_unusedCallbacks() public {
         // Test is used to cover unused callbacks to correct coverage report.
         SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
