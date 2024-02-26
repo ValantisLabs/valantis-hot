@@ -326,6 +326,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         return _ammLiquidityState.effectiveAMMLiquidity;
     }
 
+    /**
+        @notice Returns the max allowed deviation between oracle and spot price at the time of deposits.
+     */
     function maxDepositOracleDeviationInBips() external view returns (uint16) {
         return _ammLiquidityState.maxDepositOracleDeviationInBips;
     }
@@ -502,6 +505,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
+    /**
+        @notice Sets the maximum allowed deviation between AMM and oracle price.
+        @param _maxDepositOracleDeviationInBips New maximum deviation in basis-points.
+        @dev Only callable by `liquidityProvider`.
+        @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
+        @dev The deviation is applied on the square root of the price, so adjust values accordingly.
+     */
     function setMaxDepositOracleDeviationInBips(
         uint16 _maxDepositOracleDeviationInBips
     ) external onlyLiquidityProvider {
@@ -796,7 +806,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Verify SOT quote signature
         // @audit: Verify that this is a safe way to check signatures
-        // @TODO: @audit: Verify that the typehash is correct in the SOTConstants file
+        // @audit: Verify that the typehash is correct in the SOTConstants file
         bytes32 sotHash = sot.hashParams();
         if (!solverReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
             revert SOT___solverSwap_invalidSignature();

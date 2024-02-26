@@ -239,6 +239,7 @@ contract SOTFuzzTest is SOTBase {
         }
     }
 
+    // TODO: Uncomment after creating a proper error handling mechanism
     // function test_withdrawLiquidityCapped(
     //     uint256 _reserve0,
     //     uint256 _reserve1,

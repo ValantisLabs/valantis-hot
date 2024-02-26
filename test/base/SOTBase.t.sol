@@ -322,7 +322,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastProcessedBlockQuoteCount
         );
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(4)), data);
+        vm.store(address(sot), bytes32(uint256(5)), data);
     }
 
     function _setSolverReadSlot(SolverReadSlot memory slot) internal {
@@ -334,6 +334,6 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.maxAllowedQuotes
         );
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(5)), data);
+        vm.store(address(sot), bytes32(uint256(6)), data);
     }
 }
