@@ -1316,16 +1316,16 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(pool.isLocked(), true, 'Pool Not Locked');
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.effectiveAMMLiquidity();
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.getAMMState();
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.getReservesAtPrice(0);
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.setPriceBounds(0, 0, 0, 0);
     }
 

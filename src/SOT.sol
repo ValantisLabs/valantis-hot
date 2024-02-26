@@ -55,7 +55,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__onlyManager();
     error SOT__onlyLiquidityProvider();
     error SOT__onlyUnpaused();
-    error SOT__reentrant();
+    error SOT__poolReentrant();
     error SOT__constructor_invalidFeeGrowthBounds();
     error SOT__constructor_invalidLiquidityProvider();
     error SOT__constructor_invalidMinAMMFee();
@@ -169,6 +169,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     AMMState private _ammState;
 
     /**
+        @notice Contains information related to state of liquidity, pause flag
+                and maximum allowed deviation between AMM and oracle price.
+     */
+    AMMLiquidityState private _ammLiquidityState;
+
+    /**
         @notice Contains state variables which get updated on swaps. 
      */
     SolverWriteSlot public solverWriteSlot;
@@ -191,10 +197,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     uint256 public maxToken0VolumeToQuote;
     uint256 public maxToken1VolumeToQuote;
 
-    /**
-        @notice Liquidity which gets utilized on AMM swaps. 
-     */
-    AMMLiquidityState private _ammLiquidityState;
     /************************************************
      *  MODIFIERS
      ***********************************************/
@@ -912,7 +914,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     function _poolNonReentrant() private view {
         if (ISovereignPool(pool).isLocked()) {
-            revert SOT__reentrant();
+            revert SOT__poolReentrant();
         }
     }
 }
