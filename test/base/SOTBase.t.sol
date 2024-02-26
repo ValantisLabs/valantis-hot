@@ -52,6 +52,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     MockChainlinkOracle public feedToken0;
     MockChainlinkOracle public feedToken1;
 
+    AMMState public mockAMMState;
+
     function setUp() public virtual override {
         _setupBase();
 
@@ -86,7 +88,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed0: 10 minutes,
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
-            oraclePriceMaxDiffBips: 5000, // 50%
+            maxOracleDeviationBound: 5000, // 50%
             minAMMFeeGrowthInPips: 100,
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%
@@ -221,7 +223,14 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     }
 
     function getSolverReadSlot() public view returns (SolverReadSlot memory slot) {
-        (slot.maxAllowedQuotes, slot.solverFeeBipsToken0, slot.solverFeeBipsToken1, slot.signer) = sot.solverReadSlot();
+        (
+            slot.isPaused,
+            slot.maxAllowedQuotes,
+            slot.maxOracleDeviationBips,
+            slot.solverFeeBipsToken0,
+            slot.solverFeeBipsToken1,
+            slot.signer
+        ) = sot.solverReadSlot();
     }
 
     function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
@@ -307,6 +316,20 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
     }
 
+    function _setAMMState(uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) internal {
+        mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+
+        vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot1)));
+        vm.store(address(sot), bytes32(uint256(4)), bytes32(uint256(mockAMMState.slot2)));
+
+        // Check that the amm state is setup correctly
+        (uint160 _sqrtSpotPriceX96, uint160 _sqrtPriceLowX96, uint160 _sqrtPriceHighX96) = sot.getAMMState();
+
+        assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
+        assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
+        assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
+    }
+
     function _setSolverWriteSlot(SolverWriteSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
             slot.alternatingNonceBitmap,
@@ -322,18 +345,30 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastProcessedBlockQuoteCount
         );
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(4)), data);
+        vm.store(address(sot), bytes32(uint256(5)), data);
     }
 
     function _setSolverReadSlot(SolverReadSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
-            bytes7(0),
+            bytes4(0),
             slot.signer,
             slot.solverFeeBipsToken1,
             slot.solverFeeBipsToken0,
-            slot.maxAllowedQuotes
+            slot.maxOracleDeviationBips,
+            slot.maxAllowedQuotes,
+            slot.isPaused
         );
+
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(5)), data);
+        vm.store(address(sot), bytes32(uint256(6)), data);
+
+        SolverReadSlot memory updateSlot = getSolverReadSlot();
+
+        assertEq(slot.signer, updateSlot.signer, 'signer');
+        assertEq(slot.solverFeeBipsToken1, updateSlot.solverFeeBipsToken1, 'solverFeeBipsToken1');
+        assertEq(slot.solverFeeBipsToken0, updateSlot.solverFeeBipsToken0, 'solverFeeBipsToken0');
+        assertEq(slot.maxOracleDeviationBips, updateSlot.maxOracleDeviationBips, 'maxOracleDeviationBips');
+        assertEq(slot.maxAllowedQuotes, updateSlot.maxAllowedQuotes, 'maxAllowedQuotes');
+        assertEq(slot.isPaused, updateSlot.isPaused, 'isPaused');
     }
 }

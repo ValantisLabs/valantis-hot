@@ -56,7 +56,7 @@ contract SOTParamsHarness {
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
-        uint256 oraclePriceMaxDiffBips,
+        uint256 maxOracleDeviationBound,
         uint256 solverMaxDiscountBips
     ) public view {
         SOTParams.validatePriceConsistency(
@@ -64,7 +64,7 @@ contract SOTParamsHarness {
             sqrtSolverPriceX96,
             sqrtSpotPriceNewX96,
             sqrtOraclePriceX96,
-            oraclePriceMaxDiffBips,
+            maxOracleDeviationBound,
             solverMaxDiscountBips
         );
     }

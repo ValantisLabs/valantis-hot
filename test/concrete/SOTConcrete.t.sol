@@ -19,6 +19,7 @@ import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
@@ -29,8 +30,8 @@ contract SOTConcreteTest is SOTBase {
         super.setUp();
 
         // Reserves in the ratio 1: 2000
-        _setupBalanceForUser(address(this), address(token0), 30_000e18);
-        _setupBalanceForUser(address(this), address(token1), 30_000e18);
+        _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+        _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
@@ -38,6 +39,8 @@ contract SOTConcreteTest is SOTBase {
         vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
+
+        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound());
     }
 
     function test_managerOperations() public {
@@ -56,7 +59,7 @@ contract SOTConcreteTest is SOTBase {
 
         sot.setSigner(makeAddr('SIGNER'));
 
-        (, , , address signer) = sot.solverReadSlot();
+        (, , , , , address signer) = sot.solverReadSlot();
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
         sot.setMaxTokenVolumes(500, 500);
@@ -317,7 +320,7 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidSignature.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_invalidSignature.selector);
         pool.swap(params);
     }
 
@@ -495,7 +498,7 @@ contract SOTConcreteTest is SOTBase {
         // Correct solver feeInBips: token0 = 0.1%, token1 = 0.5%
         sot.setSolverFeeInBips(10, 50);
 
-        (, uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
+        (, , , uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
 
         assertEq(solverFeeBipsToken0, 10, 'solverFeeBipsToken0');
         assertEq(solverFeeBipsToken1, 50, 'solverFeeBipsToken1');
@@ -618,14 +621,14 @@ contract SOTConcreteTest is SOTBase {
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(1e8);
 
-        (uint8 maxAllowedQuotes, , , ) = sot.solverReadSlot();
+        (, uint8 maxAllowedQuotes, , , , ) = sot.solverReadSlot();
         assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
 
         vm.expectRevert(SOT.SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
         sot.setMaxAllowedQuotes(57);
 
         sot.setMaxAllowedQuotes(0);
-        (maxAllowedQuotes, , , ) = sot.solverReadSlot();
+        (, maxAllowedQuotes, , , , ) = sot.solverReadSlot();
 
         assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
 
@@ -650,7 +653,7 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
         pool.swap(params);
 
         sot.setMaxAllowedQuotes(3);
@@ -761,7 +764,7 @@ contract SOTConcreteTest is SOTBase {
         sotParams.nonce = 3;
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
         pool.swap(params);
 
         // Next Block
@@ -780,7 +783,11 @@ contract SOTConcreteTest is SOTBase {
         params.isZeroToOne = true;
         params.amountIn = 1e10;
         params.swapTokenOut = address(token1);
+        uint256 preGas = gasleft();
         pool.swap(params);
+        uint256 postGas = gasleft();
+
+        console.log('gas base solver warm: ', preGas - postGas);
 
         postState = getPoolState();
         solverWriteSlot = getSolverWriteSlot();
@@ -815,7 +822,11 @@ contract SOTConcreteTest is SOTBase {
         params.isZeroToOne = true;
         params.amountIn = 1e10;
         params.swapTokenOut = address(token1);
+
+        preGas = gasleft();
         pool.swap(params);
+        postGas = gasleft();
+        console.log('gas discounted solver warm: ', preGas - postGas);
 
         postState = getPoolState();
         solverWriteSlot = getSolverWriteSlot();
@@ -904,6 +915,71 @@ contract SOTConcreteTest is SOTBase {
         sot.depositLiquidity(1, 1, 0, 0);
     }
 
+    function test_depositLiquidity_oracleDeviation() public {
+        vm.startPrank(makeAddr('NOT_MANAGER'));
+        vm.expectRevert(SOT.SOT__onlyManager.selector);
+
+        sot.setMaxOracleDeviationBips(100);
+        vm.stopPrank();
+
+        vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
+        sot.setMaxOracleDeviationBips(uint16(5001));
+
+        // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
+        sot.setMaxOracleDeviationBips(100);
+        assertEq(sot.maxOracleDeviationBips(), 100, 'maxOracleDeviationInBips');
+
+        // Spot price falls within the deviation
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice5099 = getSqrtPriceX96(
+                5099 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            _setAMMState(sqrtPrice5099, sqrtPriceLowX96, sqrtPriceHighX96);
+        }
+
+        feedToken0.updateAnswer(5000e8);
+
+        // This should not revert
+        sot.depositLiquidity(1, 1, 0, 0);
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        assertEq(reserve0, 5e18 + 1, 'reserve0');
+        assertEq(reserve1, 10_000e18 + 1, 'reserve1');
+
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice5101 = getSqrtPriceX96(
+                5101 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            _setAMMState(sqrtPrice5101, sqrtPriceLowX96, sqrtPriceHighX96);
+        }
+
+        // Should revert, as deviation is greater than 2% on the higher side
+        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        sot.depositLiquidity(1, 1, 0, 0);
+
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice4899 = getSqrtPriceX96(
+                4899 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            _setAMMState(sqrtPrice4899, sqrtPriceLowX96, sqrtPriceHighX96);
+        }
+
+        // Should revert, as deviation is greater than 2% on the lower side
+        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        sot.depositLiquidity(1, 1, 0, 0);
+    }
+
     function test_withdrawLiquidity() public {
         // Withdraw with any other address except liquidity provider.
         vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
@@ -924,6 +1000,39 @@ contract SOTConcreteTest is SOTBase {
         // Withdraw liquidity again
         vm.expectRevert(SovereignPool.SovereignPool__withdrawLiquidity_insufficientReserve0.selector);
         sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+    }
+
+    function test_withdrawLiquidity_cappedEffectiveLiquidity() public {
+        sot.depositLiquidity(0, 1e23, 0, 0);
+
+        uint128 preLiquidity = sot.effectiveAMMLiquidity();
+
+        {
+            uint160 sqrtSpotPriceX96 = getSqrtPriceX96(
+                90000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            uint160 sqrtPriceLowX96 = getSqrtPriceX96(
+                80000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            uint160 sqrtPriceHighX96 = getSqrtPriceX96(
+                91000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            _setAMMState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+        }
+
+        sot.withdrawLiquidity(1, 0, address(this), 0, 0);
+
+        uint128 postLiquidity = sot.effectiveAMMLiquidity();
+        console.log('preLiquidity: ', preLiquidity);
+        console.log('postLiquidity: ', postLiquidity);
+
+        assertEq(preLiquidity, postLiquidity, 'effectiveAMMLiquidity Capped');
     }
 
     function test_pause() public {
@@ -1192,16 +1301,16 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(pool.isLocked(), true, 'Pool Not Locked');
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.effectiveAMMLiquidity();
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.getAMMState();
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.getReservesAtPrice(0);
 
-        vm.expectRevert(SOT.SOT__reentrant.selector);
+        vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.setPriceBounds(0, 0, 0, 0);
     }
 

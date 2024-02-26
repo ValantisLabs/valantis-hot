@@ -30,11 +30,8 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;
-    using TightPack for AMMState;
 
     event LogBytes(bytes data);
-
-    AMMState public mockAMMState;
 
     function setUp() public virtual override {
         super.setUp();
@@ -169,17 +166,7 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         // Set AMM State
-        mockAMMState.setState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
-
-        vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-        vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
-
-        // Check that the amm state is setup correctly
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
-
-        assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
-        assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
-        assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
+        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -200,8 +187,6 @@ contract SOTFuzzTest is SOTBase {
         }
 
         try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
-            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-
             uint128 postLiquidity = sot.effectiveAMMLiquidity();
             assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
 
@@ -238,4 +223,68 @@ contract SOTFuzzTest is SOTBase {
             // }
         }
     }
+
+    // TODO: Uncomment after creating a proper error handling mechanism
+    // function test_withdrawLiquidityCapped(
+    //     uint256 _reserve0,
+    //     uint256 _reserve1,
+    //     uint256 _withdrawAmount0,
+    //     uint256 _withdrawAmount1,
+    //     uint160 _sqrtSpotPriceX96,
+    //     uint160 _sqrtPriceLowX96,
+    //     uint160 _sqrtPriceHighX96
+    // ) public {
+    //     _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+    //     _setupBalanceForUser(address(this), address(token1), type(uint256).max);
+
+    //     // Comprehensive bounds that cover all scenarios
+    //     _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE - 100)
+    //         .toUint160();
+    //     _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96 + 5, SOTConstants.MAX_SQRT_PRICE).toUint160();
+    //     _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96 + 1, _sqrtPriceHighX96 - 1).toUint160();
+    //     _withdrawAmount0 = bound(_withdrawAmount0, 0, _reserve0);
+    //     _withdrawAmount1 = bound(_withdrawAmount1, 0, _reserve1);
+
+    //     console.log('Fuzz Input: _reserve0: ', _reserve0);
+    //     console.log('Fuzz Input: _reserve1: ', _reserve1);
+    //     console.log('Fuzz Input: _sqrtSpotPriceX96: ', _sqrtSpotPriceX96);
+    //     console.log('Fuzz Input: _sqrtPriceLowX96: ', _sqrtPriceLowX96);
+    //     console.log('Fuzz Input: _sqrtPriceHighX96: ', _sqrtPriceHighX96);
+
+    //     // Set AMM State
+    //     mockAMMState.setState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
+    //     vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+    //     vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+
+    //     // Check that the amm state is setup correctly
+    //     (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+    //     assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
+    //     assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
+    //     assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
+
+    //     // uint256 actualSpotPrice = Math.mulDiv(sqrtSpotPriceX96, sqrtSpotPriceX96, SOTConstants.Q192);
+    //     // console.log('actualSpotPrice: ', actualSpotPrice);
+
+    //     // feedToken0.updateAnswer(int256(actualSpotPrice * (10 ** feedToken0.decimals())));
+    //     sot.setMaxOracleDeviationBips(uint16(SOTConstants.BIPS));
+
+    //     // Set Reserves
+    //     if (_reserve0 == 0 && _reserve1 == 0) {
+    //         vm.expectRevert(SovereignPool.SovereignPool__depositLiquidity_zeroTotalDepositAmount.selector);
+    //     }
+    //     try sot.depositLiquidity(_reserve0, _reserve1, 0, 0) {} catch {
+    //         return;
+    //     }
+    //     sot.depositLiquidity(_reserve0, _reserve1, 0, 0);
+
+    //     uint128 preWithdrawalLiquidity = sot.effectiveAMMLiquidity();
+
+    //     sot.withdrawLiquidity(_withdrawAmount0, _withdrawAmount1, address(this), 0, 0);
+
+    //     uint128 postWithdrawalLiquidity = sot.effectiveAMMLiquidity();
+
+    //     assertGe(preWithdrawalLiquidity, postWithdrawalLiquidity, 'liquidityDecrease');
+    // }
 }
