@@ -70,34 +70,34 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__constructor_invalidToken1();
     error SOT__depositLiquidity_spotPriceAndOracleDeviation();
     error SOT__getLiquidityQuote_invalidFeePath();
-    error SOT__getLiquidityQuote_invalidSignature();
-    error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation();
     error SOT__setSolverFeeInBips_invalidSolverFee();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
+    error SOT___solverSwap_invalidSignature();
+    error SOT___solverSwap_maxSolverQuotesExceeded();
 
     /************************************************
      *  EVENTS
      ***********************************************/
 
-    event ManagerUpdate(address indexed manager);
-    event SignerUpdate(address indexed signer);
-    event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
-    event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
-    event MaxAllowedQuoteSet(uint8 maxQuotes);
-    event PauseSet(bool pause);
-    event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
-    event MaxDepositOracleDeviationSet(uint16 maxDepositOracleDeviationInBips);
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
-    event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
+    event ManagerUpdate(address indexed manager);
+    event MaxAllowedQuoteSet(uint8 maxQuotes);
+    event MaxDepositOracleDeviationSet(uint16 maxDepositOracleDeviationInBips);
+    event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
+    event PauseSet(bool pause);
     event PostWithdrawalLiquidityCapped(
         uint160 sqrtSpotPriceX96,
         uint128 preWithdrawalLiquidity,
         uint128 postWithdrawalLiquidity
     );
+    event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
+    event SignerUpdate(address indexed signer);
+    event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
+    event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
 
     /************************************************
      *  IMMUTABLES
@@ -760,7 +760,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
 
         if (quotesInCurrentBlock > solverReadSlotCache.maxAllowedQuotes) {
-            revert SOT__getLiquidityQuote_maxSolverQuotesExceeded();
+            revert SOT___solverSwap_maxSolverQuotesExceeded();
         }
 
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
@@ -797,7 +797,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // @TODO: @audit: Verify that the typehash is correct in the SOTConstants file
         bytes32 sotHash = sot.hashParams();
         if (!solverReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(sotHash), signature)) {
-            revert SOT__getLiquidityQuote_invalidSignature();
+            revert SOT___solverSwap_invalidSignature();
         }
 
         // Only update the pool state, if this is a discounted solver quote

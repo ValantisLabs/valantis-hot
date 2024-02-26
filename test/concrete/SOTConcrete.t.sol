@@ -327,7 +327,7 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidSignature.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_invalidSignature.selector);
         pool.swap(params);
     }
 
@@ -660,7 +660,7 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
         pool.swap(params);
 
         sot.setMaxAllowedQuotes(3);
@@ -771,7 +771,7 @@ contract SOTConcreteTest is SOTBase {
         sotParams.nonce = 3;
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
         pool.swap(params);
 
         // Next Block
