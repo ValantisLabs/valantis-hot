@@ -52,6 +52,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     MockChainlinkOracle public feedToken0;
     MockChainlinkOracle public feedToken1;
 
+    AMMState public mockAMMState;
+
     function setUp() public virtual override {
         _setupBase();
 
@@ -305,6 +307,20 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             expected.alternatingNonceBitmap,
             'checkSolverWriteSlot: alternatingNonceBitmap'
         );
+    }
+
+    function _setAMMState(uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) internal {
+        mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+
+        vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+        vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+
+        // Check that the amm state is setup correctly
+        (uint160 _sqrtSpotPriceX96, uint160 _sqrtPriceLowX96, uint160 _sqrtPriceHighX96) = sot.getAMMState();
+
+        assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
+        assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
+        assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
     }
 
     function _setSolverWriteSlot(SolverWriteSlot memory slot) internal {

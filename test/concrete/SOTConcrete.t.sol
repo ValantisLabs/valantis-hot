@@ -17,13 +17,7 @@ import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces
 
 import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
-import {
-    SOTConstructorArgs,
-    SolverOrderType,
-    SolverWriteSlot,
-    SolverReadSlot,
-    AMMState
-} from 'src/structs/SOTStructs.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
@@ -31,9 +25,6 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 contract SOTConcreteTest is SOTBase {
     using SafeCast for uint256;
-    using TightPack for AMMState;
-
-    AMMState public mockAMMState;
 
     function setUp() public virtual override {
         super.setUp();
@@ -944,10 +935,8 @@ contract SOTConcreteTest is SOTBase {
                 5099 * 10 ** feedToken0.decimals(),
                 1 * 10 ** feedToken1.decimals()
             );
-            mockAMMState.setState(sqrtPrice5099, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+            _setAMMState(sqrtPrice5099, sqrtPriceLowX96, sqrtPriceHighX96);
         }
 
         feedToken0.updateAnswer(5000e8);
@@ -965,10 +954,8 @@ contract SOTConcreteTest is SOTBase {
                 5101 * 10 ** feedToken0.decimals(),
                 1 * 10 ** feedToken1.decimals()
             );
-            mockAMMState.setState(sqrtPrice5101, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+            _setAMMState(sqrtPrice5101, sqrtPriceLowX96, sqrtPriceHighX96);
         }
 
         // Should revert, as deviation is greater than 2% on the higher side
@@ -982,10 +969,8 @@ contract SOTConcreteTest is SOTBase {
                 4899 * 10 ** feedToken0.decimals(),
                 1 * 10 ** feedToken1.decimals()
             );
-            mockAMMState.setState(sqrtPrice4899, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+            _setAMMState(sqrtPrice4899, sqrtPriceLowX96, sqrtPriceHighX96);
         }
 
         // Should revert, as deviation is greater than 2% on the lower side
@@ -1035,10 +1020,8 @@ contract SOTConcreteTest is SOTBase {
                 91000 * 10 ** feedToken0.decimals(),
                 1 * 10 ** feedToken1.decimals()
             );
-            mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+            _setAMMState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
         }
 
         sot.withdrawLiquidity(1, 0, address(this), 0, 0);

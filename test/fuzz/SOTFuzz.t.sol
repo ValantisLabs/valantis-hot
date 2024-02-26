@@ -30,11 +30,8 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;
-    using TightPack for AMMState;
 
     event LogBytes(bytes data);
-
-    AMMState public mockAMMState;
 
     function setUp() public virtual override {
         super.setUp();
@@ -169,17 +166,7 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         // Set AMM State
-        mockAMMState.setState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
-
-        vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
-        vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
-
-        // Check that the amm state is setup correctly
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
-
-        assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
-        assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
-        assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
+        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -200,8 +187,6 @@ contract SOTFuzzTest is SOTBase {
         }
 
         try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
-            (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
-
             uint128 postLiquidity = sot.effectiveAMMLiquidity();
             assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
 
