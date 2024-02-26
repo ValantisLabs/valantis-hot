@@ -80,7 +80,9 @@ struct SolverWriteSlot {
     * signer: Address of the signer of the SOT.
  */
 struct SolverReadSlot {
+    bool isPaused;
     uint8 maxAllowedQuotes;
+    uint16 maxOracleDeviationBips;
     uint16 solverFeeBipsToken0;
     uint16 solverFeeBipsToken1;
     address signer;
@@ -103,7 +105,7 @@ struct SOTConstructorArgs {
     uint32 maxOracleUpdateDurationFeed0;
     uint32 maxOracleUpdateDurationFeed1;
     uint16 solverMaxDiscountBips;
-    uint16 oraclePriceMaxDiffBips;
+    uint16 maxOracleDeviationBound;
     uint16 minAMMFeeGrowthInPips;
     uint16 maxAMMFeeGrowthInPips;
     uint16 minAMMFee;
@@ -126,17 +128,4 @@ struct SOTConstructorArgs {
 struct AMMState {
     uint256 slot1;
     uint256 slot2;
-}
-
-/**
-    @notice Struct that contains all variables relevant to the liquidity state of the AMM.
-    
-    * isPaused: Boolean to indicate if the AMM is paused.
-    * maxDepositOracleDeviationInBips: deviation in bips allowed between the oracle price and the AMM price.
-    * effectiveAMMLiquidity: Effective active liquidity of the AMM.
- */
-struct AMMLiquidityState {
-    bool isPaused;
-    uint16 maxDepositOracleDeviationInBips;
-    uint128 effectiveAMMLiquidity;
 }

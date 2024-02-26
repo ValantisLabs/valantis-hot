@@ -29,8 +29,7 @@ import {
     SolverWriteSlot,
     SolverReadSlot,
     SOTConstructorArgs,
-    AMMState,
-    AMMLiquidityState
+    AMMState
 } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
 
@@ -72,7 +71,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
-    error SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation();
+    error SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
     error SOT__setSolverFeeInBips_invalidSolverFee();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
@@ -86,7 +85,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
-    event MaxDepositOracleDeviationSet(uint16 maxDepositOracleDeviationInBips);
+    event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBips);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
     event PauseSet(bool pause);
     event PostWithdrawalLiquidityCapped(
@@ -129,7 +128,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
                 between spot price and oracle price,
                 expressed in basis-points.
      */
-    uint16 public immutable oraclePriceMaxDiffBips;
+    uint16 public immutable maxOracleDeviationBound;
 
     /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
@@ -152,6 +151,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     /**
+        @notice Active AMM Liquidity (which gets utilized during AMM swaps).
+     */
+    uint128 private _effectiveAMMLiquidity;
+
+    /**
         @notice Tightly packed storage slots for:
             * sqrtSpotPriceX96 (a): AMM square-root spot price, in Q64.96 format.
             * sqrtPriceLowX96 (b): square-root lower price bound, in Q64.96 format.
@@ -167,12 +171,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev sqrtSpotPriceX96 can only be updated on AMM swaps or after processing a valid SOT quote.
      */
     AMMState private _ammState;
-
-    /**
-        @notice Contains information related to state of liquidity, pause flag
-                and maximum allowed deviation between AMM and oracle price.
-     */
-    AMMLiquidityState private _ammLiquidityState;
 
     /**
         @notice Contains state variables which get updated on swaps. 
@@ -282,11 +280,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         solverMaxDiscountBips = _args.solverMaxDiscountBips;
 
-        if (_args.oraclePriceMaxDiffBips > SOTConstants.BIPS) {
+        if (_args.maxOracleDeviationBound > SOTConstants.BIPS) {
             revert SOT__constructor_invalidOraclePriceMaxDiffBips();
         }
 
-        oraclePriceMaxDiffBips = _args.oraclePriceMaxDiffBips;
+        maxOracleDeviationBound = _args.maxOracleDeviationBound;
 
         if (_args.minAMMFeeGrowthInPips > _args.maxAMMFeeGrowthInPips) {
             revert SOT__constructor_invalidFeeGrowthBounds();
@@ -316,21 +314,21 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @notice Returns true if the SOT is paused, false otherwise.
      */
     function isPaused() external view returns (bool) {
-        return _ammLiquidityState.isPaused;
+        return solverReadSlot.isPaused;
     }
 
     /**
         @notice Returns active AMM liquidity (which gets utilized during AMM swaps).
      */
     function effectiveAMMLiquidity() external view poolNonReentrant returns (uint128) {
-        return _ammLiquidityState.effectiveAMMLiquidity;
+        return _effectiveAMMLiquidity;
     }
 
     /**
         @notice Returns the max allowed deviation between oracle and spot price at the time of deposits.
      */
-    function maxDepositOracleDeviationInBips() external view returns (uint16) {
-        return _ammLiquidityState.maxDepositOracleDeviationInBips;
+    function maxOracleDeviationBips() external view returns (uint16) {
+        return solverReadSlot.maxOracleDeviationBips;
     }
 
     // @audit Verify that this function is safe from view-only reentrancy.
@@ -359,7 +357,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         (reserve0, reserve1) = ISovereignPool(pool).getReserves();
 
-        uint128 effectiveAMMLiquidityCache = _ammLiquidityState.effectiveAMMLiquidity;
+        uint128 effectiveAMMLiquidityCache = _effectiveAMMLiquidity;
 
         (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
             sqrtSpotPriceX96,
@@ -462,11 +460,27 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     /**
+        @notice Sets the maximum allowed deviation between AMM and oracle price.
+        @param _maxOracleDeviationBips New maximum deviation in basis-points.
+        @dev Only callable by `liquidityProvider`.
+        @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
+        @dev The deviation is applied on the square root of the price, so adjust values accordingly.
+     */
+    function setMaxOracleDeviationBips(uint16 _maxOracleDeviationBips) external onlyManager {
+        if (_maxOracleDeviationBips > maxOracleDeviationBound) {
+            revert SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
+        }
+        solverReadSlot.maxOracleDeviationBips = _maxOracleDeviationBips;
+
+        emit MaxOracleDeviationBipsSet(_maxOracleDeviationBips);
+    }
+
+    /**
         @notice Updates the pause flag, which instantly pauses all critical functions except withdrawals.
         @dev Only callable by `manager`.
      */
     function setPause(bool _value) external onlyManager {
-        _ammLiquidityState.isPaused = _value;
+        solverReadSlot.isPaused = _value;
         emit PauseSet(_value);
     }
 
@@ -503,24 +517,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         _updateAMMLiquidity();
 
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
-    }
-
-    /**
-        @notice Sets the maximum allowed deviation between AMM and oracle price.
-        @param _maxDepositOracleDeviationInBips New maximum deviation in basis-points.
-        @dev Only callable by `liquidityProvider`.
-        @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
-        @dev The deviation is applied on the square root of the price, so adjust values accordingly.
-     */
-    function setMaxDepositOracleDeviationInBips(
-        uint16 _maxDepositOracleDeviationInBips
-    ) external onlyLiquidityProvider {
-        if (_maxDepositOracleDeviationInBips > SOTConstants.BIPS) {
-            revert SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation();
-        }
-        _ammLiquidityState.maxDepositOracleDeviationInBips = _maxDepositOracleDeviationInBips;
-
-        emit MaxDepositOracleDeviationSet(_maxDepositOracleDeviationInBips);
     }
 
     /************************************************
@@ -571,8 +567,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             : sqrtOraclePriceX96 - sqrtSpotPriceX96Cache;
 
         if (
-            spotPriceAndOracleAbsDiff * SOTConstants.BIPS >
-            _ammLiquidityState.maxDepositOracleDeviationInBips * sqrtOraclePriceX96
+            spotPriceAndOracleAbsDiff * SOTConstants.BIPS > solverReadSlot.maxOracleDeviationBips * sqrtOraclePriceX96
         ) {
             revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
         }
@@ -604,7 +599,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
-        uint128 preWithdrawalLiquidity = _ammLiquidityState.effectiveAMMLiquidity;
+        uint128 preWithdrawalLiquidity = _effectiveAMMLiquidity;
 
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
 
@@ -614,7 +609,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // Liquidity can never increase after a withdrawal, even if some passive reserves are added.
         if (postWithdrawalLiquidity > preWithdrawalLiquidity) {
             // Cap liquidity to pre withdrawal values.
-            _ammLiquidityState.effectiveAMMLiquidity = preWithdrawalLiquidity;
+            _effectiveAMMLiquidity = preWithdrawalLiquidity;
             emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
@@ -723,7 +718,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         (sqrtSpotPriceX96New, liquidityQuote.amountInFilled, liquidityQuote.amountOut, ) = SwapMath.computeSwapStep(
             sqrtSpotPriceX96Cache,
             almLiquidityQuoteInput.isZeroToOne ? sqrtPriceLowX96Cache : sqrtPriceHighX96Cache,
-            _ammLiquidityState.effectiveAMMLiquidity,
+            _effectiveAMMLiquidity,
             almLiquidityQuoteInput.amountInMinusFee.toInt256(), // always exact input swap
             0 // fees have already been deducted
         );
@@ -800,7 +795,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             solverPriceX192.sqrt().toUint160(),
             sot.sqrtSpotPriceX96New,
             getSqrtOraclePriceX96(),
-            oraclePriceMaxDiffBips,
+            solverReadSlot.maxOracleDeviationBips,
             solverMaxDiscountBips
         );
 
@@ -864,10 +859,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         );
 
         if (liquidity0 < liquidity1) {
-            _ammLiquidityState.effectiveAMMLiquidity = liquidity0;
+            _effectiveAMMLiquidity = liquidity0;
             updatedLiquidity = liquidity0;
         } else {
-            _ammLiquidityState.effectiveAMMLiquidity = liquidity1;
+            _effectiveAMMLiquidity = liquidity1;
             updatedLiquidity = liquidity1;
         }
 
@@ -911,7 +906,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     function _onlyUnpaused() private view {
-        if (_ammLiquidityState.isPaused) {
+        if (solverReadSlot.isPaused) {
             revert SOT__onlyUnpaused();
         }
     }

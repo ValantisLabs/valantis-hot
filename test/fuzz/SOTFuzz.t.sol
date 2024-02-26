@@ -268,7 +268,7 @@ contract SOTFuzzTest is SOTBase {
     //     // console.log('actualSpotPrice: ', actualSpotPrice);
 
     //     // feedToken0.updateAnswer(int256(actualSpotPrice * (10 ** feedToken0.decimals())));
-    //     sot.setMaxDepositOracleDeviationInBips(uint16(SOTConstants.BIPS));
+    //     sot.setMaxOracleDeviationBips(uint16(SOTConstants.BIPS));
 
     //     // Set Reserves
     //     if (_reserve0 == 0 && _reserve1 == 0) {

@@ -39,6 +39,8 @@ contract SOTConcreteTest is SOTBase {
         vm.prank(address(this));
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
+
+        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound());
     }
 
     function test_managerOperations() public {
@@ -57,7 +59,7 @@ contract SOTConcreteTest is SOTBase {
 
         sot.setSigner(makeAddr('SIGNER'));
 
-        (, , , address signer) = sot.solverReadSlot();
+        (, , , , , address signer) = sot.solverReadSlot();
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
         sot.setMaxTokenVolumes(500, 500);
@@ -496,7 +498,7 @@ contract SOTConcreteTest is SOTBase {
         // Correct solver feeInBips: token0 = 0.1%, token1 = 0.5%
         sot.setSolverFeeInBips(10, 50);
 
-        (, uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
+        (, , , uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
 
         assertEq(solverFeeBipsToken0, 10, 'solverFeeBipsToken0');
         assertEq(solverFeeBipsToken1, 50, 'solverFeeBipsToken1');
@@ -619,14 +621,14 @@ contract SOTConcreteTest is SOTBase {
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(1e8);
 
-        (uint8 maxAllowedQuotes, , , ) = sot.solverReadSlot();
+        (, uint8 maxAllowedQuotes, , , , ) = sot.solverReadSlot();
         assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
 
         vm.expectRevert(SOT.SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
         sot.setMaxAllowedQuotes(57);
 
         sot.setMaxAllowedQuotes(0);
-        (maxAllowedQuotes, , , ) = sot.solverReadSlot();
+        (, maxAllowedQuotes, , , , ) = sot.solverReadSlot();
 
         assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
 
@@ -914,18 +916,18 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_depositLiquidity_oracleDeviation() public {
-        vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
-        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+        vm.startPrank(makeAddr('NOT_MANAGER'));
+        vm.expectRevert(SOT.SOT__onlyManager.selector);
 
-        sot.setMaxDepositOracleDeviationInBips(100);
+        sot.setMaxOracleDeviationBips(100);
         vm.stopPrank();
 
-        vm.expectRevert(SOT.SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation.selector);
-        sot.setMaxDepositOracleDeviationInBips(uint16(SOTConstants.BIPS + 1));
+        vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
+        sot.setMaxOracleDeviationBips(uint16(5001));
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
-        sot.setMaxDepositOracleDeviationInBips(100);
-        assertEq(sot.maxDepositOracleDeviationInBips(), 100, 'maxDepositOracleDeviationInBips');
+        sot.setMaxOracleDeviationBips(100);
+        assertEq(sot.maxOracleDeviationBips(), 100, 'maxOracleDeviationInBips');
 
         // Spot price falls within the deviation
         {
