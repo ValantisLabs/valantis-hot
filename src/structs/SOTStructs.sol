@@ -73,8 +73,9 @@ struct SolverWriteSlot {
 
 /**
     @notice Contains read-only variables required during execution of an SOT swap.
-        
+    * isPaused: Indicates whether the contract is paused or not.     
     * maxAllowedQuotes: Maximum number of quotes that can be processed in a single block.
+    * maxOracleDeviationBips: Maximum deviation in basis points allowed between spot and oracle price.
     * solverFeeBipsToken0: Fee in basis points for all subsequent solvers for token0.
     * solverFeeBipsToken1: Fee in basis points for all subsequent solvers for token1.
     * signer: Address of the signer of the SOT.
