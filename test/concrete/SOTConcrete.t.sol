@@ -17,20 +17,30 @@ import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces
 
 import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
+import {
+    SOTConstructorArgs,
+    SolverOrderType,
+    SolverWriteSlot,
+    SolverReadSlot,
+    AMMState
+} from 'src/structs/SOTStructs.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { TightPack } from 'src/libraries/utils/TightPack.sol';
 
 import { SOTBase } from 'test/base/SOTBase.t.sol';
 
 contract SOTConcreteTest is SOTBase {
     using SafeCast for uint256;
+    using TightPack for AMMState;
+
+    AMMState public mockAMMState;
 
     function setUp() public virtual override {
         super.setUp();
 
         // Reserves in the ratio 1: 2000
-        _setupBalanceForUser(address(this), address(token0), 30_000e18);
-        _setupBalanceForUser(address(this), address(token1), 30_000e18);
+        _setupBalanceForUser(address(this), address(token0), type(uint256).max);
+        _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
@@ -912,6 +922,77 @@ contract SOTConcreteTest is SOTBase {
         sot.depositLiquidity(1, 1, 0, 0);
     }
 
+    function test_depositLiquidity_oracleDeviation() public {
+        vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
+        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+
+        sot.setMaxDepositOracleDeviationInBips(100);
+        vm.stopPrank();
+
+        vm.expectRevert(SOT.SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation.selector);
+        sot.setMaxDepositOracleDeviationInBips(uint16(SOTConstants.BIPS + 1));
+
+        // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
+        sot.setMaxDepositOracleDeviationInBips(100);
+        assertEq(sot.maxDepositOracleDeviationInBips(), 100, 'maxDepositOracleDeviationInBips');
+
+        // Spot price falls within the deviation
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice5099 = getSqrtPriceX96(
+                5099 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+            mockAMMState.setState(sqrtPrice5099, sqrtPriceLowX96, sqrtPriceHighX96);
+
+            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+        }
+
+        feedToken0.updateAnswer(5000e8);
+
+        // This should not revert
+        sot.depositLiquidity(1, 1, 0, 0);
+        (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+        assertEq(reserve0, 5e18 + 1, 'reserve0');
+        assertEq(reserve1, 10_000e18 + 1, 'reserve1');
+
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice5101 = getSqrtPriceX96(
+                5101 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+            mockAMMState.setState(sqrtPrice5101, sqrtPriceLowX96, sqrtPriceHighX96);
+
+            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+        }
+
+        // Should revert, as deviation is greater than 2% on the higher side
+        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        sot.depositLiquidity(1, 1, 0, 0);
+
+        {
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice4899 = getSqrtPriceX96(
+                4899 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+            mockAMMState.setState(sqrtPrice4899, sqrtPriceLowX96, sqrtPriceHighX96);
+
+            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+        }
+
+        // Should revert, as deviation is greater than 2% on the lower side
+        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        sot.depositLiquidity(1, 1, 0, 0);
+    }
+
     function test_withdrawLiquidity() public {
         // Withdraw with any other address except liquidity provider.
         vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
@@ -932,6 +1013,41 @@ contract SOTConcreteTest is SOTBase {
         // Withdraw liquidity again
         vm.expectRevert(SovereignPool.SovereignPool__withdrawLiquidity_insufficientReserve0.selector);
         sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+    }
+
+    function test_withdrawLiquidity_cappedEffectiveLiquidity() public {
+        sot.depositLiquidity(0, 1e23, 0, 0);
+
+        uint128 preLiquidity = sot.effectiveAMMLiquidity();
+
+        {
+            uint160 sqrtSpotPriceX96 = getSqrtPriceX96(
+                90000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            uint160 sqrtPriceLowX96 = getSqrtPriceX96(
+                80000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            uint160 sqrtPriceHighX96 = getSqrtPriceX96(
+                91000 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+            mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+
+            vm.store(address(sot), bytes32(uint256(2)), bytes32(uint256(mockAMMState.slot1)));
+            vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot2)));
+        }
+
+        sot.withdrawLiquidity(1, 0, address(this), 0, 0);
+
+        uint128 postLiquidity = sot.effectiveAMMLiquidity();
+        console.log('preLiquidity: ', preLiquidity);
+        console.log('postLiquidity: ', postLiquidity);
+
+        assertEq(preLiquidity, postLiquidity, 'effectiveAMMLiquidity Capped');
     }
 
     function test_pause() public {

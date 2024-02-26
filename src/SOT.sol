@@ -74,6 +74,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_maxSolverQuotesExceeded();
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
+    error SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation();
     error SOT__setSolverFeeInBips_invalidSolverFee();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
@@ -502,6 +503,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     function setMaxDepositOracleDeviationInBips(
         uint16 _maxDepositOracleDeviationInBips
     ) external onlyLiquidityProvider {
+        if (_maxDepositOracleDeviationInBips > SOTConstants.BIPS) {
+            revert SOT__setMaxDepositOracleDeviationInBips_invalidMaxDepositOracleDeviation();
+        }
         _ammLiquidityState.maxDepositOracleDeviationInBips = _maxDepositOracleDeviationInBips;
 
         emit MaxDepositOracleDeviationSet(_maxDepositOracleDeviationInBips);
