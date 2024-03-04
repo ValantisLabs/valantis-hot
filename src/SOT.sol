@@ -470,6 +470,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (_maxOracleDeviationBips > maxOracleDeviationBound) {
             revert SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
         }
+
         solverReadSlot.maxOracleDeviationBips = _maxOracleDeviationBips;
 
         emit MaxOracleDeviationBipsSet(_maxOracleDeviationBips);
@@ -481,6 +482,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      */
     function setPause(bool _value) external onlyManager {
         solverReadSlot.isPaused = _value;
+
         emit PauseSet(_value);
     }
 
@@ -493,6 +495,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain.
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
+        @dev It assumes that `liquidityProvider` implements sufficient internal protection against
+             sandwich attacks, slippage checks or other types of spot price manipulation.
      */
     function setPriceBounds(
         uint160 _sqrtPriceLowX96,
@@ -511,9 +515,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         // and do not exclude current spot price
         SOTParams.validatePriceBounds(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
+        // Update AMM sqrt spot price, sqrt price low and sqrt price high
         _ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
-        // Update AMM liquidity with new price bounds
+        // Update AMM liquidity
         _updateAMMLiquidity();
 
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
@@ -524,6 +529,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      ***********************************************/
 
     // @audit Verify that we don't need a reentrancy guard for getLiquidityQuote/deposit/withdraw
+    /**
+        @notice Sovereign ALM function to be called on every swap.
+        @param _almLiquidityQuoteInput Contains fundamental information about the swap and `pool`.
+        @param _externalContext Bytes encoded calldata, containing required off-chain data. 
+        @return liquidityQuote Returns a quote to authorize `pool` to execute the swap.
+     */
     function getLiquidityQuote(
         ALMLiquidityQuoteInput memory _almLiquidityQuoteInput,
         bytes calldata _externalContext,
@@ -546,6 +557,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     // @audit: Do we need a reentrancy guard here?
+    /**
+        @notice Sovereign ALM function to deposit reserves into `pool`.
+        @param _amount0 Amount of token0 to deposit.
+        @param _amount1 Amount of token1 to deposit.
+        @param _expectedSqrtSpotPriceLowerX96 Minimum expected sqrt spot price, to mitigate against its manipulation.
+        @param _expectedSqrtSpotPriceUpperX96 Maximum expected sqrt spot price, to mitigate against its manipulation.
+        @return amount0Deposited Amount of token0 deposited (it can differ from `_amount0` in case of rebase tokens).
+        @return amount1Deposited Amount of token1 deposited (it can differ from `_amount1` in case of rebase tokens).
+        @dev Only callable by `liquidityProvider`.
+        @dev It assumes that `liquidityProvider` implements sufficient internal protection against
+             sandwich attacks, slippage checks or other types of spot price manipulation attacks. 
+     */
     function depositLiquidity(
         uint256 _amount0,
         uint256 _amount1,
@@ -572,6 +595,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
         }
 
+        // Deposit amount(s) into pool
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
             _amount0,
             _amount1,
@@ -585,6 +609,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     }
 
     // @audit: Do we need a reentrancy guard here?
+    /**
+        @notice Sovereign ALM function to withdraw reserves from `pool`.
+        @param _amount0 Amount of token0 to withdraw.
+        @param _amount1 Amount of token1 to withdraw.
+        @param _recipient Address of recipient.
+        @param _expectedSqrtSpotPriceLowerX96 Minimum expected sqrt spot price, to mitigate against its manipulation.
+        @param _expectedSqrtSpotPriceUpperX96 Maximum expected sqrt spot price, to mitigate against its manipulation.
+        @dev Only callable by `liquidityProvider`.
+        @dev It assumes that `liquidityProvider` implements sufficient internal protection against
+             sandwich attacks, slippage checks or other types of spot price manipulation attacks. 
+     */
     function withdrawLiquidity(
         uint256 _amount0,
         uint256 _amount1,
@@ -610,17 +645,24 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         if (postWithdrawalLiquidity > preWithdrawalLiquidity) {
             // Cap liquidity to pre withdrawal values.
             _effectiveAMMLiquidity = preWithdrawalLiquidity;
+
             emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
 
+    /**
+        @notice Swap Fee Module function to calculate swap fee multiplier, in basis-points (see docs).
+        @param _isZeroToOne Direction of the swap.
+        @param _swapFeeModuleContext Bytes encoded calldata. Only needs to be non-empty for SOT swaps.
+        @return swapFeeModuleData Struct containing `feeInBips` as the resulting swap fee.
+     */
     function getSwapFeeInBips(
         bool _isZeroToOne,
         uint256 /**_amountIn*/,
         address /**_user*/,
         bytes memory _swapFeeModuleContext
     ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
-        // Verification of branches is done during getLiquidityQuote
+        // Verification of branches is done during `getLiquidityQuote`
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
             swapFeeModuleData.feeInBips = _isZeroToOne
@@ -639,7 +681,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
     ) external {
-        // Fee Module callback for Universal Pool (not needed here)
+        // Swap Fee Module callback for Universal Pool (not needed here)
     }
 
     function callbackOnSwapEnd(
@@ -648,30 +690,44 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         uint256 /*_amountOut*/,
         SwapFeeModuleData memory /*_swapFeeModuleData*/
     ) external {
-        // Fee Module callback for Sovereign Pool (not needed here)
+        // Swap Fee Module callback for Sovereign Pool (not needed here)
     }
 
+    /**
+        @notice Sovereign Pool callback on `depositLiquidity`.
+        @dev This callback is used to transfer funds from `liquidityProvider` to `pool`.
+        @dev Only callable by `pool`. 
+     */
     function onDepositLiquidityCallback(
         uint256 _amount0,
         uint256 _amount1,
         bytes memory /*_data*/
     ) external override onlyPool {
         if (_amount0 > 0) {
+            // Transfer token0 amount from `liquidityProvider` to `pool`
             address token0 = ISovereignPool(pool).token0();
             IERC20(token0).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
         }
 
         if (_amount1 > 0) {
+            // Transfer token1 amount from `liquidityProvider` to `pool`
             address token1 = ISovereignPool(pool).token1();
             IERC20(token1).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
         }
     }
 
+    /**
+        @notice Sovereign Pool callback on `swap`.
+        @dev This is called at the end of each swap, to allow SOT to perform
+             relevant state updates.
+        @dev Only callable by `pool`.
+     */
     function onSwapCallback(
         bool /*_isZeroToOne*/,
         uint256 /*_amountIn*/,
         uint256 /*_amountOut*/
     ) external override onlyPool {
+        // Update AMM liquidity at the end of the swap
         _updateAMMLiquidity();
     }
 
@@ -679,27 +735,36 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  INTERNAL FUNCTIONS
      ***********************************************/
 
+    /**
+        @notice Helper function to calculate AMM dynamic swap fees.
+     */
     function _getAMMFeeInBips(bool isZeroToOne) internal view returns (uint32 feeInBips) {
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
+        // Determine min, max and growth rate (in pips per second),
+        // depending on the requested input token
         uint16 feeMin = isZeroToOne ? solverWriteSlotCache.feeMinToken0 : solverWriteSlotCache.feeMinToken1;
         uint16 feeMax = isZeroToOne ? solverWriteSlotCache.feeMaxToken0 : solverWriteSlotCache.feeMaxToken1;
         uint16 feeGrowthInPips = isZeroToOne
             ? solverWriteSlotCache.feeGrowthInPipsToken0
             : solverWriteSlotCache.feeGrowthInPipsToken1;
 
+        // Calculate dynamic fee, linearly increasing over time
         feeInBips =
             uint32(feeMin) +
             Math
                 .mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100)
                 .toUint32();
 
-        // Cap fee if necessary
+        // Cap fee to maximum value, if necessary
         if (feeInBips > uint32(feeMax)) {
             feeInBips = uint32(feeMax);
         }
     }
 
+    /**
+        @notice Helper function to execute AMM swap. 
+     */
     function _ammSwap(
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
@@ -728,10 +793,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             revert SOT___ammSwap_invalidSpotPriceAfterSwap();
         }
 
+        // Update AMM sqrt spot price
         _ammState.setSqrtSpotPriceX96(sqrtSpotPriceX96New);
+
         emit SpotPriceUpdate(sqrtSpotPriceX96New);
     }
 
+    /**
+        @notice Helper function to execute SOT swap. 
+     */
     function _solverSwap(
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         bytes memory externalContext,
@@ -762,6 +832,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         bool isDiscountedSolver = block.timestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
             (solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
 
+        // Ensure that the number of SOT swaps per block does not exceed its maximum bound
         uint8 quotesInCurrentBlock = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
             ? 1
             : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
@@ -770,14 +841,18 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             revert SOT___solverSwap_maxSolverQuotesExceeded();
         }
 
+        // Pick the discounted or base price, depending on eligibility criteria set above
+        // No need to check one against the other at this stage
         uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
 
         // Calculate the amountOut according to the quoted price
         liquidityQuote.amountOut = almLiquidityQuoteInput.isZeroToOne
             ? Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX192, SOTConstants.Q192)
             : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
+        // Fill tokenIn amount requested, excluding fees
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
+        // Check validity of new AMM dynamic fee parameters
         sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
 
         sot.validateBasicParams(
@@ -809,6 +884,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
+            // Update `solverWriteSlot`
             solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: quotesInCurrentBlock,
                 feeGrowthInPipsToken0: sot.feeGrowthInPipsToken0,
@@ -823,7 +899,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
                 alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
             });
 
+            // Update AMM sqrt spot price
             _ammState.setSqrtSpotPriceX96(sot.sqrtSpotPriceX96New);
+
             emit SpotPriceUpdate(sot.sqrtSpotPriceX96New);
         } else {
             solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
@@ -832,6 +910,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
                 sot.nonce
             );
 
+            // Update `solverWriteSlot`
             solverWriteSlot = solverWriteSlotCache;
         }
     }
@@ -840,13 +919,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  PRIVATE FUNCTIONS
      ***********************************************/
 
+    /**
+        @notice Helper function to update AMM's effective liquidity. 
+     */
     function _updateAMMLiquidity() private returns (uint128 updatedLiquidity) {
         (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
-        // Query current reserves
+        // Query current pool reserves
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
 
+        // Calculate liquidity corresponding to each of token's reserves and respective price ranges
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
             sqrtSpotPriceX96Cache,
             sqrtPriceHighX96Cache,
@@ -864,6 +947,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             updatedLiquidity = liquidity1;
         }
 
+        // Update effective AMM liquidity
         _effectiveAMMLiquidity = updatedLiquidity;
 
         emit EffectiveAMMLiquidityUpdate(updatedLiquidity);

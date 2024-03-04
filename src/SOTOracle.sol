@@ -85,6 +85,9 @@ contract SOTOracle {
      *  PUBLIC FUNCTIONS
      ***********************************************/
 
+    /**
+        @notice Calculates sqrt oracle price, in Q96 format, by querying both price feeds. 
+     */
     function getSqrtOraclePriceX96() public view returns (uint160 sqrtOraclePriceX96) {
         uint256 oraclePrice0USD = _getOraclePriceUSD(feedToken0, maxOracleUpdateDurationFeed0);
         uint256 oraclePrice1USD = _getOraclePriceUSD(feedToken1, maxOracleUpdateDurationFeed1);
