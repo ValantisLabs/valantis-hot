@@ -14,3 +14,4 @@ runs = 128
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"
+gnosis = "${GNOSIS_RPC_URL}"
