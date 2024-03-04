@@ -567,7 +567,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @return amount1Deposited Amount of token1 deposited (it can differ from `_amount1` in case of rebase tokens).
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements sufficient internal protection against
-             sandwich attacks, slippage checks or other types of spot price manipulation attacks. 
+             sandwich attacks or other types of spot price manipulation attacks. 
      */
     function depositLiquidity(
         uint256 _amount0,
@@ -618,7 +618,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @param _expectedSqrtSpotPriceUpperX96 Maximum expected sqrt spot price, to mitigate against its manipulation.
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements sufficient internal protection against
-             sandwich attacks, slippage checks or other types of spot price manipulation attacks. 
+             sandwich attacks or other types of spot price manipulation attacks. 
      */
     function withdrawLiquidity(
         uint256 _amount0,
