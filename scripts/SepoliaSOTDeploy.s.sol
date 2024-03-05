@@ -97,6 +97,7 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
         // console.log('SOT deployed at: ', address(sot));
 
         // sot.setMaxTokenVolumes(100e18, 20_000e6);
+        // sot.setMaxOracleDeviationBips(50);
         // token0.mint(address(liquidityProvider), 100e18);
         // token1.mint(address(liquidityProvider), 20_000e6);
         // token0.mint(address(signer), 10_000e18);

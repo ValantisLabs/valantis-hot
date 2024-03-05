@@ -55,15 +55,21 @@ contract SepoliaSOTSwapScript is Script {
     function run() external {
         vm.startBroadcast(vm.envUint('SEPOLIA_PRIVATE_KEY'));
 
-        SovereignPool pool = SovereignPool(vm.envAddress('SEPOLIA_SOVEREIGN_POOL'));
+        SovereignPool pool = SovereignPool(vm.envAddress('SEPOLIA_SOVEREIGN_POOL_MOCKS'));
+        {
+            (uint256 reserve0, uint256 reserve1) = pool.getReserves();
+            console.log('Reserve0: ', reserve0);
+            console.log('Reserve1: ', reserve1);
+        }
         MockToken token0 = MockToken(pool.token0());
         MockToken token1 = MockToken(pool.token1());
         MockChainlinkOracle feedToken0 = MockChainlinkOracle(vm.envAddress('SEPOLIA_ETH_USD_FEED_MOCKS'));
         MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED_MOCKS'));
 
-        SOT sot = SOT(vm.envAddress('SEPOLIA_SOT'));
+        SOT sot = SOT(vm.envAddress('SEPOLIA_SOT_MOCKS'));
+
         MockLiquidityProvider liquidityProvider = MockLiquidityProvider(
-            vm.envAddress('SEPOLIA_SOT_LIQUIDITY_PROVIDER')
+            vm.envAddress('SEPOLIA_ARRAKIS_VALANTIS_MODULE_MOCKS')
         );
 
         console.log('Pool address: ', address(pool));
@@ -72,38 +78,37 @@ contract SepoliaSOTSwapScript is Script {
         console.log('MockLiquidityProvider address: ', address(liquidityProvider));
         console.log('SOT address: ', address(sot));
 
-        // Note: Use this to depositLiquidity and approve tokens for the pool
-        // liquidityProvider.depositLiquidity(address(pool), 5e18, 10_000e6, 0, 0);
+        token0.approve(address(pool), type(uint256).max);
+        token1.approve(address(pool), type(uint256).max);
 
-        // token0.approve(address(pool), type(uint256).max);
-        // token1.approve(address(pool), type(uint256).max);
+        sot.setMaxTokenVolumes(100e18, 20_000e6);
+        sot.setMaxAllowedQuotes(3);
+        sot.setMaxOracleDeviationBips(50);
 
         // Note: Update these to relevant values, before making an SOT Swap. Not needed for AMM swap.
         (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
         uint256 spotPrice = Math.mulDiv(sqrtSpotPriceX96, sqrtSpotPriceX96, 1 << 192);
 
-        console.log('spotPriceX192: ', sqrtSpotPriceX96 * sqrtSpotPriceX96);
+        console.log('Spot Price AMM : ', spotPrice);
 
-        feedToken0.updateAnswer((spotPrice * 1e8).toInt256());
+        feedToken0.updateAnswer((spotPrice * 1e20).toInt256());
         feedToken1.updateAnswer(1e8);
 
-        sot.setSigner(address(this));
         SolverOrderType memory sotParams = SolverOrderType({
-            amountInMax: 1e18,
-            solverPriceX192Discounted: Math.mulDiv(spotPrice, 99, 100) << 192, // 1% discount
-            solverPriceX192Base: Math.mulDiv(spotPrice, 9500, 10000) << 192, // 0.5% discount
-            sqrtSpotPriceX96New: getSqrtPriceX96(
+            amountInMax: 10e18,
+            solverPriceX192Discounted: /*Math.mulDiv(spotPrice, 99, 100) */ 2300 << 192, // 1% discount
+            solverPriceX192Base: /*Math.mulDiv(spotPrice, 9500, 10000)*/ 2300 << 192, // 0.5% discount
+            sqrtSpotPriceX96New: sqrtSpotPriceX96 /*getSqrtPriceX96(
                 token0,
                 token1,
                 feedToken0,
                 feedToken1,
                 (spotPrice + 5) * (10 ** feedToken0.decimals()),
-                1 * (10 ** feedToken1.decimals())
-            ), // AMM spot price 2005
-            authorizedSender: address(this),
-            authorizedRecipient: makeAddr('RECIPIENT'),
+                1 * (10 ** feedToken1.decimals()))*/, // AMM spot price 2005
+            authorizedSender: vm.envAddress('SEPOLIA_PUBLIC_KEY'),
+            authorizedRecipient: vm.envAddress('SEPOLIA_PUBLIC_KEY'),
             signatureTimestamp: (block.timestamp).toUint32(),
-            expiry: 36, // 2 Blocks
+            expiry: 120, // 2 minutes
             feeMinToken0: 10, // 0.1%
             feeMaxToken0: 100, // 1%
             feeGrowthInPipsToken0: 500, // 5 bips per second
@@ -138,9 +143,9 @@ contract SepoliaSOTSwapScript is Script {
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: false,
-            amountIn: 1e18,
+            amountIn: 1e6,
             amountOutMin: 0,
-            recipient: address(this),
+            recipient: vm.envAddress('SEPOLIA_PUBLIC_KEY'),
             deadline: block.timestamp + 100000, // If swaps fail, try to update this to a higher value
             swapTokenOut: address(token0),
             swapContext: data
