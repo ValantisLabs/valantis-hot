@@ -59,8 +59,8 @@ contract SepoliaSOTDeployScript is Script, SOTBase {
 
         // MockLiquidityProvider liquidityProvider = new MockLiquidityProvider();
 
-        // AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
-        // AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
+        // AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('SEPOLIA_ETH_USD_FEED_MOCKS'));
+        // AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('SEPOLIA_USDC_USD_FEED_MOCKS'));
 
         address liquidityProvider = vm.envAddress('SEPOLIA_ARRAKIS_VALANTIS_MODULE_MOCKS');
         // address liquidityProvider = vm.envAddress('SEPOLIA_ARRAKIS_VALANTIS_MODULE_WETH');

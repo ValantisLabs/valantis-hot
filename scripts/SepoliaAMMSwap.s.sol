@@ -32,8 +32,8 @@ contract SepoliaSOTSwapScript is Script {
         SovereignPool pool = SovereignPool(vm.envAddress('SEPOLIA_SOVEREIGN_POOL'));
         MockToken token0 = MockToken(pool.token0());
         MockToken token1 = MockToken(pool.token1());
-        MockChainlinkOracle feedToken0 = MockChainlinkOracle(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
-        MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
+        MockChainlinkOracle feedToken0 = MockChainlinkOracle(vm.envAddress('SEPOLIA_ETH_USD_FEED_MOCKS'));
+        MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED_MOCKS'));
 
         SOT sot = SOT(vm.envAddress('SEPOLIA_SOT'));
         MockLiquidityProvider liquidityProvider = MockLiquidityProvider(

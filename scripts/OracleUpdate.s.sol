@@ -26,6 +26,7 @@ import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
 import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoolDeployer.sol';
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { IArrakisMetaVaultPublic } from 'src/vendor/arrakis/IArrakisMetaVaultPublic.sol';
 
 contract OracleUpdateScript is Script {
     using SafeCast for uint256;
@@ -55,19 +56,46 @@ contract OracleUpdateScript is Script {
     function run() external {
         vm.startBroadcast(vm.envUint('SEPOLIA_PRIVATE_KEY'));
 
-        MockChainlinkOracle feedToken0 = MockChainlinkOracle(vm.envAddress('SEPOLIA_ETH_USD_FEED'));
-        MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED'));
-
         SOT sot = SOT(vm.envAddress('SEPOLIA_SOT_MOCKS'));
+        MockToken mockToken0 = MockToken(vm.envAddress('SEPOLIA_TOKEN0_MOCK'));
+        MockToken mockToken1 = MockToken(vm.envAddress('SEPOLIA_TOKEN1_MOCK'));
+        address sepoliaPublicKey = vm.envAddress('SEPOLIA_PUBLIC_KEY');
 
         // Note: Update these to relevant values, before making an SOT Swap. Not needed for AMM swap.
-        // (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
         // uint256 spotPrice = Math.mulDiv(sqrtSpotPriceX96, sqrtSpotPriceX96, 1 << 192);
 
-        // feedToken0.updateAnswer((spotPrice * 1e8).toInt256());
-        // feedToken1.updateAnswer(1e8);
+        MockChainlinkOracle feedToken0 = MockChainlinkOracle(vm.envAddress('SEPOLIA_ETH_USD_FEED_MOCKS'));
+        MockChainlinkOracle feedToken1 = MockChainlinkOracle(vm.envAddress('SEPOLIA_USDC_USD_FEED_MOCKS'));
+        uint256 spotPrice = 2300;
 
-        sot.setMaxOracleDeviationBips(50);
+        feedToken0.updateAnswer((spotPrice * 1e20).toInt256());
+        feedToken1.updateAnswer(1e8);
+
+        (, int256 oraclePriceUSDInt0, , , ) = feedToken0.latestRoundData();
+        (, int256 oraclePriceUSDInt1, , , ) = feedToken1.latestRoundData();
+
+        console.logInt(oraclePriceUSDInt0);
+        console.logInt(oraclePriceUSDInt1);
+        console.log('AMM sqrt spot price X96:', sqrtSpotPriceX96);
+        console.log('AMM max oracle deviation:', sot.maxOracleDeviationBips());
+        console.log('AMM sqrt oracle price:', sot.getSqrtOraclePriceX96());
+
+        // mockToken0.mint(address(sepoliaPublicKey), 1e40);
+        // mockToken1.mint(address(sepoliaPublicKey), 1e40);
+
+        IArrakisMetaVaultPublic metaVault = IArrakisMetaVaultPublic(vm.envAddress('SEPOLIA_ARRAKIS_META_VAULT_MOCKS'));
+
+        MockLiquidityProvider liquidityProvider = MockLiquidityProvider(
+            vm.envAddress('SEPOLIA_ARRAKIS_VALANTIS_MODULE_MOCKS')
+        );
+
+        // mockToken0.approve(address(liquidityProvider), 1e40);
+        // mockToken1.approve(address(liquidityProvider), 1e40);
+
+        // metaVault.mint(1e16, address(sepoliaPublicKey));
+
+        // sot.setMaxOracleDeviationBips(50);
 
         vm.stopBroadcast();
     }

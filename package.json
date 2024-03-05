@@ -11,6 +11,8 @@
   },
   "scripts": {
     "coverage:lcov": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info.pruned 'test' && genhtml lcov.info.pruned -o coverage/html && open coverage/html/index.html",
+    "deploy": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia",
+    "deploy:broadcast": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia --broadcast",
     "lint": "solhint 'src/**/*.sol'",
     "format": "npx prettier --write .",
     "format:contracts": "npx prettier --write src/**/*.sol",
