@@ -29,6 +29,16 @@ contract SOTOracle {
      ***********************************************/
 
     /**
+	    @notice Address of token0 of the Sovereign Pool.
+    */
+    address internal immutable _token0;
+
+    /**
+	    @notice Address of token1 of the Sovereign Pool.
+    */
+    address internal immutable _token1;
+
+    /**
 	    @notice Base unit for token{0,1}.
           For example: _token0Base = 10 ** token0Decimals;
         @dev `token0` and `token1` must be the same as this module's Sovereign Pool.
@@ -56,15 +66,18 @@ contract SOTOracle {
      ***********************************************/
 
     constructor(
-        address _token0,
-        address _token1,
+        address _token0Pool,
+        address _token1Pool,
         address _feedToken0,
         address _feedToken1,
         uint32 _maxOracleUpdateDurationFeed0,
         uint32 _maxOracleUpdateDurationFeed1
     ) {
-        _token0Base = 10 ** IERC20Metadata(_token0).decimals();
-        _token1Base = 10 ** IERC20Metadata(_token1).decimals();
+        _token0 = _token0Pool;
+        _token1 = _token1Pool;
+
+        _token0Base = 10 ** IERC20Metadata(_token0Pool).decimals();
+        _token1Base = 10 ** IERC20Metadata(_token1Pool).decimals();
 
         maxOracleUpdateDurationFeed0 = _maxOracleUpdateDurationFeed0;
         maxOracleUpdateDurationFeed1 = _maxOracleUpdateDurationFeed1;

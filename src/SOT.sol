@@ -663,7 +663,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         address,
         bytes memory _swapFeeModuleContext
     ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
-        bool isZeroToOne = (ISovereignPool(pool).getTokens())[0] == _tokenIn;
+        bool isZeroToOne = (_token0 == _tokenIn);
 
         // Verification of branches is done during `getLiquidityQuote`
         if (_swapFeeModuleContext.length != 0) {
