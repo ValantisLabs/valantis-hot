@@ -1206,7 +1206,13 @@ contract SOTConcreteTest is SOTBase {
         }
 
         vm.prank(address(pool));
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(0));
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
+            address(token0),
+            address(token1),
+            0,
+            ZERO_ADDRESS,
+            new bytes(0)
+        );
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
@@ -1226,7 +1232,7 @@ contract SOTConcreteTest is SOTBase {
         }
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = sot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
@@ -1251,7 +1257,7 @@ contract SOTConcreteTest is SOTBase {
 
         vm.prank(address(pool));
 
-        swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = sot.getSwapFeeInBips(address(token0), address(token1), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
@@ -1271,7 +1277,7 @@ contract SOTConcreteTest is SOTBase {
         }
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = sot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
     }
@@ -1286,12 +1292,18 @@ contract SOTConcreteTest is SOTBase {
         _setSolverReadSlot(solverReadSlot);
 
         vm.prank(address(pool));
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
+            address(token0),
+            address(token1),
+            0,
+            ZERO_ADDRESS,
+            new bytes(1)
+        );
 
         assertEq(swapFeeModuleData.feeInBips, 10);
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(false, 0, ZERO_ADDRESS, new bytes(1));
+        swapFeeModuleData = sot.getSwapFeeInBips(ZERO_ADDRESS, ZERO_ADDRESS, 0, ZERO_ADDRESS, new bytes(1));
 
         assertEq(swapFeeModuleData.feeInBips, 20);
     }
@@ -1316,7 +1328,13 @@ contract SOTConcreteTest is SOTBase {
 
     function test_unusedCallbacks() public {
         // Test is used to cover unused callbacks to correct coverage report.
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(true, 0, ZERO_ADDRESS, new bytes(1));
+        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
+            ZERO_ADDRESS,
+            ZERO_ADDRESS,
+            0,
+            ZERO_ADDRESS,
+            new bytes(1)
+        );
         sot.callbackOnSwapEnd(0, 0, 0, 0, swapFeeModuleData);
 
         sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
