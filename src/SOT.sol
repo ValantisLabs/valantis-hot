@@ -652,6 +652,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     /**
         @notice Swap Fee Module function to calculate swap fee multiplier, in basis-points (see docs).
+        @param _tokenIn Address of token to swap from.
         @param _swapFeeModuleContext Bytes encoded calldata. Only needs to be non-empty for SOT swaps.
         @return swapFeeModuleData Struct containing `feeInBips` as the resulting swap fee.
      */
