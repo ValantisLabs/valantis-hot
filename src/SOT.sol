@@ -652,25 +652,28 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
     /**
         @notice Swap Fee Module function to calculate swap fee multiplier, in basis-points (see docs).
-        @param _isZeroToOne Direction of the swap.
+        @param _tokenIn Address of token to swap from.
         @param _swapFeeModuleContext Bytes encoded calldata. Only needs to be non-empty for SOT swaps.
         @return swapFeeModuleData Struct containing `feeInBips` as the resulting swap fee.
      */
     function getSwapFeeInBips(
-        bool _isZeroToOne,
-        uint256 /**_amountIn*/,
-        address /**_user*/,
+        address _tokenIn,
+        address,
+        uint256,
+        address,
         bytes memory _swapFeeModuleContext
     ) external view returns (SwapFeeModuleData memory swapFeeModuleData) {
+        bool isZeroToOne = (_token0 == _tokenIn);
+
         // Verification of branches is done during `getLiquidityQuote`
         if (_swapFeeModuleContext.length != 0) {
             // Solver Branch
-            swapFeeModuleData.feeInBips = _isZeroToOne
+            swapFeeModuleData.feeInBips = isZeroToOne
                 ? solverReadSlot.solverFeeBipsToken0
                 : solverReadSlot.solverFeeBipsToken1;
         } else {
             // AMM Branch
-            swapFeeModuleData.feeInBips = _getAMMFeeInBips(_isZeroToOne);
+            swapFeeModuleData.feeInBips = _getAMMFeeInBips(isZeroToOne);
         }
     }
 
