@@ -96,7 +96,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
     event SignerUpdate(address indexed signer);
     event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
-    event SpotPriceUpdate(uint160 sqrtSpotPriceX96);
+    event SolverSwap(bytes32 sotHash);
 
     /************************************************
      *  IMMUTABLES
@@ -798,8 +798,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
         // Update AMM sqrt spot price
         _ammState.setSqrtSpotPriceX96(sqrtSpotPriceX96New);
-
-        emit SpotPriceUpdate(sqrtSpotPriceX96New);
     }
 
     /**
@@ -904,8 +902,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
 
             // Update AMM sqrt spot price
             _ammState.setSqrtSpotPriceX96(sot.sqrtSpotPriceX96New);
-
-            emit SpotPriceUpdate(sot.sqrtSpotPriceX96New);
         } else {
             solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
             solverWriteSlotCache.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
@@ -916,6 +912,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             // Update `solverWriteSlot`
             solverWriteSlot = solverWriteSlotCache;
         }
+
+        emit SolverSwap(sotHash);
     }
 
     /************************************************
