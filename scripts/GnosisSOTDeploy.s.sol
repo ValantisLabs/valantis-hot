@@ -25,64 +25,42 @@ import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoo
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 
+import { ProtocolFactory } from 'valantis-core/src/protocol-factory/ProtocolFactory.sol';
+import { SovereignPoolFactory } from 'valantis-core/src/pools/factories/SovereignPoolFactory.sol';
+
 contract GnosisSOTDeployScript is Script, SOTBase {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint('GNOSIS_PRIVATE_KEY');
         vm.startBroadcast(deployerPrivateKey);
 
-        address signer = vm.envAddress('GNOSIS_PUBLIC_KEY');
-        // address weth = vm.envAddress('GNOSIS_WETH_REAL');
-        address mockToken0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
-        address mockToken1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
+        address master = vm.envAddress('GNOSIS_PUBLIC_KEY');
 
-        // MockToken token0 = new MockToken('Wrapped ETH', 'WETH', 18);
-        // MockToken token1 = new MockToken('USD Coin', 'USDC', 6);
+        address token0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
+        address token1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
 
-        // SovereignPoolConstructorArgs memory poolArgs = SovereignPoolConstructorArgs(
-        //     address(mockToken0),
-        //     address(mockToken1),
-        //     ZERO_ADDRESS,
-        //     vm.envAddress('GNOSIS_PUBLIC_KEY'),
-        //     ZERO_ADDRESS,
-        //     ZERO_ADDRESS,
-        //     false,
-        //     false,
-        //     0,
-        //     0,
-        //     0
-        // );
+        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL'));
 
-        // SovereignPool pool = new SovereignPool(poolArgs);
-
-        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_MOCKS'));
-        // SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_WETH'));
-
-        // // MockLiquidityProvider liquidityProvider = new MockLiquidityProvider();
-
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_ETH_USD_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_USDC_USD_FEED'));
+        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_TOKEN0_FEED'));
+        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_TOKEN1_FEED'));
 
         address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_MOCKS');
-        // address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_WETH');
 
-        // AggregatorV3Interface feedToken0 = new MockChainlinkOracle(8);
-        // AggregatorV3Interface feedToken1 = new MockChainlinkOracle(8);
         SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
             pool: address(pool),
-            manager: vm.envAddress('GNOSIS_PUBLIC_KEY'),
-            signer: vm.envAddress('GNOSIS_PUBLIC_KEY'),
+            manager: master,
+            signer: master,
             liquidityProvider: address(liquidityProvider),
             feedToken0: address(feedToken0),
             feedToken1: address(feedToken1),
-            sqrtSpotPriceX96: getSqrtPriceX96(2300 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
-            sqrtPriceLowX96: getSqrtPriceX96(1500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
-            sqrtPriceHighX96: getSqrtPriceX96(2500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtSpotPriceX96: getSqrtPriceX96(3300 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceLowX96: getSqrtPriceX96(2500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtPriceHighX96: getSqrtPriceX96(3500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             maxDelay: 20 minutes,
-            maxOracleUpdateDurationFeed0: 1 hours,
-            maxOracleUpdateDurationFeed1: 1 hours,
-            solverMaxDiscountBips: 200, // 2%
-            maxOracleDeviationBound: 50, // 0.5%
-            minAMMFeeGrowthInPips: 100,
+            maxOracleUpdateDurationFeed0: 24 hours,
+            maxOracleUpdateDurationFeed1: 24 hours,
+            solverMaxDiscountBips: 1000, // 10%
+            maxOracleDeviationBound: 1000, // 10%
+            minAMMFeeGrowthInPips: 1,
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%
         });
@@ -92,17 +70,15 @@ contract GnosisSOTDeployScript is Script, SOTBase {
         pool.setALM(address(sot));
         pool.setSwapFeeModule(address(sot));
         pool.setPoolManager(liquidityProvider);
+        sot.setMaxTokenVolumes(100e18, 20_000e6);
+        sot.setMaxOracleDeviationBips(500); // 5%
+        sot.setMaxAllowedQuotes(3);
 
-        // console.log('SOT deployed at: ', address(sot));
-
-        // sot.setMaxTokenVolumes(100e18, 20_000e6);
-        // sot.setMaxOracleDeviationBips(50);
+        // Only for mock tokens
         // token0.mint(address(liquidityProvider), 100e18);
         // token1.mint(address(liquidityProvider), 20_000e6);
         // token0.mint(address(signer), 10_000e18);
         // token1.mint(address(signer), 2_000_000e6);
-
-        // liquidityProvider.setSOT(address(sot));
 
         vm.stopBroadcast();
     }
