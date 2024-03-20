@@ -11,14 +11,14 @@
   },
   "scripts": {
     "coverage:lcov": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info.pruned 'test' && genhtml lcov.info.pruned -o coverage/html && open coverage/html/index.html",
-    "deploy": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia",
-    "deploy:broadcast": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia --broadcast",
     "lint": "solhint 'src/**/*.sol'",
     "format": "npx prettier --write .",
     "format:contracts": "npx prettier --write src/**/*.sol",
     "test-foundry": "forge test -vvv",
     "test-hardhat": "npx hardhat test --parallel",
-    "postinstall": "husky install"
+    "postinstall": "husky install",
+    "compile": "forge-deploy gen-deployer && forge build",
+    "deploy": "forge script script/Counter.s.sol --rpc-url $RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY -v && forge-deploy sync;"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
@@ -38,6 +38,7 @@
     "@types/node": ">=16.0.0",
     "chai": "^4.2.0",
     "ethers": "^6.4.0",
+    "forge-deploy": "^0.2.0",
     "hardhat": "^2.19.5",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-preprocessor": "^0.1.5",

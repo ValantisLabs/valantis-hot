@@ -35,15 +35,15 @@ contract GnosisSOTDeployScript is Script, SOTBase {
 
         address master = vm.envAddress('GNOSIS_PUBLIC_KEY');
 
-        address token0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
-        address token1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
+        address token0 = vm.envAddress('GNOSIS_TOKEN0_REAL');
+        address token1 = vm.envAddress('GNOSIS_TOKEN1_REAL');
 
-        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL'));
+        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_REAL'));
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_TOKEN0_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_TOKEN1_FEED'));
+        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_ETH_USD_FEED'));
+        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_USDC_USD_FEED'));
 
-        address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_MOCKS');
+        address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_REAL');
 
         SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
             pool: address(pool),
