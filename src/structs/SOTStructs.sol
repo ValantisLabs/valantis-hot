@@ -40,6 +40,7 @@ struct SolverOrderType {
     uint16 feeGrowthInPipsToken1;
     uint8 nonce;
     uint8 expectedFlag;
+    bool isZeroToOne;
 }
 
 /**

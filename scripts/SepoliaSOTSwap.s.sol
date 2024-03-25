@@ -116,7 +116,8 @@ contract SepoliaSOTSwapScript is Script {
             feeMaxToken1: 100,
             feeGrowthInPipsToken1: 500,
             nonce: 1,
-            expectedFlag: 0
+            expectedFlag: 0,
+            isZeroToOne: false
         });
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(

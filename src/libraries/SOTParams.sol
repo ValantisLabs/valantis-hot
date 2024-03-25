@@ -22,6 +22,7 @@ library SOTParams {
     error SOTParams__validateBasicParams_excessiveTokenInAmount();
     error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
     error SOTParams__validateBasicParams_excessiveExpiryTime();
+    error SOTParams__validateBasicParams_incorrectSwapDirection();
     error SOTParams__validateBasicParams_replayedQuote();
     error SOTParams__validateBasicParams_quoteExpired();
     error SOTParams__validateBasicParams_unauthorizedSender();
@@ -43,6 +44,7 @@ library SOTParams {
 
     function validateBasicParams(
         SolverOrderType memory sot,
+        bool isZeroToOne,
         uint256 amountOut,
         address sender,
         address recipient,
@@ -51,6 +53,8 @@ library SOTParams {
         uint32 maxDelay,
         uint56 alternatingNonceBitmap
     ) internal view {
+        if (sot.isZeroToOne != isZeroToOne) revert SOTParams__validateBasicParams_incorrectSwapDirection();
+
         if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
         if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();

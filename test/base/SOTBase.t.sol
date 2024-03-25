@@ -168,7 +168,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             feeMaxToken1: 100,
             feeGrowthInPipsToken1: 500,
             nonce: 1,
-            expectedFlag: 0
+            expectedFlag: 0,
+            isZeroToOne: true
         });
     }
 

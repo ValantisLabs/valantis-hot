@@ -23,6 +23,7 @@ contract SOTParamsHarness {
 
     function validateBasicParams(
         SolverOrderType memory sot,
+        bool isZeroToOne,
         uint256 amountOut,
         address sender,
         address recipient,
@@ -33,6 +34,7 @@ contract SOTParamsHarness {
     ) public view {
         SOTParams.validateBasicParams(
             sot,
+            isZeroToOne,
             amountOut,
             sender,
             recipient,
@@ -105,6 +107,7 @@ contract TestSOTParams is SOTBase {
         // Correct Case
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
@@ -121,6 +124,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_quoteExpired.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
@@ -138,6 +142,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveExpiryTime.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
@@ -155,6 +160,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedRecipient.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('WRONG_RECIPIENT'),
@@ -168,6 +174,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedSender.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: makeAddr('WRONG_SENDER'),
             recipient: makeAddr('RECIPIENT'),
@@ -184,6 +191,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenInAmount.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
@@ -196,6 +204,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 1000e18 + 1,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
@@ -213,6 +222,7 @@ contract TestSOTParams is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
         harness.validateBasicParams({
             sot: sotParams,
+            isZeroToOne: true,
             amountOut: 500e18,
             sender: address(this),
             recipient: makeAddr('RECIPIENT'),
