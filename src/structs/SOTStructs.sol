@@ -22,6 +22,7 @@ pragma solidity 0.8.19;
     * feeGrowthInPipsToken1: Fee growth in pips, per second, of AMM swap fee for token1.
     * nonce: Nonce in bitmap format (see AlternatingNonceBitmap library and docs).
     * expectedFlag: Expected flag (0 or 1) for nonce (see AlternatingNonceBitmap library and docs).
+    * isZeroToOne: Direction of the swap for which the SOT is valid.
  */
 struct SolverOrderType {
     uint256 amountInMax;
@@ -40,6 +41,7 @@ struct SolverOrderType {
     uint16 feeGrowthInPipsToken1;
     uint8 nonce;
     uint8 expectedFlag;
+    bool isZeroToOne;
 }
 
 /**

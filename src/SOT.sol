@@ -857,6 +857,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
 
         sot.validateBasicParams(
+            almLiquidityQuoteInput.isZeroToOne,
             liquidityQuote.amountOut,
             almLiquidityQuoteInput.sender,
             almLiquidityQuoteInput.recipient,

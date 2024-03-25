@@ -290,6 +290,9 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(500, type(uint256).max);
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
+        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        sotParams.isZeroToOne = false;
+        params.swapContext.externalContext = mockSigner.getSignedQuote(sotParams);
 
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
         pool.swap(params);
@@ -321,6 +324,32 @@ contract SOTConcreteTest is SOTBase {
         });
 
         vm.expectRevert(SOT.SOT___solverSwap_invalidSignature.selector);
+        pool.swap(params);
+    }
+
+    function test_swap_solver_incorrectSwapDirection() public {
+        sot.setSigner(EOASigner);
+
+        // Test Swap with EOA Signer
+        SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
+            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            verifierContext: bytes(''),
+            swapCallbackContext: bytes(''),
+            swapFeeModuleContext: bytes('1')
+        });
+
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: false,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: makeAddr('RECIPIENT'),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token0),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_incorrectSwapDirection.selector);
         pool.swap(params);
     }
 
@@ -387,6 +416,7 @@ contract SOTConcreteTest is SOTBase {
         // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
         sotParams.solverPriceX192Discounted = 1500 << 192;
+        sotParams.isZeroToOne = false;
 
         // Set Spot price to priceLow with a minimal SOT
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
@@ -557,6 +587,7 @@ contract SOTConcreteTest is SOTBase {
         params.amountIn = amountIn;
 
         sotParams.nonce = 55;
+        sotParams.isZeroToOne = false;
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
         // Check the math in the other direction
@@ -740,6 +771,7 @@ contract SOTConcreteTest is SOTBase {
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
+        sotParams.isZeroToOne = false;
 
         data.externalContext = mockSigner.getSignedQuote(sotParams);
         params.amountIn = 3e18;
@@ -774,6 +806,7 @@ contract SOTConcreteTest is SOTBase {
         sotParams = _getSensibleSOTParams();
         sotParams.signatureTimestamp = (block.timestamp - 10).toUint32();
         sotParams.expectedFlag = 1;
+        sotParams.isZeroToOne = true;
 
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
@@ -813,6 +846,7 @@ contract SOTConcreteTest is SOTBase {
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
+        sotParams.isZeroToOne = true;
 
         data.externalContext = mockSigner.getSignedQuote(sotParams);
 
