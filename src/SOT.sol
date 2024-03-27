@@ -582,18 +582,11 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
-        uint160 sqrtOraclePriceX96 = getSqrtOraclePriceX96();
-
-        // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
-        uint256 spotPriceAndOracleAbsDiff = sqrtSpotPriceX96Cache > sqrtOraclePriceX96
-            ? sqrtSpotPriceX96Cache - sqrtOraclePriceX96
-            : sqrtOraclePriceX96 - sqrtSpotPriceX96Cache;
-
-        if (
-            spotPriceAndOracleAbsDiff * SOTConstants.BIPS > solverReadSlot.maxOracleDeviationBips * sqrtOraclePriceX96
-        ) {
-            revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
-        }
+        SOTParams.checkPriceDeviation(
+            sqrtSpotPriceX96Cache,
+            getSqrtOraclePriceX96(),
+            solverReadSlot.maxOracleDeviationBips
+        );
 
         // Deposit amount(s) into pool
         (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
