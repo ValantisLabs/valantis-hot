@@ -88,7 +88,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed0: 10 minutes,
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
-            maxSqrtOracleDeviationBound: 5000, // 50%
+            maxOracleDeviationBound: 5000, // 50%
             minAMMFeeGrowthInPips: 100,
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%
@@ -227,7 +227,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         (
             slot.isPaused,
             slot.maxAllowedQuotes,
-            slot.maxSqrtOracleDeviationBips,
+            slot.maxOracleDeviationBips,
             slot.solverFeeBipsToken0,
             slot.solverFeeBipsToken1,
             slot.signer
@@ -355,7 +355,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.signer,
             slot.solverFeeBipsToken1,
             slot.solverFeeBipsToken0,
-            slot.maxSqrtOracleDeviationBips,
+            slot.maxOracleDeviationBips,
             slot.maxAllowedQuotes,
             slot.isPaused
         );
@@ -368,7 +368,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         assertEq(slot.signer, updateSlot.signer, 'signer');
         assertEq(slot.solverFeeBipsToken1, updateSlot.solverFeeBipsToken1, 'solverFeeBipsToken1');
         assertEq(slot.solverFeeBipsToken0, updateSlot.solverFeeBipsToken0, 'solverFeeBipsToken0');
-        assertEq(slot.maxSqrtOracleDeviationBips, updateSlot.maxSqrtOracleDeviationBips, 'maxSqrtOracleDeviationBips');
+        assertEq(slot.maxOracleDeviationBips, updateSlot.maxOracleDeviationBips, 'maxOracleDeviationBips');
         assertEq(slot.maxAllowedQuotes, updateSlot.maxAllowedQuotes, 'maxAllowedQuotes');
         assertEq(slot.isPaused, updateSlot.isPaused, 'isPaused');
     }

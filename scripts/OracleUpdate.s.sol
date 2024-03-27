@@ -78,7 +78,7 @@ contract OracleUpdateScript is Script {
         console.logInt(oraclePriceUSDInt0);
         console.logInt(oraclePriceUSDInt1);
         console.log('AMM sqrt spot price X96:', sqrtSpotPriceX96);
-        console.log('AMM max oracle deviation:', sot.maxSqrtOracleDeviationBips());
+        console.log('AMM max oracle deviation:', sot.maxOracleDeviationBips());
         console.log('AMM sqrt oracle price:', sot.getSqrtOraclePriceX96());
 
         // mockToken0.mint(address(sepoliaPublicKey), 1e40);
