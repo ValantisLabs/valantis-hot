@@ -16,7 +16,3 @@ runs = 128
 sepolia = "${SEPOLIA_RPC_URL}"
 gnosis = "${GNOSIS_RPC_URL}"
 
-fs_permissions = [
-	{ access = "read", path = "./deployments"},
-	{ access = "read", path = "./out"},
-]

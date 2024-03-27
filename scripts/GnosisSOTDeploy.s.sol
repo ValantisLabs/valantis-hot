@@ -30,20 +30,20 @@ import { SovereignPoolFactory } from 'valantis-core/src/pools/factories/Sovereig
 
 contract GnosisSOTDeployScript is Script, SOTBase {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint('GNOSIS_PRIVATE_KEY');
+        uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
         vm.startBroadcast(deployerPrivateKey);
 
-        address master = vm.envAddress('GNOSIS_PUBLIC_KEY');
+        address master = vm.envAddress('DEPLOYER_PUBLIC_KEY');
 
-        address token0 = vm.envAddress('GNOSIS_TOKEN0_REAL');
-        address token1 = vm.envAddress('GNOSIS_TOKEN1_REAL');
+        address token0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
+        address token1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
 
-        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_REAL'));
+        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_MOCKS'));
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_ETH_USD_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_USDC_USD_FEED'));
+        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('GNOSIS_USDC_USD_FEED'));
+        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('GNOSIS_ETH_USD_FEED'));
 
-        address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_REAL');
+        address liquidityProvider = vm.envAddress('GNOSIS_ARRAKIS_VALANTIS_MODULE_MOCKS');
 
         SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
             pool: address(pool),
@@ -52,14 +52,14 @@ contract GnosisSOTDeployScript is Script, SOTBase {
             liquidityProvider: address(liquidityProvider),
             feedToken0: address(feedToken0),
             feedToken1: address(feedToken1),
-            sqrtSpotPriceX96: getSqrtPriceX96(3300 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
-            sqrtPriceLowX96: getSqrtPriceX96(2500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
-            sqrtPriceHighX96: getSqrtPriceX96(3500 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
+            sqrtSpotPriceX96: 1314917972337811703078981570920448, // 1/ 3600
+            sqrtPriceLowX96: 1252707241875239655932069007848031, // 1/4000
+            sqrtPriceHighX96: 1771595571142957102961017161607260, // 1/2000
             maxDelay: 20 minutes,
             maxOracleUpdateDurationFeed0: 24 hours,
             maxOracleUpdateDurationFeed1: 24 hours,
             solverMaxDiscountBips: 1000, // 10%
-            maxOracleDeviationBound: 1000, // 10%
+            maxOracleDeviationBound: 10000, // 100%
             minAMMFeeGrowthInPips: 1,
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%
@@ -83,3 +83,7 @@ contract GnosisSOTDeployScript is Script, SOTBase {
         vm.stopBroadcast();
     }
 }
+// 1313013659875930501843139981041065
+// 1314917972337811703078981570920448
+// 1771595571142957102961017161607260
+// 1252707241875239655932069007848031

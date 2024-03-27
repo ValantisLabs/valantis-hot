@@ -30,13 +30,13 @@ import { SovereignPoolFactory } from 'valantis-core/src/pools/factories/Sovereig
 
 contract GnosisSovereignPoolDeployScript is Script, SOTBase {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint('GNOSIS_PRIVATE_KEY');
+        uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
         vm.startBroadcast(deployerPrivateKey);
 
-        address master = vm.envAddress('GNOSIS_PUBLIC_KEY');
+        address master = vm.envAddress('DEPLOYER_PUBLIC_KEY');
 
-        address token0 = vm.envAddress('GNOSIS_TOKEN0_REAL');
-        address token1 = vm.envAddress('GNOSIS_TOKEN1_REAL');
+        address token0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
+        address token1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
 
         // ProtocolFactory protocolFactory = new ProtocolFactory(master, uint32(vm.envUint('GNOSIS_BLOCK_TIME')));
         // SovereignPoolFactory sovereignPoolFactory = new SovereignPoolFactory();
