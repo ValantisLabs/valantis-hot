@@ -159,7 +159,7 @@ library SOTParams {
         uint256 sqrtPriceAX96,
         uint256 sqrtPriceBX96,
         uint256 maxDeviationInBips
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         uint256 priceAX192 = sqrtPriceAX96 * sqrtPriceAX96;
         uint256 priceBX192 = sqrtPriceBX96 * sqrtPriceBX96;
 
