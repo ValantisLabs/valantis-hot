@@ -968,7 +968,7 @@ contract SOTConcreteTest is SOTBase {
             (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
 
             uint160 sqrtPrice5099 = getSqrtPriceX96(
-                5099 * 10 ** feedToken0.decimals(),
+                5049 * 10 ** feedToken0.decimals(),
                 1 * 10 ** feedToken1.decimals()
             );
 
