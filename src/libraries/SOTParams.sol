@@ -167,9 +167,8 @@ library SOTParams {
 
         if (diff * SOTConstants.BIPS > maxDeviationInBips * priceBX192) {
             return false;
-        } else {
-            return true;
         }
+        return true;
     }
 
     function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
