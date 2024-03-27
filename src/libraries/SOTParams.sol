@@ -109,7 +109,7 @@ library SOTParams {
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
-        uint256 maxOracleDeviationBips,
+        uint256 maxSqrtOracleDeviationBips,
         uint256 solverMaxDiscountBips
     ) internal view {
         // Cache sqrt spot price, lower bound, and upper bound
@@ -129,7 +129,7 @@ library SOTParams {
             ? sqrtSpotPriceX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceX96;
 
-        if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > maxOracleDeviationBips * sqrtOraclePriceX96) {
+        if (spotPriceAndOracleAbsDiff * SOTConstants.BIPS > maxSqrtOracleDeviationBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
         }
 
@@ -139,7 +139,7 @@ library SOTParams {
             ? sqrtSpotPriceNewX96 - sqrtOraclePriceX96
             : sqrtOraclePriceX96 - sqrtSpotPriceNewX96;
 
-        if (spotPriceNewAndOracleAbsDiff * SOTConstants.BIPS > maxOracleDeviationBips * sqrtOraclePriceX96) {
+        if (spotPriceNewAndOracleAbsDiff * SOTConstants.BIPS > maxSqrtOracleDeviationBips * sqrtOraclePriceX96) {
             revert SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
         }
 

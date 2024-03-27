@@ -81,7 +81,7 @@ contract GnosisSOTDeployScript is Script, SOTBase {
             maxOracleUpdateDurationFeed0: 1 hours,
             maxOracleUpdateDurationFeed1: 1 hours,
             solverMaxDiscountBips: 200, // 2%
-            maxOracleDeviationBound: 50, // 0.5%
+            maxSqrtOracleDeviationBound: 50, // 0.5%
             minAMMFeeGrowthInPips: 100,
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%

@@ -40,7 +40,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sot.maxSqrtOracleDeviationBound());
     }
 
     function test_managerOperations() public {
@@ -961,7 +961,7 @@ contract SOTConcreteTest is SOTBase {
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
         sot.setMaxOracleDeviationBips(100);
-        assertEq(sot.maxOracleDeviationBips(), 100, 'maxOracleDeviationInBips');
+        assertEq(sot.maxSqrtOracleDeviationBips(), 100, 'maxOracleDeviationInBips');
 
         // Spot price falls within the deviation
         {
