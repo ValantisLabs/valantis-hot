@@ -464,7 +464,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         @param _maxOracleDeviationBips New maximum deviation in basis-points.
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
-        @dev The deviation is applied on the square root of the price, so adjust values accordingly.
      */
     function setMaxOracleDeviationBips(uint16 _maxOracleDeviationBips) external onlyManager {
         if (_maxOracleDeviationBips > maxOracleDeviationBound) {
