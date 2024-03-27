@@ -116,18 +116,18 @@ library SOTParams {
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
 
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
-        if (checkPriceDeviation(sqrtSolverPriceX96, sqrtSpotPriceNewX96, solverMaxDiscountBips)) {
+        if (!checkPriceDeviation(sqrtSolverPriceX96, sqrtSpotPriceNewX96, solverMaxDiscountBips)) {
             revert SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
         }
 
         // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
-        if (checkPriceDeviation(sqrtSpotPriceX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
+        if (!checkPriceDeviation(sqrtSpotPriceX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
             revert SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
         }
 
         // New AMM sqrt spot price (provided by SOT quote) and oracle sqrt price cannot differ
         // beyond allowed bounds
-        if (checkPriceDeviation(sqrtSpotPriceNewX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
+        if (!checkPriceDeviation(sqrtSpotPriceNewX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
             revert SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
         }
 
@@ -156,10 +156,10 @@ library SOTParams {
     }
 
     function checkPriceDeviation(
-        uint160 sqrtPriceAX96,
-        uint160 sqrtPriceBX96,
+        uint256 sqrtPriceAX96,
+        uint256 sqrtPriceBX96,
         uint256 maxDeviationInBips
-    ) internal pure returns (bool) {
+    ) internal view returns (bool) {
         uint256 priceAX192 = sqrtPriceAX96 * sqrtPriceAX96;
         uint256 priceBX192 = sqrtPriceBX96 * sqrtPriceBX96;
 
