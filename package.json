@@ -39,7 +39,6 @@
     "@types/node": ">=16.0.0",
     "chai": "^4.2.0",
     "ethers": "^6.4.0",
-    "forge-deploy": "^0.2.0",
     "hardhat": "^2.19.5",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-preprocessor": "^0.1.5",

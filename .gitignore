@@ -67,8 +67,3 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
-
-# forge-deploy
-/generated
-/deployments/localhost
-/deployments/31337
