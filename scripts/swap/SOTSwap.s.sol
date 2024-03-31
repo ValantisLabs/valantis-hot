@@ -28,13 +28,20 @@ import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoo
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
 import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
 
+import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
+import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
+
 contract SOTSwapScript is Script {
     using SafeCast for uint256;
 
     function run() external {
+        string memory path = DeployHelper.getPath();
+        string memory json = vm.readFile(path);
+
         vm.startBroadcast(vm.envUint('DEPLOYER_PRIVATE_KEY'));
 
-        SovereignPool pool = SovereignPool(vm.envAddress('GNOSIS_SOVEREIGN_POOL_MOCKS'));
+        SovereignPool pool = SovereignPool(vm.parseJsonAddress(json, '.SovereignPool'));
+        address master = vm.parseJsonAddress(json, '.DeployerPublicKey');
         SOT sot = SOT(pool.alm());
 
         IERC20 token0 = IERC20(pool.token0());
@@ -60,8 +67,8 @@ contract SOTSwapScript is Script {
             solverPriceX192Discounted: 0x00000000112574833ea203a54b9c8bb3e0cad2df956228097c073212c9144a43,
             solverPriceX192Base: 0x00000000110fb9a38ba1365219cfbb2b6236cf4b777ed1a91ee635a0a210633d,
             sqrtSpotPriceX96New: 0x00000000000000000000000000000000000041ec95e6a4a2992195407e5d7055,
-            authorizedSender: vm.envAddress('DEPLOYER_PUBLIC_KEY'),
-            authorizedRecipient: vm.envAddress('DEPLOYER_PUBLIC_KEY'),
+            authorizedSender: master,
+            authorizedRecipient: master,
             signatureTimestamp: (block.timestamp).toUint32(),
             expiry: 120, // 2 minutes
             feeMinToken0: 10, // 0.1%
@@ -98,7 +105,7 @@ contract SOTSwapScript is Script {
             isZeroToOne: isZeroToOne,
             amountIn: amountIn,
             amountOutMin: 0,
-            recipient: vm.envAddress('DEPLOYER_PUBLIC_KEY'),
+            recipient: master,
             deadline: block.timestamp + 5, // If swaps fail, try to update this to a higher value
             swapTokenOut: isZeroToOne ? token1 : token0,
             swapContext: data
