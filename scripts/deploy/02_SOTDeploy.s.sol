@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.119;
+pragma solidity ^0.8.19;
 
 import 'forge-std/Script.sol';
 
@@ -13,24 +13,31 @@ import {
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
+import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
 
-contract GnosisSOTDeployScript is Script, SOTBase {
+contract SOTDeployScript is Script {
     function run() external {
+        string memory path = DeployHelper.getPath();
+        string memory json = vm.readFile(path);
+
+        address deployerPublicKey = vm.parseJsonAddress(json, '.DeployerPublicKey');
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
+
         vm.startBroadcast(deployerPrivateKey);
 
-        address token0 = vm.envAddress('TOKEN0');
-        address token1 = vm.envAddress('TOKEN1');
+        address token0 = vm.parseJsonAddress(json, '.Token0');
+        address token1 = vm.parseJsonAddress(json, '.Token1');
 
         assert(token0 < token1, 'Token0 must be less than Token1');
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.envAddress('TOKEN0_FEED'));
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.envAddress('TOKEN1_FEED'));
+        AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.parseJsonAddress(json, '.FeedToken0'));
+        AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.parseJsonAddress(json, '.FeedToken1'));
 
-        address manager = vm.envAddress('DEPLOYER_PUBLIC_KEY');
-        address signer = vm.envAddress('DEPLOYER_PUBLIC_KEY');
-        address liquidityProvider = vm.envAddress('ARRAKIS_VALANTIS_MODULE');
-        SovereignPool pool = SovereignPool(vm.envAddress('SOVEREIGN_POOL'));
+        address manager = deployerPublicKey;
+        address signer = deployerPublicKey;
+        address liquidityProvider = vm.parseJsonAddress(json, '.LiquidityProvider');
+        SovereignPool pool = SovereignPool(vm.parseJsonAddress(json, '.SovereignPool'));
 
         uint160 sqrtSpotPriceX96 = 1314917972337811703078981570920448;
         uint160 sqrtPriceLowX96 = 1252707241875239655932069007848031;
@@ -58,9 +65,13 @@ contract GnosisSOTDeployScript is Script, SOTBase {
 
         SOT sot = new SOT(sotArgs);
 
+        // Customize according to each token pair
+        uint256 token0MaxVolume = 100 * (10 ** token0.decimals());
+        uint256 token1MaxVolume = 20_000 * (10 ** token1.decimals());
+
         // Set SOT Parameters
         sot.setMaxOracleDeviationBips(500); // 5%
-        sot.setMaxTokenVolumes(100 * (10 ** token0.decimals()), 20_000 * (10 ** token1.decimals()));
+        sot.setMaxTokenVolumes(token0MaxVolume, token1MaxVolume);
         sot.setMaxAllowedQuotes(3);
 
         assert(
@@ -72,6 +83,8 @@ contract GnosisSOTDeployScript is Script, SOTBase {
         pool.setALM(address(sot));
         pool.setSwapFeeModule(address(sot));
         pool.setPoolManager(liquidityProvider);
+
+        vm.writeJson(Strings.toHexString(address(sot)), path, '.SOT');
 
         vm.stopBroadcast();
     }

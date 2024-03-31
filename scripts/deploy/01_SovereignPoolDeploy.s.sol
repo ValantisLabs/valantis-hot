@@ -6,15 +6,19 @@ import 'forge-std/Script.sol';
 import { SovereignPool, SovereignPoolConstructorArgs } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 
 import { ProtocolFactory } from 'valantis-core/src/protocol-factory/ProtocolFactory.sol';
+import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
+import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
 
 contract SovereignPoolDeployScript is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
-        address deployerPublicKey = vm.envAddress('DEPLOYER_PUBLIC_KEY');
-        address token0 = vm.envAddress('GNOSIS_TOKEN0_MOCK');
-        address token1 = vm.envAddress('GNOSIS_TOKEN1_MOCK');
+        string memory path = DeployHelper.getPath();
+        string memory json = vm.readFile(path);
 
-        ProtocolFactory protocolFactory = ProtocolFactory(vm.envAddress('PROTOCOL_FACTORY'));
+        uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
+        address deployerPublicKey = vm.parseJsonAddress(json, '.DeployerPublicKey');
+        address token0 = vm.parseJsonAddress(json, '.Token0');
+        address token1 = vm.parseJsonAddress(json, '.Token1');
+        ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -22,9 +26,9 @@ contract SovereignPoolDeployScript is Script {
             token0: token0,
             token1: token1,
             protocolFactory: address(protocolFactory),
-            poolManager: master,
-            sovereignVault: ZERO_ADDRESS,
-            verifierModule: ZERO_ADDRESS,
+            poolManager: deployerPublicKey,
+            sovereignVault: address(0),
+            verifierModule: address(0),
             isToken0Rebase: false,
             isToken1Rebase: false,
             token0AbsErrorTolerance: 0,
@@ -33,6 +37,8 @@ contract SovereignPoolDeployScript is Script {
         });
 
         SovereignPool pool = SovereignPool(protocolFactory.deploySovereignPool(poolArgs));
+
+        vm.writeJson(Strings.toHexString(address(pool)), path, '.SovereignPool');
 
         vm.stopBroadcast();
     }

@@ -1,3 +1,17 @@
 {
-    "test": 1
+  "ChainID": "100",
+  "RPC": "https://rpc.gnosis.gateway.fm",
+  "BlockTime": "5",
+  "Token0": "0x64efc365149C78C55bfccaB24A48Ae03AffCa572",
+  "Token1": "0x682d49D0Ead2B178DE4125781d2CEd108bEe41fD",
+  "Token0Name": "USDC",
+  "Token1Name": "WETH",
+  "FeedToken0": "0x26C31ac71010aF62E6B486D1132E266D6298857D",
+  "FeedToken1": "0xa767f745331D267c7751297D982b050c93985627",
+  "DeployerPublicKey": "0xeED403D7cacFC3c228b816B87C7a97513f782F01",
+  "ProtocolFactory": "0x25C15143f746A3d0722b4013aeDd90480e628740",
+  "SovereignPoolFactory": "0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61",
+  "SovereignPool": "0xf18b966ad80ec4a866a7e795cb1a0d5fdf59dc66",
+  "SOT": "",
+  "LiquidityProvider": ""
 }

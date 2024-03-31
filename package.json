@@ -18,8 +18,9 @@
     "test-hardhat": "npx hardhat test --parallel",
     "postinstall": "husky install",
     "compile": "forge-deploy gen-deployer && forge build",
-    "deploy:SovereignPool": "forge script script/deployment/01_SovereignPoolDeploy.s.sol --rpc-url $CHAIN_RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY -v && forge-deploy sync;",
-    "deploy:SOT": "forge script script/deployment/02_SOTDeploy.s.sol --rpc-url $CHAIN_RPC_URL --broadcast --private-key $DEPLOYER_PRIVATE_KEY -v && forge-deploy sync;"
+    "deploy:ProtocolFactory": "forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url gnosis",
+    "deploy:SovereignPool": "forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url gnosis",
+    "deploy:SOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url gnosis"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
