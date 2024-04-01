@@ -11,6 +11,6 @@
   "ProtocolFactory": "0x25C15143f746A3d0722b4013aeDd90480e628740",
   "SovereignPoolFactory": "0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61",
   "SovereignPool": "0xf18b966ad80ec4a866a7e795cb1a0d5fdf59dc66",
-  "SOT": "",
-  "LiquidityProvider": ""
+  "LiquidityProvider": "0xC6C9b4C1616Ff870622aEbbdD998cA5973e01336",
+  "SOT": "0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61"
 }
