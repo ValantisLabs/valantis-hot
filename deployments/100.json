@@ -1,6 +1,5 @@
 {
   "ChainID": "100",
-  "RPC": "https://rpc.gnosis.gateway.fm",
   "BlockTime": "5",
   "Token0": "0x64efc365149C78C55bfccaB24A48Ae03AffCa572",
   "Token1": "0x682d49D0Ead2B178DE4125781d2CEd108bEe41fD",
