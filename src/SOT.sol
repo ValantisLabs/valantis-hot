@@ -82,6 +82,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
      *  EVENTS
      ***********************************************/
 
+    event ALMDeployed(string indexed name, address alm, address pool);
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
@@ -302,6 +303,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
         _ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
+
+        emit ALMDeployed('SOT V1', address(this), address(pool));
 
         // AMM State is initialized as unpaused
     }

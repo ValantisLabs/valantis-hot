@@ -1,0 +1,16 @@
+{
+  "ChainID": "11155111",
+  "BlockTime": "12",
+  "Token0": "",
+  "Token1": "",
+  "Token0Name": "",
+  "Token1Name": "",
+  "FeedToken0": "",
+  "FeedToken1": "",
+  "DeployerPublicKey": "",
+  "ProtocolFactory": "",
+  "SovereignPoolFactory": "",
+  "SovereignPool": "",
+  "SOT": "",
+  "LiquidityProvider": ""
+}

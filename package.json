@@ -11,14 +11,16 @@
   },
   "scripts": {
     "coverage:lcov": "forge coverage --report lcov && lcov --remove ./lcov.info -o ./lcov.info.pruned 'test' && genhtml lcov.info.pruned -o coverage/html && open coverage/html/index.html",
-    "deploy": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia",
-    "deploy:broadcast": "forge script scripts/OracleUpdate.s.sol:OracleUpdateScript --rpc-url sepolia --broadcast",
     "lint": "solhint 'src/**/*.sol'",
     "format": "npx prettier --write .",
     "format:contracts": "npx prettier --write src/**/*.sol",
     "test-foundry": "forge test -vvv",
     "test-hardhat": "npx hardhat test --parallel",
-    "postinstall": "husky install"
+    "postinstall": "husky install",
+    "compile": "forge-deploy gen-deployer && forge build",
+    "deploy:ProtocolFactory": "forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url ",
+    "deploy:SovereignPool": "forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url ",
+    "deploy:SOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url "
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
