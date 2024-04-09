@@ -1,66 +1,86 @@
-## Foundry
+![Valantis](img/Valantis_Banner.png)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+# Valantis
 
-Foundry consists of:
+Implementation of the Valantis SOT LM smart contracts in Solidity.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Setting up Foundry
 
-## Documentation
+We use Foundry as our Solidity development framework. See [here](https://book.getfoundry.sh/getting-started/installation) for installation instructions, docs and examples.
 
-https://book.getfoundry.sh/
+Once installed, build the project:
 
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```
+forge build
 ```
 
-### Test
+Install dependencies:
 
-```shell
-$ forge test
+```
+forge install && yarn install
 ```
 
-### Format
+Tests:
 
-```shell
-$ forge fmt
+To run foundry tests which included concrete tests and fuzz tests:
+
+```
+forge test
 ```
 
-### Gas Snapshots
+Docs:
 
-```shell
-$ forge snapshot
+```
+forge doc --serve --port 8080
 ```
 
-### Anvil
+## Folder structure description
 
-```shell
-$ anvil
+### lib:
+
+Contains all smart contract external dependencies, installed via Foundry as git submodules.
+There are 4 dependencies to build SOT smart contracts -
+
+- forge-std
+- valantis-core
+- v3-core
+- v3-periphery
+
+### src
+
+All relevant contracts to be audited are in src folder (excluding `/mocks` folders). Number of lines of code:
+
+```
+cloc src --not-match-d=mocks
 ```
 
-### Deploy
+**SOT:** The main SOT smart contract logic, which implements `ISovereignALM` and `ISwapFeeModule` from `valantis-core`. SOT also inherits the SOTOracle logic. SOT holds the logic to calculate the liquidity algorithm
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+**SOTOracle:** Logic to retrieve latest price from chainlink feeds, and convert it into sqrtPriceX96.
 
-### Cast
+**libraries:** Various helper libraries used in other contracts.
 
-```shell
-$ cast <subcommand>
-```
+- TightPack: Low level library to pack 3 uint160 variables, into 2 storage slots at the byte level.
+- AlternatingNonceBitmap: Implements a nonce data structure, to allow for cheap replay protection.
+- SOTConstants: Internal library to store all the constant values for SOT and SOTOracle.
+- SOTParams: Helper library to verify the correctness of the SOT values.
 
-### Help
+**vendor:** Interfaces for external smart contract dependencies i.e ArrakisMetaVault and Chainlink AggregatorV3 feeds.
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### test
+
+All relevent tests for contracts in src are in this folder
+
+**base:** Base contracts for a respective contract, which are extended in concrete/fuzz/invariant tests for respective contracts. They contain helper internal functions to help in testing.
+
+**helpers:** Helper contracts for mock contracts, to enable interacting with mock contracts. It is recommended to use respective helper contract to interact with mocks.
+
+**deployers:** Deployer contract for respective contract, containing function for deploying target contract, this needs to be extended by test contract which wants to use or test target contract.
+
+**libraries:** Tests for library contracts. It contains fuzz and concrete tests, both for target library.
+
+**concrete:** Concrete tests are used to unit test target contract with hard coded values.
+
+**fuzz:** Fuzz tests are used to test public functions in target contracts like SOT.
+
+**mocks:** Mock contracts used to simulate different behaviour for different components.

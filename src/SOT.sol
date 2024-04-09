@@ -32,12 +32,13 @@ import {
     AMMState
 } from 'src/structs/SOTStructs.sol';
 import { SOTOracle } from 'src/SOTOracle.sol';
+import { ISOT } from 'src/interfaces/ISOT.sol';
 
 /**
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
+contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -77,27 +78,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, EIP712, SOTOracle {
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
     error SOT___solverSwap_invalidSignature();
     error SOT___solverSwap_maxSolverQuotesExceeded();
-
-    /************************************************
-     *  EVENTS
-     ***********************************************/
-
-    event ALMDeployed(string indexed name, address alm, address pool);
-    event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
-    event ManagerUpdate(address indexed manager);
-    event MaxAllowedQuoteSet(uint8 maxQuotes);
-    event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBips);
-    event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
-    event PauseSet(bool pause);
-    event PostWithdrawalLiquidityCapped(
-        uint160 sqrtSpotPriceX96,
-        uint128 preWithdrawalLiquidity,
-        uint128 postWithdrawalLiquidity
-    );
-    event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
-    event SignerUpdate(address indexed signer);
-    event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
-    event SolverSwap(bytes32 sotHash);
 
     /************************************************
      *  IMMUTABLES
