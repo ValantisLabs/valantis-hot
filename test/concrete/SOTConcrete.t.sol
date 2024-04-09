@@ -108,19 +108,28 @@ contract SOTConcreteTest is SOTBase {
 
         uint256 preGas = gasleft();
 
-        pool.swap(params);
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
         uint256 postGas = gasleft();
         console.log('gas: ', preGas - postGas);
 
         PoolState memory postState = getPoolState();
 
-        assertEq(postState.reserve0, preState.reserve0 + 1e18, 'reserve0');
-        // TODO: Math to check if this is the correct value?
-        // TODO: Use check pool state here
-        // assertEq(postState.reserve1, preState.reserve1 - 1e18 * 2000, 'reserve1');
+        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + 1e18,
+            reserve1: preState.reserve1 - amountOut,
+            sqrtSpotPriceX96: sqrtSpotPriceX96,
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
+            managerFee0: 0,
+            managerFee1: 0
+        });
+
+        assertEq(amountInUsed, 1e18, 'amountInUsed');
+        checkPoolState(expectedState, postState);
     }
 
-    // TODO: Check why 6 reserves of amount1 are left in the pool
     function test_swap_amm_depleteLiquidityInOneToken() public {
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -260,9 +269,8 @@ contract SOTConcreteTest is SOTBase {
         gasUsed = gasUsed - gasleft();
         console.log('gas: ', gasUsed);
 
-        // TODO: replace these with exact math tests
-        assertNotEq(amountInUsed, 0, 'amountInUsed 0');
-        assertNotEq(amountOut, 0, 'amountOut 0');
+        assertEq(amountInUsed, 1e18, 'amountInUsed 0');
+        assertEq(amountOut, 1980e18, 'amountOut 0');
     }
 
     function test_swap_solver_maxTokenVolume() public {
@@ -515,8 +523,6 @@ contract SOTConcreteTest is SOTBase {
         });
 
         checkPoolState(expectedState, postState);
-        // TODO: Check solverWriteSlot everywhere
-        // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
     }
 
     function test_swap_solver_swapMathWithFee() public {
@@ -566,7 +572,6 @@ contract SOTConcreteTest is SOTBase {
         pool.setPoolManagerFeeBips(100);
         uint256 poolManagerFee = (amountIn - amountInWithoutFee) / 100;
 
-        // TODO: add amountInUsed and amountOut checks everywhere
         pool.swap(params);
         PoolState memory postState = getPoolState();
 
@@ -912,9 +917,6 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(sqrtPriceLowX96, sqrtPrice1996, 'sqrtPriceLowX96');
         assertEq(sqrtPriceHighX96, sqrtPrice2004, 'sqrtPriceHighX96');
-
-        // TODO: Check update AMM Liquidity is correct
-        // TODO: Do we want to allow priceLow = spotPrice = priceHigh?
     }
 
     function test_depositLiquidity() public {
@@ -1434,62 +1436,3 @@ contract SOTConcreteTest is SOTBase {
         emit LogBytes(signature);
     }
 }
-
-/**
-    Test Cases:
-
-    ==> Solver Swap 
-        * [*] All types of signatures, failure and edge cases
-        * [ ] Multiple quotes in the same block 
-            - [*] Discounted/Non-Discounted
-            - [*] Valid/Invalid
-            - [*] Replay Protection
-            - [ ] Effects on liquidity
-        * [ ] AMM Spot Price Updates
-            - [ ] Frontrun attacks
-            - [*] Solver swap combined with AMM swap
-            - [ ] Pool Liquidity should be calculated correctly after update
-        * [ ] Reentrancy Protection
-        * [ ] Interactions with Oracle
-            - [ ] High deviation should revert
-        * [*] Valid/Invalid fee paths
-        * [ ] Effects on amm fee
-        * [*] Calculation of Manager Fee
-        * [*] Correct amountIn and out calculations 
-        * [*] Solver fee in BIPS is applied correctly
-        * [*] Swap Math is correct, amountOut calculations are correct
-        * [*] Max quotes in a block
-        * [ ] Expired quotes should not be allowed 
-
-    ==> AMM Swap
-        * [*] Effects on AMM when very large swaps drain pool in one token, spot price etc.
-        * [*] Valid/Invalid fee paths
-        * [ ] AMM Math is as expected
-        * [ ] Liquidity is calculated correctly
-        * [ ] Set price bounds shifts liquidity correctly
-        * [ ] Fee growth is correct, pool is soft locked before solver swap
-        * [ ] No AMM swap is every able to change Solver Write Slot [invariant]
-        * [*] Single Sided Liquidity
-    
-    ==> General Ops
-        * [*] Pause/Unpause works as expected [done]
-        * [ ] Constructor sets all values correctly
-        * [ ] Get Reserves at Price function is correct
-        * [ ] All important functions are reentrancy protected
-        * [ ] Manager is able to withdraw fee from Sovereign Pool
-        * [ ] Critical Manager operations are timelocked
-        * [*] Check spot price manipulation on deposit/withdraw/setPriceBounds
-        * [*] Tests for depositLiquidity
-        * [*] Tests for withdrawLiquidity
-    
-    ==> Gas
-        * [ ] Prepare setup for correct gas reports
-        * [ ] Solvers should do maximum 2 storage writes in SOT
-
-    ==> Imp
-        * [ ] Fuzz at edges of liquidity to make sure there are no path independence issues
-        * [ ] Write tests for LiquidityAmounts library especially at edges
-        * [ ] What happens when spotPrice = spotPriceLow = spotPriceHigh, quote becomes infinite.
-        * [ ] Check if maxVolume per quote is enforced in amountOut
-        * [ ] Without an SOT quote or deposits, the amm liquidity should never change by just amm swaps 
-*/
