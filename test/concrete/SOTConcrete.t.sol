@@ -26,6 +26,8 @@ import { SOTBase } from 'test/base/SOTBase.t.sol';
 contract SOTConcreteTest is SOTBase {
     using SafeCast for uint256;
 
+    event LogBytes(bytes data);
+
     function setUp() public virtual override {
         super.setUp();
 
@@ -106,19 +108,28 @@ contract SOTConcreteTest is SOTBase {
 
         uint256 preGas = gasleft();
 
-        pool.swap(params);
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
         uint256 postGas = gasleft();
         console.log('gas: ', preGas - postGas);
 
         PoolState memory postState = getPoolState();
 
-        assertEq(postState.reserve0, preState.reserve0 + 1e18, 'reserve0');
-        // TODO: Math to check if this is the correct value?
-        // TODO: Use check pool state here
-        // assertEq(postState.reserve1, preState.reserve1 - 1e18 * 2000, 'reserve1');
+        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+
+        PoolState memory expectedState = PoolState({
+            reserve0: preState.reserve0 + 1e18,
+            reserve1: preState.reserve1 - amountOut,
+            sqrtSpotPriceX96: sqrtSpotPriceX96,
+            sqrtPriceLowX96: preState.sqrtPriceLowX96,
+            sqrtPriceHighX96: preState.sqrtPriceHighX96,
+            managerFee0: 0,
+            managerFee1: 0
+        });
+
+        assertEq(amountInUsed, 1e18, 'amountInUsed');
+        checkPoolState(expectedState, postState);
     }
 
-    // TODO: Check why 6 reserves of amount1 are left in the pool
     function test_swap_amm_depleteLiquidityInOneToken() public {
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -258,9 +269,8 @@ contract SOTConcreteTest is SOTBase {
         gasUsed = gasUsed - gasleft();
         console.log('gas: ', gasUsed);
 
-        // TODO: replace these with exact math tests
-        assertNotEq(amountInUsed, 0, 'amountInUsed 0');
-        assertNotEq(amountOut, 0, 'amountOut 0');
+        assertEq(amountInUsed, 1e18, 'amountInUsed 0');
+        assertEq(amountOut, 1980e18, 'amountOut 0');
     }
 
     function test_swap_solver_maxTokenVolume() public {
@@ -513,8 +523,6 @@ contract SOTConcreteTest is SOTBase {
         });
 
         checkPoolState(expectedState, postState);
-        // TODO: Check solverWriteSlot everywhere
-        // checkSolverWriteSlot(preSolverWriteSlot, sot.solverWriteSlot());
     }
 
     function test_swap_solver_swapMathWithFee() public {
@@ -564,7 +572,6 @@ contract SOTConcreteTest is SOTBase {
         pool.setPoolManagerFeeBips(100);
         uint256 poolManagerFee = (amountIn - amountInWithoutFee) / 100;
 
-        // TODO: add amountInUsed and amountOut checks everywhere
         pool.swap(params);
         PoolState memory postState = getPoolState();
 
@@ -910,9 +917,6 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(sqrtPriceLowX96, sqrtPrice1996, 'sqrtPriceLowX96');
         assertEq(sqrtPriceHighX96, sqrtPrice2004, 'sqrtPriceHighX96');
-
-        // TODO: Check update AMM Liquidity is correct
-        // TODO: Do we want to allow priceLow = spotPrice = priceHigh?
     }
 
     function test_depositLiquidity() public {
@@ -1373,63 +1377,62 @@ contract SOTConcreteTest is SOTBase {
 
         sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
     }
+
+    function test_eip71Signature() public {
+        address publicKey = 0xA52A878CE46F233794FeE5c976eb2528e17510d7;
+        uint256 privateKey = 0x709fd5c6a885a6efbe01bce2d72cb1b4b0c56abcf3599f39108764ce5bf2c59e;
+        address sotAddress = 0xf678F3DF67EBea04b3a0c1C2636eEc2504c92BA2;
+
+        SolverOrderType memory sotParams = SolverOrderType({
+            amountInMax: 10e18,
+            solverPriceX192Discounted: 2290 * 2 ** 192,
+            // Solving is expensive and we don't want to SOT reverts
+            // multiple SOT can land in the same block
+            // the first SOT is doing the favor of unlocking the pool, shifting the spotPrice
+            // if you land first you'll get the discounted price if you land second you will get a base price
+            solverPriceX192Base: 2290 * 2 ** 192,
+            // new AMM spot price after the swap
+            sqrtSpotPriceX96New: 3791986971626720137260477456763,
+            authorizedRecipient: publicKey,
+            authorizedSender: publicKey,
+            // should be a current block timestamp
+            signatureTimestamp: 0,
+            expiry: 1000,
+            // soft lock of AMM, in block0 the price is 100 and we know the price would be 98 < > 102
+            feeMinToken0: 10, // 10 = 0.01%
+            feeMaxToken0: 100, // 100 = 1%
+            feeGrowthInPipsToken0: 500, // 0 %% 10*4
+            feeMinToken1: 10,
+            feeMaxToken1: 100,
+            feeGrowthInPipsToken1: 500,
+            // every time alternate the expected flag between 0 and 1
+            nonce: 24,
+            expectedFlag: 1,
+            isZeroToOne: false
+        });
+
+        bytes32 typeHash = keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+        );
+
+        bytes32 hashedName = keccak256('Valantis Solver Order Type');
+        bytes32 hashedVersion = keccak256('1');
+
+        bytes32 domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, 11155111, sotAddress));
+
+        bytes32 digest = keccak256(
+            abi.encodePacked('\x19\x01', domainSeparator, keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams)))
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        bytes memory signature = abi.encodePacked(r, s, bytes1(v));
+
+        bytes
+            memory viemSignature = hex'6f6b9fade011727f978c46a60d091efc8838fcac50af3c19ee1f49700664f27863d7e5e0b496d170cb38289a1e8a3943353a684837eb153accb24c74bb187f211b';
+
+        assertEq(signature, viemSignature, 'eip712 signature mismatch');
+
+        emit LogBytes(signature);
+    }
 }
-
-/**
-    Test Cases:
-
-    ==> Solver Swap 
-        * [*] All types of signatures, failure and edge cases
-        * [ ] Multiple quotes in the same block 
-            - [*] Discounted/Non-Discounted
-            - [*] Valid/Invalid
-            - [*] Replay Protection
-            - [ ] Effects on liquidity
-        * [ ] AMM Spot Price Updates
-            - [ ] Frontrun attacks
-            - [*] Solver swap combined with AMM swap
-            - [ ] Pool Liquidity should be calculated correctly after update
-        * [ ] Reentrancy Protection
-        * [ ] Interactions with Oracle
-            - [ ] High deviation should revert
-        * [*] Valid/Invalid fee paths
-        * [ ] Effects on amm fee
-        * [*] Calculation of Manager Fee
-        * [*] Correct amountIn and out calculations 
-        * [*] Solver fee in BIPS is applied correctly
-        * [*] Swap Math is correct, amountOut calculations are correct
-        * [*] Max quotes in a block
-        * [ ] Expired quotes should not be allowed 
-
-    ==> AMM Swap
-        * [*] Effects on AMM when very large swaps drain pool in one token, spot price etc.
-        * [*] Valid/Invalid fee paths
-        * [ ] AMM Math is as expected
-        * [ ] Liquidity is calculated correctly
-        * [ ] Set price bounds shifts liquidity correctly
-        * [ ] Fee growth is correct, pool is soft locked before solver swap
-        * [ ] No AMM swap is every able to change Solver Write Slot [invariant]
-        * [*] Single Sided Liquidity
-    
-    ==> General Ops
-        * [*] Pause/Unpause works as expected [done]
-        * [ ] Constructor sets all values correctly
-        * [ ] Get Reserves at Price function is correct
-        * [ ] All important functions are reentrancy protected
-        * [ ] Manager is able to withdraw fee from Sovereign Pool
-        * [ ] Critical Manager operations are timelocked
-        * [*] Check spot price manipulation on deposit/withdraw/setPriceBounds
-        * [*] Tests for depositLiquidity
-        * [*] Tests for withdrawLiquidity
-    
-    ==> Gas
-        * [ ] Prepare setup for correct gas reports
-        * [ ] Solvers should do maximum 2 storage writes in SOT
-
-    ==> Imp
-        * [ ] Fuzz at edges of liquidity to make sure there are no path independence issues
-        * [ ] Write tests for LiquidityAmounts library especially at edges
-        * [ ] What happens when spotPrice = spotPriceLow = spotPriceHigh, quote becomes infinite.
-        * [ ] Check if maxVolume per quote is enforced in amountOut
-        * [ ] Without an SOT quote or deposits, the amm liquidity should never change by just amm swaps 
-*/

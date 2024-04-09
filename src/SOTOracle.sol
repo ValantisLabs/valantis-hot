@@ -11,7 +11,9 @@ import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interfac
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 
-contract SOTOracle {
+import { ISOTOracle } from 'src/interfaces/ISOTOracle.sol';
+
+contract SOTOracle is ISOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
@@ -51,15 +53,15 @@ contract SOTOracle {
         @dev Oracle prices are considered stale beyond this threshold,
              meaning that all swaps should revert.
      */
-    uint32 public immutable maxOracleUpdateDurationFeed0;
-    uint32 public immutable maxOracleUpdateDurationFeed1;
+    uint32 public immutable override maxOracleUpdateDurationFeed0;
+    uint32 public immutable override maxOracleUpdateDurationFeed1;
 
     /**
 	    @notice Price feeds for token{0,1}, denominated in USD.
 	    @dev These must be valid Chainlink Price Feeds.
      */
-    AggregatorV3Interface public immutable feedToken0;
-    AggregatorV3Interface public immutable feedToken1;
+    AggregatorV3Interface public immutable override feedToken0;
+    AggregatorV3Interface public immutable override feedToken1;
 
     /************************************************
      *  CONSTRUCTOR
