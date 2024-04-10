@@ -477,7 +477,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price (inclusive).
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain.
         @dev Only callable by `liquidityProvider`.
-        @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
+        @dev It is recommended that `liquidityProvider` implements a timelock when calling this function.
         @dev It assumes that `liquidityProvider` implements sufficient internal protection against
              sandwich attacks, slippage checks or other types of spot price manipulation.
      */
