@@ -947,6 +947,13 @@ contract SOTConcreteTest is SOTBase {
         sot.setPriceBounds(sqrtPrice1996, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
         (, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
 
+        // Wolfram Calculations, using uniswap book equations
+        // liquidity0 = 223942152100743332644993.439824912284555965182450458024505347
+        // liquidity1 = 223494938393435637038291.193984236332870991687954456111819346
+        // expectedEffectiveAMMLiquidity = 223494938393435637038291
+
+        assertEq(sot.effectiveAMMLiquidity(), 223494938393435637038291, 'effectiveAMMLiquidity');
+
         assertEq(sqrtPriceLowX96, sqrtPrice1996, 'sqrtPriceLowX96');
         assertEq(sqrtPriceHighX96, sqrtPrice2004, 'sqrtPriceHighX96');
     }
