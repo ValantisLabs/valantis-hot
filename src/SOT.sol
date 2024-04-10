@@ -73,6 +73,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__getLiquidityQuote_zeroAmountOut();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
+    error SOT__setPriceBounds_spotPriceAndOracleDeviation();
     error SOT__setSolverFeeInBips_invalidSolverFee();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
@@ -476,7 +477,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         @param _expectedSqrtSpotPriceUpperX96 Upper limit for expected spot price (inclusive).
         @dev Can be used to utilize disproportionate token liquidity by tuning price bounds offchain.
         @dev Only callable by `liquidityProvider`.
-        @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
+        @dev It is recommended that `liquidityProvider` implements a timelock when calling this function.
         @dev It assumes that `liquidityProvider` implements sufficient internal protection against
              sandwich attacks, slippage checks or other types of spot price manipulation.
      */
@@ -492,6 +493,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             _expectedSqrtSpotPriceLowerX96,
             _expectedSqrtSpotPriceUpperX96
         );
+
+        if (
+            !SOTParams.checkPriceDeviation(
+                sqrtSpotPriceX96Cache,
+                getSqrtOraclePriceX96(),
+                solverReadSlot.maxOracleDeviationBips
+            )
+        ) {
+            revert SOT__setPriceBounds_spotPriceAndOracleDeviation();
+        }
 
         // Check that new bounds are valid,
         // and do not exclude current spot price
