@@ -912,8 +912,40 @@ contract SOTConcreteTest is SOTBase {
         vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
         sot.setPriceBounds(sqrtPrice2001, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
 
+        uint160 sqrtPriceLowX96;
+        uint160 sqrtPriceHighX96;
+
+        {
+            (, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+
+            uint160 sqrtPrice2100 = getSqrtPriceX96(
+                2180 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            _setAMMState(sqrtPrice2100, sqrtPriceLowX96, sqrtPriceHighX96);
+
+            sot.setMaxOracleDeviationBips(100);
+            feedToken0.updateAnswer(5000e8);
+
+            uint160 sqrtPrice1980 = getSqrtPriceX96(
+                1980 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+            uint160 sqrtPrice2200 = getSqrtPriceX96(
+                2200 * 10 ** feedToken0.decimals(),
+                1 * 10 ** feedToken1.decimals()
+            );
+
+            vm.expectRevert(SOT.SOT__setPriceBounds_spotPriceAndOracleDeviation.selector);
+            sot.setPriceBounds(sqrtPrice1980, sqrtPrice2200, 0, 0);
+
+            _setAMMState(sqrtPrice2000, sqrtPriceLowX96, sqrtPriceHighX96);
+            feedToken0.updateAnswer(2000e8);
+        }
+
         sot.setPriceBounds(sqrtPrice1996, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
-        (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        (, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
 
         assertEq(sqrtPriceLowX96, sqrtPrice1996, 'sqrtPriceLowX96');
         assertEq(sqrtPriceHighX96, sqrtPrice2004, 'sqrtPriceHighX96');
