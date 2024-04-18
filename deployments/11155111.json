@@ -11,6 +11,8 @@
   "ProtocolFactory": "",
   "SovereignPoolFactory": "",
   "SovereignPool": "",
+  "LiquidityProvider": "",
   "SOT": "",
-  "LiquidityProvider": ""
+  "ArrakisVault": "",
+  "ArrakisRouter": ""
 }

@@ -20,7 +20,9 @@
     "compile": "forge-deploy gen-deployer && forge build",
     "deploy:ProtocolFactory": "forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url ",
     "deploy:SovereignPool": "forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url ",
-    "deploy:SOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url "
+    "deploy:SOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url ",
+    "query:SOT": "forge script scripts/utils/SOTQuery.s.sol:SOTQueryScript --rpc-url ",
+    "deposit:SOT": "forge script scripts/deposit/SOTDeposit.s.sol:SOTDepositScript --rpc-url "
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
