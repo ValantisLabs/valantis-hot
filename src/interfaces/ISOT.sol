@@ -15,10 +15,12 @@ interface ISOT is ISOTOracle {
     event ALMDeployed(string indexed name, address alm, address pool);
     event AMMFeeSet(uint16 feeMaxToken0, uint16 feeMaxToken1);
     event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
+    event FeedSetApproval();
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
     event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBips);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
+    event OracleFeedsSet(address feed0, address feed1);
     event PauseSet(bool pause);
     event PostWithdrawalLiquidityCapped(
         uint160 sqrtSpotPriceX96,
