@@ -17,6 +17,7 @@ import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces
 
 import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
+import { SOTOracle } from 'src/SOTOracle.sol';
 import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from 'src/structs/SOTStructs.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
@@ -1473,5 +1474,59 @@ contract SOTConcreteTest is SOTBase {
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
         emit LogBytes(signature);
+    }
+
+    function test_setFeeds() public {
+        SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
+        pool = this.deploySovereignPool(poolArgs);
+        SOTConstructorArgs memory sotArgs = generateDefaultSOTConstructorArgs(pool);
+        sotArgs.feedToken0 = address(0);
+        sotArgs.feedToken1 = address(0);
+
+        sot = this.deploySOT(sotArgs);
+
+        vm.startPrank(makeAddr('NOT_MANAGER'));
+        vm.expectRevert(SOT.SOT__onlyManager.selector);
+        sot.setFeeds(address(1), address(1));
+        vm.stopPrank();
+
+        vm.expectRevert(SOT.SOT__setFeeds_feedSetNotApproved.selector);
+        sot.setFeeds(address(1), address(1));
+
+        vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
+        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+        sot.approveFeedSet();
+        vm.stopPrank();
+
+        sot.approveFeedSet();
+        sot.setFeeds(address(1), address(1));
+
+        assertEq(address(sot.feedToken0()), address(1), 'feedToken0');
+        assertEq(address(sot.feedToken1()), address(1), 'feedToken1');
+
+        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_feedsAlreadySet.selector);
+        sot.setFeeds(address(2), address(2));
+    }
+
+    function test_setAMMFees() public {
+        SolverWriteSlot memory expectedSolverWriteSlot = getSolverWriteSlot();
+
+        vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
+        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
+        sot.setAMMFees(100, 200, 300, 400, 500, 600);
+        vm.stopPrank();
+
+        sot.setAMMFees(100, 200, 300, 400, 500, 600);
+
+        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+
+        expectedSolverWriteSlot.feeMinToken0 = 100;
+        expectedSolverWriteSlot.feeMaxToken0 = 200;
+        expectedSolverWriteSlot.feeGrowthInPipsToken0 = 300;
+        expectedSolverWriteSlot.feeMinToken1 = 400;
+        expectedSolverWriteSlot.feeMaxToken1 = 500;
+        expectedSolverWriteSlot.feeGrowthInPipsToken1 = 600;
+
+        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
     }
 }

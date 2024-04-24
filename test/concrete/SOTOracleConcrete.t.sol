@@ -37,6 +37,33 @@ contract SOTOracleConcrete is SOTBase {
         assertEq(oracle.maxOracleUpdateDurationFeed1(), 10 minutes);
     }
 
+    function test_setFeeds() public {
+        (feedToken0, feedToken1) = deployChainlinkOracles(18, 6);
+
+        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+            address(token0),
+            address(token1),
+            MockChainlinkOracle(address(0)),
+            MockChainlinkOracle(address(0)),
+            ORACLE_FEED_UPDATE_PERIOD,
+            ORACLE_FEED_UPDATE_PERIOD
+        );
+
+        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_newFeedsCannotBeZero.selector);
+        oracleHelper.setFeeds(address(0), address(1));
+
+        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_newFeedsCannotBeZero.selector);
+        oracleHelper.setFeeds(address(1), address(0));
+
+        oracleHelper.setFeeds(address(feedToken0), address(feedToken1));
+
+        assertEq(address(oracleHelper.feedToken0()), address(feedToken0));
+        assertEq(address(oracleHelper.feedToken1()), address(feedToken1));
+
+        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_feedsAlreadySet.selector);
+        oracleHelper.setFeeds(address(1), address(1));
+    }
+
     function test__getOraclePriceUSD() public {
         (feedToken0, feedToken1) = deployChainlinkOracles(18, 6);
 

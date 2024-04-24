@@ -73,8 +73,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         _addToContractsToApprove(address(sot));
     }
 
-    function deployAndSetDefaultSOT(SovereignPool _pool) public returns (SOT _sot) {
-        SOTConstructorArgs memory args = SOTConstructorArgs({
+    function generateDefaultSOTConstructorArgs(
+        SovereignPool _pool
+    ) public view returns (SOTConstructorArgs memory args) {
+        args = SOTConstructorArgs({
             pool: address(_pool),
             manager: address(this),
             signer: address(mockSigner),
@@ -93,6 +95,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxAMMFeeGrowthInPips: 10000,
             minAMMFee: 1 // 0.01%
         });
+    }
+
+    function deployAndSetDefaultSOT(SovereignPool _pool) public returns (SOT _sot) {
+        SOTConstructorArgs memory args = generateDefaultSOTConstructorArgs(_pool);
 
         vm.startPrank(_pool.poolManager());
         _sot = this.deploySOT(args);

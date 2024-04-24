@@ -21,8 +21,6 @@ contract SOTOracle is ISOTOracle {
      *  CUSTOM ERRORS
      ***********************************************/
 
-    error SOTOracle__constructor_invalidFeedToken0();
-    error SOTOracle__constructor_invalidFeedToken1();
     error SOTOracle___getOraclePriceUSD_stalePrice();
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
     error SOTOracle___setFeeds_feedsAlreadySet();

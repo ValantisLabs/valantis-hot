@@ -23,6 +23,10 @@ contract SOTOracleHelper is SOTOracle {
         )
     {}
 
+    function setFeeds(address _feedToken0, address _feedToken1) public {
+        return _setFeeds(_feedToken0, _feedToken1);
+    }
+
     function getOraclePriceUSD(
         AggregatorV3Interface feed,
         uint32 maxOracleUpdateDuration
