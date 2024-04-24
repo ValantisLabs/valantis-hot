@@ -517,6 +517,51 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
     }
 
+    /** 
+        @notice Sets the AMM fee parameters directly.
+        @param feeMinToken0 Minimum fee for token0.
+        @param feeMaxToken0 Maximum fee for token0.
+        @param feeGrowthInPipsToken0 Fee growth rate for token0.
+        @param feeMinToken1 Minimum fee for token1.
+        @param feeMaxToken1 Maximum fee for token1.
+        @param feeGrowthInPipsToken1 Fee growth rate for token1.
+        @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees
+            in case signer is not set for AMM-only mode.
+     */
+    function setAMMFees(
+        uint16 feeMinToken0,
+        uint16 feeMaxToken0,
+        uint16 feeGrowthInPipsToken0,
+        uint16 feeMinToken1,
+        uint16 feeMaxToken1,
+        uint16 feeGrowthInPipsToken1
+    ) public onlyUnpaused onlyLiquidityProvider {
+        SOTParams.validateFeeParams(
+            feeMinToken0,
+            feeMaxToken0,
+            feeGrowthInPipsToken0,
+            feeMinToken1,
+            feeMaxToken1,
+            feeGrowthInPipsToken1,
+            minAMMFee,
+            minAMMFeeGrowthInPips,
+            maxAMMFeeGrowthInPips
+        );
+
+        SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
+
+        solverWriteSlotCache.feeMinToken0 = feeMinToken0;
+        solverWriteSlotCache.feeMaxToken0 = feeMaxToken0;
+        solverWriteSlotCache.feeGrowthInPipsToken0 = feeGrowthInPipsToken0;
+        solverWriteSlotCache.feeMinToken1 = feeMinToken1;
+        solverWriteSlotCache.feeMaxToken1 = feeMaxToken1;
+        solverWriteSlotCache.feeGrowthInPipsToken1 = feeGrowthInPipsToken1;
+
+        solverWriteSlot = solverWriteSlotCache;
+
+        emit AMMFeeSet(feeMaxToken0, feeMaxToken1);
+    }
+
     /************************************************
      *  EXTERNAL FUNCTIONS
      ***********************************************/
@@ -844,7 +889,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Check validity of new AMM dynamic fee parameters
-        sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
+        SOTParams.validateFeeParams(
+            sot.feeMinToken0,
+            sot.feeMaxToken0,
+            sot.feeGrowthInPipsToken0,
+            sot.feeMinToken1,
+            sot.feeMaxToken1,
+            sot.feeGrowthInPipsToken1,
+            minAMMFee,
+            minAMMFeeGrowthInPips,
+            maxAMMFeeGrowthInPips
+        );
 
         sot.validateBasicParams(
             almLiquidityQuoteInput.isZeroToOne,

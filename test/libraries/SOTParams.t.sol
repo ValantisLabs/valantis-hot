@@ -51,7 +51,17 @@ contract SOTParamsHarness {
         uint16 feeGrowthMinBound,
         uint16 feeGrowthMaxBound
     ) public pure {
-        SOTParams.validateFeeParams(sot, feeMinBound, feeGrowthMinBound, feeGrowthMaxBound);
+        SOTParams.validateFeeParams(
+            sot.feeMinToken0,
+            sot.feeMaxToken0,
+            sot.feeGrowthInPipsToken0,
+            sot.feeMinToken1,
+            sot.feeMaxToken1,
+            sot.feeGrowthInPipsToken1,
+            feeMinBound,
+            feeGrowthMinBound,
+            feeGrowthMaxBound
+        );
     }
 
     function validatePriceConsistency(
