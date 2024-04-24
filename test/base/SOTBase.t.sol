@@ -320,8 +320,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function _setAMMState(uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) internal {
         mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
-        vm.store(address(sot), bytes32(uint256(3)), bytes32(uint256(mockAMMState.slot1)));
-        vm.store(address(sot), bytes32(uint256(4)), bytes32(uint256(mockAMMState.slot2)));
+        vm.store(address(sot), bytes32(uint256(5)), bytes32(uint256(mockAMMState.slot1)));
+        vm.store(address(sot), bytes32(uint256(6)), bytes32(uint256(mockAMMState.slot2)));
 
         // Check that the amm state is setup correctly
         (uint160 _sqrtSpotPriceX96, uint160 _sqrtPriceLowX96, uint160 _sqrtPriceHighX96) = sot.getAMMState();
@@ -346,7 +346,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastProcessedBlockQuoteCount
         );
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(5)), data);
+        vm.store(address(sot), bytes32(uint256(7)), data);
     }
 
     function _setSolverReadSlot(SolverReadSlot memory slot) internal {
@@ -361,7 +361,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
 
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(6)), data);
+        vm.store(address(sot), bytes32(uint256(8)), data);
 
         SolverReadSlot memory updateSlot = getSolverReadSlot();
 
