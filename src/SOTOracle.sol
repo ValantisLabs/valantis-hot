@@ -21,10 +21,10 @@ contract SOTOracle is ISOTOracle {
      *  CUSTOM ERRORS
      ***********************************************/
 
-    error SOTOracle__constructor_invalidFeedToken0();
-    error SOTOracle__constructor_invalidFeedToken1();
     error SOTOracle___getOraclePriceUSD_stalePrice();
     error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
+    error SOTOracle___setFeeds_feedsAlreadySet();
+    error SOTOracle___setFeeds_newFeedsCannotBeZero();
 
     /************************************************
      *  IMMUTABLES
@@ -60,8 +60,8 @@ contract SOTOracle is ISOTOracle {
 	    @notice Price feeds for token{0,1}, denominated in USD.
 	    @dev These must be valid Chainlink Price Feeds.
      */
-    AggregatorV3Interface public immutable override feedToken0;
-    AggregatorV3Interface public immutable override feedToken1;
+    AggregatorV3Interface public override feedToken0;
+    AggregatorV3Interface public override feedToken1;
 
     /************************************************
      *  CONSTRUCTOR
@@ -84,14 +84,7 @@ contract SOTOracle is ISOTOracle {
         maxOracleUpdateDurationFeed0 = _maxOracleUpdateDurationFeed0;
         maxOracleUpdateDurationFeed1 = _maxOracleUpdateDurationFeed1;
 
-        if (_feedToken0 == address(0)) {
-            revert SOTOracle__constructor_invalidFeedToken0();
-        }
-
-        if (_feedToken1 == address(0)) {
-            revert SOTOracle__constructor_invalidFeedToken1();
-        }
-
+        // Feeds can be 0 during deployment, but once feeds are set, they cannot be changed.
         feedToken0 = AggregatorV3Interface(_feedToken0);
         feedToken1 = AggregatorV3Interface(_feedToken1);
     }
@@ -122,6 +115,25 @@ contract SOTOracle is ISOTOracle {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
+
+    /**
+        @notice Sets price feeds for token{0,1} to a non-zero value. Can only be called once.
+        @param _feedToken0 Address of token0's price feed.
+        @param _feedToken1 Address of token1's price feed.
+        @dev This is a critical function and should only be called by trusted sources, with appropriate permissions.
+     */
+    function _setFeeds(address _feedToken0, address _feedToken1) internal {
+        if (address(feedToken0) != address(0) || address(feedToken1) != address(0)) {
+            revert SOTOracle___setFeeds_feedsAlreadySet();
+        }
+
+        if (_feedToken0 == address(0) || _feedToken1 == address(0)) {
+            revert SOTOracle___setFeeds_newFeedsCannotBeZero();
+        }
+
+        feedToken0 = AggregatorV3Interface(_feedToken0);
+        feedToken1 = AggregatorV3Interface(_feedToken1);
+    }
 
     function _getOraclePriceUSD(
         AggregatorV3Interface feed,

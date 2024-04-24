@@ -77,19 +77,24 @@ library SOTParams {
     }
 
     function validateFeeParams(
-        SolverOrderType memory sot,
+        uint16 feeMinToken0,
+        uint16 feeMaxToken0,
+        uint16 feeGrowthInPipsToken0,
+        uint16 feeMinToken1,
+        uint16 feeMaxToken1,
+        uint16 feeGrowthInPipsToken1,
         uint16 feeMinBound,
         uint16 feeGrowthInPipsMinBound,
         uint16 feeGrowthInPipsMaxBound
     ) internal pure {
-        if (sot.feeMinToken0 < feeMinBound || sot.feeMinToken1 < feeMinBound)
+        if (feeMinToken0 < feeMinBound || feeMinToken1 < feeMinBound)
             revert SOTParams__validateFeeParams_insufficientFee();
 
         if (
-            sot.feeGrowthInPipsToken0 < feeGrowthInPipsMinBound ||
-            sot.feeGrowthInPipsToken1 < feeGrowthInPipsMinBound ||
-            sot.feeGrowthInPipsToken0 > feeGrowthInPipsMaxBound ||
-            sot.feeGrowthInPipsToken1 > feeGrowthInPipsMaxBound
+            feeGrowthInPipsToken0 < feeGrowthInPipsMinBound ||
+            feeGrowthInPipsToken1 < feeGrowthInPipsMinBound ||
+            feeGrowthInPipsToken0 > feeGrowthInPipsMaxBound ||
+            feeGrowthInPipsToken1 > feeGrowthInPipsMaxBound
         ) {
             revert SOTParams__validateFeeParams_invalidfeeGrowthInPips();
         }
@@ -97,10 +102,10 @@ library SOTParams {
         // feeMax should be strictly less than 50% of total amountIn.
         // Note: A fee of 10_000 bips represents that for X amountIn swapped, we will charge X fee.
         // So, if amountIn = A, and feeBips = 100%, then amountInMinusFee = A/2, and effectiveFee = A/2.
-        if (sot.feeMaxToken0 >= SOTConstants.BIPS || sot.feeMaxToken1 >= SOTConstants.BIPS)
+        if (feeMaxToken0 >= SOTConstants.BIPS || feeMaxToken1 >= SOTConstants.BIPS)
             revert SOTParams__validateFeeParams_invalidFeeMax();
 
-        if (sot.feeMinToken0 > sot.feeMaxToken0 || sot.feeMinToken1 > sot.feeMaxToken1)
+        if (feeMinToken0 > feeMaxToken0 || feeMinToken1 > feeMaxToken1)
             revert SOTParams__validateFeeParams_invalidFeeMin();
     }
 

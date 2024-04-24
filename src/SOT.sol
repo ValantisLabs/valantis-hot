@@ -71,6 +71,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__depositLiquidity_spotPriceAndOracleDeviation();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_zeroAmountOut();
+    error SOT__setFeeds_feedSetNotApproved();
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
     error SOT__setPriceBounds_spotPriceAndOracleDeviation();
@@ -131,6 +132,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     /************************************************
      *  STORAGE
      ***********************************************/
+
+    bool private _feedSetApproved;
 
     /**
         @notice Active AMM Liquidity (which gets utilized during AMM swaps).
@@ -398,6 +401,22 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     }
 
     /**
+        @notice Sets the feeds for token{0,1}.
+        @dev Only callable by `manager`.
+        @dev It assumes that `manager` implements a timelock when calling this function.
+        @dev Feeds can only be set once, and both should have non-zero values.
+     */
+    function setFeeds(address _feedToken0, address _feedToken1) external onlyManager {
+        if (!_feedSetApproved) {
+            revert SOT__setFeeds_feedSetNotApproved();
+        }
+
+        _setFeeds(_feedToken0, _feedToken1);
+
+        emit OracleFeedsSet(_feedToken0, _feedToken1);
+    }
+
+    /**
         @notice Changes the maximum token volumes available for a single SOT quote.
         @dev Only callable by `manager`.
         @dev It assumes that `manager` implements a timelock when calling this function.
@@ -469,6 +488,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         emit PauseSet(_value);
     }
 
+    function approveFeedSet() external onlyLiquidityProvider {
+        _feedSetApproved = true;
+
+        emit FeedSetApproval();
+    }
+
     /**
         @notice Sets the AMM position's square-root upper and lower price bounds.
         @param _sqrtPriceLowX96 New square-root lower price bound.
@@ -494,14 +519,19 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
-        if (
-            !SOTParams.checkPriceDeviation(
-                sqrtSpotPriceX96Cache,
-                getSqrtOraclePriceX96(),
-                solverReadSlot.maxOracleDeviationBips
-            )
-        ) {
-            revert SOT__setPriceBounds_spotPriceAndOracleDeviation();
+        // It is sufficient to check only feedToken0, because either both of the feeds are set, or both are null.
+        if (address(feedToken0) != address(0)) {
+            // Feeds have been set, oracle deviation should be checked.
+            // If feeds are not set, then SOT is in AMM-only mode, and oracle deviation check is not required.
+            if (
+                !SOTParams.checkPriceDeviation(
+                    sqrtSpotPriceX96Cache,
+                    getSqrtOraclePriceX96(),
+                    solverReadSlot.maxOracleDeviationBips
+                )
+            ) {
+                revert SOT__setPriceBounds_spotPriceAndOracleDeviation();
+            }
         }
 
         // Check that new bounds are valid,
@@ -515,6 +545,51 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         _updateAMMLiquidity();
 
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
+    }
+
+    /** 
+        @notice Sets the AMM fee parameters directly.
+        @param _feeMinToken0 Minimum fee for token0.
+        @param _feeMaxToken0 Maximum fee for token0.
+        @param _feeGrowthInPipsToken0 Fee growth rate for token0.
+        @param _feeMinToken1 Minimum fee for token1.
+        @param _feeMaxToken1 Maximum fee for token1.
+        @param _feeGrowthInPipsToken1 Fee growth rate for token1.
+        @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees
+            in case signer is not set for AMM-only mode.
+     */
+    function setAMMFees(
+        uint16 _feeMinToken0,
+        uint16 _feeMaxToken0,
+        uint16 _feeGrowthInPipsToken0,
+        uint16 _feeMinToken1,
+        uint16 _feeMaxToken1,
+        uint16 _feeGrowthInPipsToken1
+    ) public onlyUnpaused onlyLiquidityProvider {
+        SOTParams.validateFeeParams(
+            _feeMinToken0,
+            _feeMaxToken0,
+            _feeGrowthInPipsToken0,
+            _feeMinToken1,
+            _feeMaxToken1,
+            _feeGrowthInPipsToken1,
+            minAMMFee,
+            minAMMFeeGrowthInPips,
+            maxAMMFeeGrowthInPips
+        );
+
+        SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
+
+        solverWriteSlotCache.feeMinToken0 = _feeMinToken0;
+        solverWriteSlotCache.feeMaxToken0 = _feeMaxToken0;
+        solverWriteSlotCache.feeGrowthInPipsToken0 = _feeGrowthInPipsToken0;
+        solverWriteSlotCache.feeMinToken1 = _feeMinToken1;
+        solverWriteSlotCache.feeMaxToken1 = _feeMaxToken1;
+        solverWriteSlotCache.feeGrowthInPipsToken1 = _feeGrowthInPipsToken1;
+
+        solverWriteSlot = solverWriteSlotCache;
+
+        emit AMMFeeSet(_feeMaxToken0, _feeMaxToken1);
     }
 
     /************************************************
@@ -575,14 +650,19 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
-        if (
-            !SOTParams.checkPriceDeviation(
-                sqrtSpotPriceX96Cache,
-                getSqrtOraclePriceX96(),
-                solverReadSlot.maxOracleDeviationBips
-            )
-        ) {
-            revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
+        // It is sufficient to check only feedToken0, because either both of the feeds are set, or both are null.
+        if (address(feedToken0) != address(0)) {
+            // Feeds have been set, oracle deviation should be checked.
+            // If feeds are not set, then SOT is in AMM-only mode, and oracle deviation check is not required.
+            if (
+                !SOTParams.checkPriceDeviation(
+                    sqrtSpotPriceX96Cache,
+                    getSqrtOraclePriceX96(),
+                    solverReadSlot.maxOracleDeviationBips
+                )
+            ) {
+                revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
+            }
         }
 
         // Deposit amount(s) into pool
@@ -844,7 +924,17 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
         // Check validity of new AMM dynamic fee parameters
-        sot.validateFeeParams(minAMMFee, minAMMFeeGrowthInPips, maxAMMFeeGrowthInPips);
+        SOTParams.validateFeeParams(
+            sot.feeMinToken0,
+            sot.feeMaxToken0,
+            sot.feeGrowthInPipsToken0,
+            sot.feeMinToken1,
+            sot.feeMaxToken1,
+            sot.feeGrowthInPipsToken1,
+            minAMMFee,
+            minAMMFeeGrowthInPips,
+            maxAMMFeeGrowthInPips
+        );
 
         sot.validateBasicParams(
             almLiquidityQuoteInput.isZeroToOne,
