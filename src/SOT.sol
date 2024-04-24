@@ -823,16 +823,15 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             : solverWriteSlotCache.feeGrowthInPipsToken1;
 
         // Calculate dynamic fee, linearly increasing over time
-        feeInBips =
-            uint32(feeMin) +
-            Math
-                .mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100)
-                .toUint32();
+        uint256 feeInBipsTemp = uint256(feeMin) +
+            Math.mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100);
 
         // Cap fee to maximum value, if necessary
-        if (feeInBips > uint32(feeMax)) {
-            feeInBips = uint32(feeMax);
+        if (feeInBipsTemp > feeMax) {
+            feeInBipsTemp = feeMax;
         }
+
+        feeInBips = uint32(feeInBipsTemp);
     }
 
     /**
