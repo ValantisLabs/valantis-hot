@@ -118,10 +118,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 					as time increases between last processed quote.
         Min Value: 0 %
         Max Value: 0.65535 % per second
-        @dev SOT reverts if feeGrowthInPips exceeds these bounds.
+        @dev SOT reverts if feeGrowthE6 exceeds these bounds.
      */
-    uint16 public immutable minAMMFeeGrowthInPips;
-    uint16 public immutable maxAMMFeeGrowthInPips;
+    uint16 public immutable minAMMFeeGrowthE6;
+    uint16 public immutable maxAMMFeeGrowthE6;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
@@ -271,12 +271,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         maxOracleDeviationBound = _args.maxOracleDeviationBound;
 
-        if (_args.minAMMFeeGrowthInPips > _args.maxAMMFeeGrowthInPips) {
+        if (_args.minAMMFeeGrowthE6 > _args.maxAMMFeeGrowthE6) {
             revert SOT__constructor_invalidFeeGrowthBounds();
         }
-        minAMMFeeGrowthInPips = _args.minAMMFeeGrowthInPips;
+        minAMMFeeGrowthE6 = _args.minAMMFeeGrowthE6;
 
-        maxAMMFeeGrowthInPips = _args.maxAMMFeeGrowthInPips;
+        maxAMMFeeGrowthE6 = _args.maxAMMFeeGrowthE6;
 
         if (_args.minAMMFee > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMinAMMFee();
@@ -551,41 +551,41 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         @notice Sets the AMM fee parameters directly.
         @param _feeMinToken0 Minimum fee for token0.
         @param _feeMaxToken0 Maximum fee for token0.
-        @param _feeGrowthInPipsToken0 Fee growth rate for token0.
+        @param _feeGrowthE6Token0 Fee growth rate for token0.
         @param _feeMinToken1 Minimum fee for token1.
         @param _feeMaxToken1 Maximum fee for token1.
-        @param _feeGrowthInPipsToken1 Fee growth rate for token1.
+        @param _feeGrowthE6Token1 Fee growth rate for token1.
         @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees
             in case signer is not set for AMM-only mode.
      */
     function setAMMFees(
         uint16 _feeMinToken0,
         uint16 _feeMaxToken0,
-        uint16 _feeGrowthInPipsToken0,
+        uint16 _feeGrowthE6Token0,
         uint16 _feeMinToken1,
         uint16 _feeMaxToken1,
-        uint16 _feeGrowthInPipsToken1
+        uint16 _feeGrowthE6Token1
     ) public onlyUnpaused onlyLiquidityProvider {
         SOTParams.validateFeeParams(
             _feeMinToken0,
             _feeMaxToken0,
-            _feeGrowthInPipsToken0,
+            _feeGrowthE6Token0,
             _feeMinToken1,
             _feeMaxToken1,
-            _feeGrowthInPipsToken1,
+            _feeGrowthE6Token1,
             minAMMFee,
-            minAMMFeeGrowthInPips,
-            maxAMMFeeGrowthInPips
+            minAMMFeeGrowthE6,
+            maxAMMFeeGrowthE6
         );
 
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
 
         solverWriteSlotCache.feeMinToken0 = _feeMinToken0;
         solverWriteSlotCache.feeMaxToken0 = _feeMaxToken0;
-        solverWriteSlotCache.feeGrowthInPipsToken0 = _feeGrowthInPipsToken0;
+        solverWriteSlotCache.feeGrowthE6Token0 = _feeGrowthE6Token0;
         solverWriteSlotCache.feeMinToken1 = _feeMinToken1;
         solverWriteSlotCache.feeMaxToken1 = _feeMaxToken1;
-        solverWriteSlotCache.feeGrowthInPipsToken1 = _feeGrowthInPipsToken1;
+        solverWriteSlotCache.feeGrowthE6Token1 = _feeGrowthE6Token1;
 
         solverWriteSlot = solverWriteSlotCache;
 
@@ -818,13 +818,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         // depending on the requested input token
         uint16 feeMin = isZeroToOne ? solverWriteSlotCache.feeMinToken0 : solverWriteSlotCache.feeMinToken1;
         uint16 feeMax = isZeroToOne ? solverWriteSlotCache.feeMaxToken0 : solverWriteSlotCache.feeMaxToken1;
-        uint16 feeGrowthInPips = isZeroToOne
-            ? solverWriteSlotCache.feeGrowthInPipsToken0
-            : solverWriteSlotCache.feeGrowthInPipsToken1;
+        uint16 feeGrowthE6 = isZeroToOne
+            ? solverWriteSlotCache.feeGrowthE6Token0
+            : solverWriteSlotCache.feeGrowthE6Token1;
 
         // Calculate dynamic fee, linearly increasing over time
         uint256 feeInBipsTemp = uint256(feeMin) +
-            Math.mulDiv(feeGrowthInPips, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100);
+            Math.mulDiv(feeGrowthE6, (block.timestamp - solverWriteSlotCache.lastProcessedSignatureTimestamp), 100);
 
         // Cap fee to maximum value, if necessary
         if (feeInBipsTemp > feeMax) {
@@ -926,13 +926,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         SOTParams.validateFeeParams(
             sot.feeMinToken0,
             sot.feeMaxToken0,
-            sot.feeGrowthInPipsToken0,
+            sot.feeGrowthE6Token0,
             sot.feeMinToken1,
             sot.feeMaxToken1,
-            sot.feeGrowthInPipsToken1,
+            sot.feeGrowthE6Token1,
             minAMMFee,
-            minAMMFeeGrowthInPips,
-            maxAMMFeeGrowthInPips
+            minAMMFeeGrowthE6,
+            maxAMMFeeGrowthE6
         );
 
         sot.validateBasicParams(
@@ -968,10 +968,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             // Update `solverWriteSlot`
             solverWriteSlot = SolverWriteSlot({
                 lastProcessedBlockQuoteCount: quotesInCurrentBlock,
-                feeGrowthInPipsToken0: sot.feeGrowthInPipsToken0,
+                feeGrowthE6Token0: sot.feeGrowthE6Token0,
                 feeMaxToken0: sot.feeMaxToken0,
                 feeMinToken0: sot.feeMinToken0,
-                feeGrowthInPipsToken1: sot.feeGrowthInPipsToken1,
+                feeGrowthE6Token1: sot.feeGrowthE6Token1,
                 feeMaxToken1: sot.feeMaxToken1,
                 feeMinToken1: sot.feeMinToken1,
                 lastStateUpdateTimestamp: block.timestamp.toUint32(),

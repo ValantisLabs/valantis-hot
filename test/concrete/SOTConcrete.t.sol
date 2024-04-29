@@ -706,10 +706,10 @@ contract SOTConcreteTest is SOTBase {
 
         SolverWriteSlot memory expectedSolverWriteSlot = SolverWriteSlot({
             lastProcessedBlockQuoteCount: 1,
-            feeGrowthInPipsToken0: 500,
+            feeGrowthE6Token0: 500,
             feeMaxToken0: 100,
             feeMinToken0: 10,
-            feeGrowthInPipsToken1: 500,
+            feeGrowthE6Token1: 500,
             feeMaxToken1: 100,
             feeMinToken1: 10,
             lastStateUpdateTimestamp: block.timestamp.toUint32(),
@@ -1250,12 +1250,12 @@ contract SOTConcreteTest is SOTBase {
         solverWriteSlot.lastProcessedSignatureTimestamp = uint32(block.timestamp);
 
         // for token0
-        solverWriteSlot.feeGrowthInPipsToken0 = 10;
+        solverWriteSlot.feeGrowthE6Token0 = 10;
         solverWriteSlot.feeMinToken0 = 20;
         solverWriteSlot.feeMaxToken0 = 1000;
 
         // for token1
-        solverWriteSlot.feeGrowthInPipsToken1 = 100;
+        solverWriteSlot.feeGrowthE6Token1 = 100;
         solverWriteSlot.feeMinToken1 = 10;
         solverWriteSlot.feeMaxToken1 = 1000;
 
@@ -1263,7 +1263,7 @@ contract SOTConcreteTest is SOTBase {
 
         solverWriteSlot = getSolverWriteSlot();
 
-        assertEq(solverWriteSlot.feeGrowthInPipsToken0, 10);
+        assertEq(solverWriteSlot.feeGrowthE6Token0, 10);
 
         uint256 snapshot = vm.snapshot();
 
@@ -1273,7 +1273,7 @@ contract SOTConcreteTest is SOTBase {
         uint32 feeInBips = solverWriteSlot.feeMinToken0 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthInPipsToken0,
+                    solverWriteSlot.feeGrowthE6Token0,
                     (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
@@ -1299,7 +1299,7 @@ contract SOTConcreteTest is SOTBase {
             solverWriteSlot.feeMinToken1 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthInPipsToken1,
+                    solverWriteSlot.feeGrowthE6Token1,
                     (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
@@ -1323,7 +1323,7 @@ contract SOTConcreteTest is SOTBase {
             solverWriteSlot.feeMinToken0 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthInPipsToken0,
+                    solverWriteSlot.feeGrowthE6Token0,
                     (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
@@ -1344,7 +1344,7 @@ contract SOTConcreteTest is SOTBase {
             solverWriteSlot.feeMinToken1 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthInPipsToken1,
+                    solverWriteSlot.feeGrowthE6Token1,
                     (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
@@ -1441,10 +1441,10 @@ contract SOTConcreteTest is SOTBase {
             // soft lock of AMM, in block0 the price is 100 and we know the price would be 98 < > 102
             feeMinToken0: 10, // 10 = 0.01%
             feeMaxToken0: 100, // 100 = 1%
-            feeGrowthInPipsToken0: 500, // 0 %% 10*4
+            feeGrowthE6Token0: 500, // 0 %% 10*4
             feeMinToken1: 10,
             feeMaxToken1: 100,
-            feeGrowthInPipsToken1: 500,
+            feeGrowthE6Token1: 500,
             // every time alternate the expected flag between 0 and 1
             nonce: 24,
             expectedFlag: 1,
@@ -1469,7 +1469,7 @@ contract SOTConcreteTest is SOTBase {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         bytes
-            memory viemSignature = hex'6f6b9fade011727f978c46a60d091efc8838fcac50af3c19ee1f49700664f27863d7e5e0b496d170cb38289a1e8a3943353a684837eb153accb24c74bb187f211b';
+            memory viemSignature = hex'0fecc78e7ea8bfb5903fd7f71a9b7c65faff9cf8368da3fd8ecdc68eeeead4964de3e80cc138ad18e5b822c0c44b5bf8be32c6b9294e6fe4500b3033bfc23ffb1c';
 
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
@@ -1522,10 +1522,10 @@ contract SOTConcreteTest is SOTBase {
 
         expectedSolverWriteSlot.feeMinToken0 = 100;
         expectedSolverWriteSlot.feeMaxToken0 = 200;
-        expectedSolverWriteSlot.feeGrowthInPipsToken0 = 300;
+        expectedSolverWriteSlot.feeGrowthE6Token0 = 300;
         expectedSolverWriteSlot.feeMinToken1 = 400;
         expectedSolverWriteSlot.feeMaxToken1 = 500;
-        expectedSolverWriteSlot.feeGrowthInPipsToken1 = 600;
+        expectedSolverWriteSlot.feeGrowthE6Token1 = 600;
 
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
     }

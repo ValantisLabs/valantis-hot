@@ -29,7 +29,7 @@ library SOTParams {
     error SOTParams__validateBasicParams_unauthorizedRecipient();
     error SOTParams__validateBasicParams_invalidSignatureTimestamp();
     error SOTParams__validateFeeParams_insufficientFee();
-    error SOTParams__validateFeeParams_invalidfeeGrowthInPips();
+    error SOTParams__validateFeeParams_invalidfeeGrowthE6();
     error SOTParams__validateFeeParams_invalidFeeMax();
     error SOTParams__validateFeeParams_invalidFeeMin();
     error SOTParams__validatePriceBounds_invalidPriceBounds();
@@ -79,24 +79,24 @@ library SOTParams {
     function validateFeeParams(
         uint16 feeMinToken0,
         uint16 feeMaxToken0,
-        uint16 feeGrowthInPipsToken0,
+        uint16 feeGrowthE6Token0,
         uint16 feeMinToken1,
         uint16 feeMaxToken1,
-        uint16 feeGrowthInPipsToken1,
+        uint16 feeGrowthE6Token1,
         uint16 feeMinBound,
-        uint16 feeGrowthInPipsMinBound,
-        uint16 feeGrowthInPipsMaxBound
+        uint16 feeGrowthE6MinBound,
+        uint16 feeGrowthE6MaxBound
     ) internal pure {
         if (feeMinToken0 < feeMinBound || feeMinToken1 < feeMinBound)
             revert SOTParams__validateFeeParams_insufficientFee();
 
         if (
-            feeGrowthInPipsToken0 < feeGrowthInPipsMinBound ||
-            feeGrowthInPipsToken1 < feeGrowthInPipsMinBound ||
-            feeGrowthInPipsToken0 > feeGrowthInPipsMaxBound ||
-            feeGrowthInPipsToken1 > feeGrowthInPipsMaxBound
+            feeGrowthE6Token0 < feeGrowthE6MinBound ||
+            feeGrowthE6Token1 < feeGrowthE6MinBound ||
+            feeGrowthE6Token0 > feeGrowthE6MaxBound ||
+            feeGrowthE6Token1 > feeGrowthE6MaxBound
         ) {
-            revert SOTParams__validateFeeParams_invalidfeeGrowthInPips();
+            revert SOTParams__validateFeeParams_invalidfeeGrowthE6();
         }
 
         // feeMax should be strictly less than 50% of total amountIn.

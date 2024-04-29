@@ -16,10 +16,10 @@ pragma solidity 0.8.19;
     * expiry: Duration, in seconds, for the validity of this SOT intent.
     * feeMinToken0: Minimum AMM swap fee for token0.
     * feeMaxToken0: Maximum AMM swap fee for token0.
-    * feeGrowthInPipsToken0: Fee growth in pips, per second, of AMM swap fee for token0.
+    * feeGrowthE6Token0: Fee growth in pips, per second, of AMM swap fee for token0.
     * feeMinToken1: Minimum AMM swap fee for token1.
     * feeMaxToken1: Maximum AMM swap fee for token1.
-    * feeGrowthInPipsToken1: Fee growth in pips, per second, of AMM swap fee for token1.
+    * feeGrowthE6Token1: Fee growth in pips, per second, of AMM swap fee for token1.
     * nonce: Nonce in bitmap format (see AlternatingNonceBitmap library and docs).
     * expectedFlag: Expected flag (0 or 1) for nonce (see AlternatingNonceBitmap library and docs).
     * isZeroToOne: Direction of the swap for which the SOT is valid.
@@ -35,10 +35,10 @@ struct SolverOrderType {
     uint32 expiry;
     uint16 feeMinToken0;
     uint16 feeMaxToken0;
-    uint16 feeGrowthInPipsToken0;
+    uint16 feeGrowthE6Token0;
     uint16 feeMinToken1;
     uint16 feeMaxToken1;
-    uint16 feeGrowthInPipsToken1;
+    uint16 feeGrowthE6Token1;
     uint8 nonce;
     uint8 expectedFlag;
     bool isZeroToOne;
@@ -48,10 +48,10 @@ struct SolverOrderType {
     @notice Packed struct containing state variables which get updated on SOT swaps.
 
     * lastProcessedBlockQuoteCount: Number of SOT swaps processed in the last block.
-    * feeGrowthInPipsToken0: Fee growth in pips, per second, of AMM swap fee for token0.
+    * feeGrowthE6Token0: Fee growth in pips, per second, of AMM swap fee for token0.
     * feeMaxToken0: Maximum AMM swap fee for token0.
     * feeMinToken0: Minimum AMM swap fee for token0.
-    * feeGrowthInPipsToken1: Fee growth in pips, per second, of AMM swap fee for token1.
+    * feeGrowthE6Token1: Fee growth in pips, per second, of AMM swap fee for token1.
     * feeMaxToken1: Maximum AMM swap fee for token1.
     * feeMinToken1: Minimum AMM swap fee for token1.
     * lastStateUpdateTimestamp: Block timestamp of the last AMM state update from an SOT swap.
@@ -61,10 +61,10 @@ struct SolverOrderType {
  */
 struct SolverWriteSlot {
     uint8 lastProcessedBlockQuoteCount;
-    uint16 feeGrowthInPipsToken0;
+    uint16 feeGrowthE6Token0;
     uint16 feeMaxToken0;
     uint16 feeMinToken0;
-    uint16 feeGrowthInPipsToken1;
+    uint16 feeGrowthE6Token1;
     uint16 feeMaxToken1;
     uint16 feeMinToken1;
     uint32 lastStateUpdateTimestamp;
@@ -109,8 +109,8 @@ struct SOTConstructorArgs {
     uint32 maxOracleUpdateDurationFeed1;
     uint16 solverMaxDiscountBips;
     uint16 maxOracleDeviationBound;
-    uint16 minAMMFeeGrowthInPips;
-    uint16 maxAMMFeeGrowthInPips;
+    uint16 minAMMFeeGrowthE6;
+    uint16 maxAMMFeeGrowthE6;
     uint16 minAMMFee;
 }
 

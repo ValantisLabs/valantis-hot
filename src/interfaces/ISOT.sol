@@ -53,7 +53,7 @@ interface ISOT is ISOTOracle {
 
     function manager() external view returns (address);
 
-    function maxAMMFeeGrowthInPips() external view returns (uint16);
+    function maxAMMFeeGrowthE6() external view returns (uint16);
 
     function maxDelay() external view returns (uint32);
 
@@ -67,7 +67,7 @@ interface ISOT is ISOTOracle {
 
     function minAMMFee() external view returns (uint16);
 
-    function minAMMFeeGrowthInPips() external view returns (uint16);
+    function minAMMFeeGrowthE6() external view returns (uint16);
 
     function pool() external view returns (address);
 
@@ -90,10 +90,10 @@ interface ISOT is ISOTOracle {
         view
         returns (
             uint8 lastProcessedBlockQuoteCount,
-            uint16 feeGrowthInPipsToken0,
+            uint16 feeGrowthE6Token0,
             uint16 feeMaxToken0,
             uint16 feeMinToken0,
-            uint16 feeGrowthInPipsToken1,
+            uint16 feeGrowthE6Token1,
             uint16 feeMaxToken1,
             uint16 feeMinToken1,
             uint32 lastStateUpdateTimestamp,

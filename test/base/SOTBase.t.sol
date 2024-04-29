@@ -91,8 +91,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxOracleUpdateDurationFeed1: 10 minutes,
             solverMaxDiscountBips: 200, // 2%
             maxOracleDeviationBound: 5000, // 50%
-            minAMMFeeGrowthInPips: 100,
-            maxAMMFeeGrowthInPips: 10000,
+            minAMMFeeGrowthE6: 100,
+            maxAMMFeeGrowthE6: 10000,
             minAMMFee: 1 // 0.01%
         });
     }
@@ -169,10 +169,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             expiry: 24, // 2 Blocks
             feeMinToken0: 10, // 0.1%
             feeMaxToken0: 100, // 1%
-            feeGrowthInPipsToken0: 500, // 5 bips per second
+            feeGrowthE6Token0: 500, // 5 bips per second
             feeMinToken1: 10,
             feeMaxToken1: 100,
-            feeGrowthInPipsToken1: 500,
+            feeGrowthE6Token1: 500,
             nonce: 1,
             expectedFlag: 0,
             isZeroToOne: true
@@ -247,7 +247,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             ,
             ,
             ,
-            slot.feeGrowthInPipsToken1,
+            slot.feeGrowthE6Token1,
             slot.feeMaxToken1,
             slot.feeMinToken1,
             slot.lastStateUpdateTimestamp,
@@ -258,7 +258,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
         (
             slot.lastProcessedBlockQuoteCount,
-            slot.feeGrowthInPipsToken0,
+            slot.feeGrowthE6Token0,
             slot.feeMaxToken0,
             slot.feeMinToken0,
             ,
@@ -287,18 +287,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             expected.lastProcessedBlockQuoteCount,
             'checkSolverWriteSlot: lastProcessedBlockQuoteCount'
         );
-        assertEq(
-            actual.feeGrowthInPipsToken0,
-            expected.feeGrowthInPipsToken0,
-            'checkSolverWriteSlot: feeGrowthInPipsToken0'
-        );
+        assertEq(actual.feeGrowthE6Token0, expected.feeGrowthE6Token0, 'checkSolverWriteSlot: feeGrowthE6Token0');
         assertEq(actual.feeMaxToken0, expected.feeMaxToken0, 'checkSolverWriteSlot: feeMaxToken0');
         assertEq(actual.feeMinToken0, expected.feeMinToken0, 'checkSolverWriteSlot: feeMinToken0');
-        assertEq(
-            actual.feeGrowthInPipsToken1,
-            expected.feeGrowthInPipsToken1,
-            'checkSolverWriteSlot: feeGrowthInPipsToken1'
-        );
+        assertEq(actual.feeGrowthE6Token1, expected.feeGrowthE6Token1, 'checkSolverWriteSlot: feeGrowthE6Token1');
         assertEq(actual.feeMaxToken1, expected.feeMaxToken1, 'checkSolverWriteSlot: feeMaxToken1');
         assertEq(actual.feeMinToken1, expected.feeMinToken1, 'checkSolverWriteSlot: feeMinToken1');
         assertEq(
@@ -345,10 +337,10 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastStateUpdateTimestamp,
             slot.feeMinToken1,
             slot.feeMaxToken1,
-            slot.feeGrowthInPipsToken1,
+            slot.feeGrowthE6Token1,
             slot.feeMinToken0,
             slot.feeMaxToken0,
-            slot.feeGrowthInPipsToken0,
+            slot.feeGrowthE6Token0,
             slot.lastProcessedBlockQuoteCount
         );
         bytes32 data = bytes32(encodedData);
