@@ -73,10 +73,10 @@ contract SOTSwapScript is Script {
             expiry: 120, // 2 minutes
             feeMinToken0: 10, // 0.1%
             feeMaxToken0: 100, // 1%
-            feeGrowthInPipsToken0: 500, // 5 bips per second
+            feeGrowthE6Token0: 500, // 5 bips per second
             feeMinToken1: 10,
             feeMaxToken1: 100,
-            feeGrowthInPipsToken1: 500,
+            feeGrowthE6Token1: 500,
             nonce: 39,
             expectedFlag: 0,
             isZeroToOne: isZeroToOne

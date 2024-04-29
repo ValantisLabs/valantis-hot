@@ -67,8 +67,8 @@ contract SOTDeployScript is Script {
                 maxOracleUpdateDurationFeed1: 24 hours,
                 solverMaxDiscountBips: 1000, // 10%
                 maxOracleDeviationBound: 10000, // 100%
-                minAMMFeeGrowthInPips: 1,
-                maxAMMFeeGrowthInPips: 10000,
+                minAMMFeeGrowthE6: 1,
+                maxAMMFeeGrowthE6: 10000,
                 minAMMFee: 1 // 0.01%
             });
 

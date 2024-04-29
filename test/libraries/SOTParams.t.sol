@@ -54,10 +54,10 @@ contract SOTParamsHarness {
         SOTParams.validateFeeParams(
             sot.feeMinToken0,
             sot.feeMaxToken0,
-            sot.feeGrowthInPipsToken0,
+            sot.feeGrowthE6Token0,
             sot.feeMinToken1,
             sot.feeMaxToken1,
-            sot.feeGrowthInPipsToken1,
+            sot.feeGrowthE6Token1,
             feeMinBound,
             feeGrowthMinBound,
             feeGrowthMaxBound
@@ -251,10 +251,10 @@ contract TestSOTParams is SOTBase {
 
         // // Incorrect Cases
         // 1. Fee Growth out of min & max bounds
-        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
+        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthE6.selector);
         harness.validateFeeParams(sotParams, 1, 600, 1000);
 
-        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthInPips.selector);
+        vm.expectRevert(SOTParams.SOTParams__validateFeeParams_invalidfeeGrowthE6.selector);
         harness.validateFeeParams(sotParams, 1, 100, 400);
 
         // 2. Insufficient Fee Min
