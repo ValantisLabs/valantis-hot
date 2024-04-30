@@ -233,7 +233,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         (
             slot.isPaused,
             slot.maxAllowedQuotes,
-            slot.maxOracleDeviationBips,
+            slot.maxOracleDeviationBipsLower,
+            slot.maxOracleDeviationBipsUpper,
             slot.solverFeeBipsToken0,
             slot.solverFeeBipsToken1,
             slot.signer
@@ -353,7 +354,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.signer,
             slot.solverFeeBipsToken1,
             slot.solverFeeBipsToken0,
-            slot.maxOracleDeviationBips,
+            slot.maxOracleDeviationBipsLower,
+            slot.maxOracleDeviationBipsUpper,
             slot.maxAllowedQuotes,
             slot.isPaused
         );
@@ -366,8 +368,24 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         assertEq(slot.signer, updateSlot.signer, 'signer');
         assertEq(slot.solverFeeBipsToken1, updateSlot.solverFeeBipsToken1, 'solverFeeBipsToken1');
         assertEq(slot.solverFeeBipsToken0, updateSlot.solverFeeBipsToken0, 'solverFeeBipsToken0');
-        assertEq(slot.maxOracleDeviationBips, updateSlot.maxOracleDeviationBips, 'maxOracleDeviationBips');
+        assertEq(
+            slot.maxOracleDeviationBipsLower,
+            updateSlot.maxOracleDeviationBipsLower,
+            'maxOracleDeviationBipsLower'
+        );
+        assertEq(
+            slot.maxOracleDeviationBipsUpper,
+            updateSlot.maxOracleDeviationBipsUpper,
+            'maxOracleDeviationBipsUpper'
+        );
         assertEq(slot.maxAllowedQuotes, updateSlot.maxAllowedQuotes, 'maxAllowedQuotes');
         assertEq(slot.isPaused, updateSlot.isPaused, 'isPaused');
+    }
+
+    function getSqrtDeviationValues(
+        uint256 priceDevitationInBips
+    ) public pure returns (uint256 maxOracleDeviationBipsLower, uint256 maxOracleDeviationBipsUpper) {
+        maxOracleDeviationBipsLower = 1e4 - Math.sqrt((1e4 - priceDevitationInBips) * 1e4);
+        maxOracleDeviationBipsUpper = Math.sqrt((1e4 + priceDevitationInBips) * 1e4) - 1e4;
     }
 }

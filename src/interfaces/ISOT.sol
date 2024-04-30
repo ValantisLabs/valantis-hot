@@ -18,7 +18,7 @@ interface ISOT is ISOTOracle {
     event FeedSetApproval();
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
-    event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBips);
+    event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
     event OracleFeedsSet(address feed0, address feed1);
     event PauseSet(bool pause);
@@ -57,7 +57,7 @@ interface ISOT is ISOTOracle {
 
     function maxDelay() external view returns (uint32);
 
-    function maxOracleDeviationBips() external view returns (uint16);
+    function maxOracleDeviationBips() external view returns (uint16, uint16);
 
     function maxOracleDeviationBound() external view returns (uint16);
 
@@ -79,7 +79,8 @@ interface ISOT is ISOTOracle {
         returns (
             bool isPaused,
             uint8 maxAllowedQuotes,
-            uint16 maxOracleDeviationBips,
+            uint16 maxOracleDeviationBipsLower,
+            uint16 maxOracleDeviationBipsUpper,
             uint16 solverFeeBipsToken0,
             uint16 solverFeeBipsToken1,
             address signer
@@ -110,7 +111,10 @@ interface ISOT is ISOTOracle {
 
     function setMaxAllowedQuotes(uint8 _maxAllowedQuotes) external;
 
-    function setMaxOracleDeviationBips(uint16 _maxOracleDeviationBips) external;
+    function setMaxOracleDeviationBips(
+        uint16 _maxOracleDeviationBipsLower,
+        uint16 _maxOracleDeviationBipsUpper
+    ) external;
 
     function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external;
 

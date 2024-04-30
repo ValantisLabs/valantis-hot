@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
+import { console } from 'forge-std/console.sol';
+
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
@@ -114,25 +116,46 @@ library SOTParams {
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
-        uint256 maxOracleDeviationBips,
+        uint256 maxOracleDeviationBipsLower,
+        uint256 maxOracleDeviationBipsUpper,
         uint256 solverMaxDiscountBips
     ) internal view {
+        console.log(sqrtSpotPriceNewX96);
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
 
+        console.log(sqrtPriceLowX96);
+        console.log(sqrtPriceHighX96);
+
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
-        if (!checkPriceDeviation(sqrtSolverPriceX96, sqrtSpotPriceNewX96, solverMaxDiscountBips)) {
+        if (
+            !checkPriceDeviation(sqrtSolverPriceX96, sqrtSpotPriceNewX96, solverMaxDiscountBips, solverMaxDiscountBips)
+        ) {
             revert SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
         }
 
         // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
-        if (!checkPriceDeviation(sqrtSpotPriceX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
+        if (
+            !checkPriceDeviation(
+                sqrtSpotPriceX96,
+                sqrtOraclePriceX96,
+                maxOracleDeviationBipsLower,
+                maxOracleDeviationBipsUpper
+            )
+        ) {
             revert SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
         }
 
         // New AMM sqrt spot price (provided by SOT quote) and oracle sqrt price cannot differ
         // beyond allowed bounds
-        if (!checkPriceDeviation(sqrtSpotPriceNewX96, sqrtOraclePriceX96, maxOracleDeviationBips)) {
+        if (
+            !checkPriceDeviation(
+                sqrtSpotPriceNewX96,
+                sqrtOraclePriceX96,
+                maxOracleDeviationBipsLower,
+                maxOracleDeviationBipsUpper
+            )
+        ) {
             revert SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
         }
 
@@ -163,14 +186,13 @@ library SOTParams {
     function checkPriceDeviation(
         uint256 sqrtPriceAX96,
         uint256 sqrtPriceBX96,
-        uint256 maxDeviationInBips
+        uint256 maxDeviationInBipsLower,
+        uint256 maxDeviationInBipsUpper
     ) internal pure returns (bool) {
-        uint256 priceAX192 = sqrtPriceAX96 * sqrtPriceAX96;
-        uint256 priceBX192 = sqrtPriceBX96 * sqrtPriceBX96;
+        uint256 diff = sqrtPriceAX96 > sqrtPriceBX96 ? sqrtPriceAX96 - sqrtPriceBX96 : sqrtPriceBX96 - sqrtPriceAX96;
+        uint256 maxDeviationInBips = sqrtPriceAX96 < sqrtPriceBX96 ? maxDeviationInBipsLower : maxDeviationInBipsUpper;
 
-        uint256 diff = priceAX192 > priceBX192 ? priceAX192 - priceBX192 : priceBX192 - priceAX192;
-
-        if (diff * SOTConstants.BIPS > maxDeviationInBips * priceBX192) {
+        if (diff * SOTConstants.BIPS > maxDeviationInBips * sqrtPriceBX96) {
             return false;
         }
         return true;
