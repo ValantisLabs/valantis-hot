@@ -71,7 +71,8 @@ interface ISOT is ISOTOracle {
 
     function pool() external view returns (address);
 
-    function solverMaxDiscountBips() external view returns (uint16);
+    function solverMaxDiscountBipsLower() external view returns (uint16);
+    function solverMaxDiscountBipsUpper() external view returns (uint16);
 
     function solverReadSlot()
         external

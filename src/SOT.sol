@@ -104,7 +104,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 	    @notice Maximum price discount allowed for SOT quotes,
                 expressed in basis-points.
     */
-    uint16 public immutable solverMaxDiscountBips;
+    uint16 public immutable solverMaxDiscountBipsLower;
+    uint16 public immutable solverMaxDiscountBipsUpper;
 
     /**
 	    @notice Maximum allowed relative deviation
@@ -259,11 +260,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         maxDelay = _args.maxDelay;
 
-        if (_args.solverMaxDiscountBips > SOTConstants.BIPS) {
+        if (
+            _args.solverMaxDiscountBipsLower > SOTConstants.BIPS || _args.solverMaxDiscountBipsUpper > SOTConstants.BIPS
+        ) {
             revert SOT__constructor_invalidSolverMaxDiscountBips();
         }
 
-        solverMaxDiscountBips = _args.solverMaxDiscountBips;
+        solverMaxDiscountBipsLower = _args.solverMaxDiscountBipsLower;
+        solverMaxDiscountBipsUpper = _args.solverMaxDiscountBipsUpper;
 
         if (_args.maxOracleDeviationBound > SOTConstants.BIPS) {
             revert SOT__constructor_invalidOraclePriceMaxDiffBips();
@@ -967,7 +971,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             getSqrtOraclePriceX96(),
             solverReadSlot.maxOracleDeviationBipsLower,
             solverReadSlot.maxOracleDeviationBipsUpper,
-            solverMaxDiscountBips
+            solverMaxDiscountBipsLower,
+            solverMaxDiscountBipsUpper
         );
 
         // Verify SOT quote signature

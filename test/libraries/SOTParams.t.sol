@@ -70,7 +70,8 @@ contract SOTParamsHarness {
         uint160 sqrtOraclePriceX96,
         uint256 maxOracleDeviationBipsLower,
         uint256 maxOracleDeviationBipsUpper,
-        uint256 solverMaxDiscountBips
+        uint256 solverMaxDiscountBipsLower,
+        uint256 solverMaxDiscountBipsUpper
     ) public view {
         SOTParams.validatePriceConsistency(
             ammStateStorage,
@@ -79,7 +80,8 @@ contract SOTParamsHarness {
             sqrtOraclePriceX96,
             maxOracleDeviationBipsLower,
             maxOracleDeviationBipsUpper,
-            solverMaxDiscountBips
+            solverMaxDiscountBipsLower,
+            solverMaxDiscountBipsUpper
         );
     }
 
@@ -298,7 +300,7 @@ contract TestSOTParams is SOTBase {
         uint160 sqrtSolverPrice = 111; // Price = 12100
         uint160 sqrtNewPrice = 100; // Price = 10000
 
-        (uint256 maxOracleDeviationBipsLower, uint256 maxOracleDeviationBipsUpper) = getSqrtDeviationValues(2000);
+        (uint256 maxDeviationBipsLower, uint256 maxDeviationBipsUpper) = getSqrtDeviationValues(2000);
 
         // Bound Lower = 2000 ( 20% of 10000)
         vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation.selector);
@@ -306,9 +308,10 @@ contract TestSOTParams is SOTBase {
             sqrtSolverPrice,
             sqrtNewPrice,
             100,
-            maxOracleDeviationBipsLower,
-            maxOracleDeviationBipsUpper,
-            2000
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
         );
 
         sqrtNewPrice = 101;
@@ -318,9 +321,10 @@ contract TestSOTParams is SOTBase {
             sqrtSolverPrice,
             sqrtNewPrice,
             sqrtOraclePrice,
-            maxOracleDeviationBipsLower,
-            maxOracleDeviationBipsUpper,
-            2000
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
         );
 
         sqrtOraclePrice = 110;
@@ -332,9 +336,10 @@ contract TestSOTParams is SOTBase {
             sqrtSolverPrice,
             sqrtNewPrice,
             sqrtOraclePrice,
-            maxOracleDeviationBipsLower,
-            maxOracleDeviationBipsUpper,
-            2000
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
         );
 
         harness.setState(
@@ -351,9 +356,10 @@ contract TestSOTParams is SOTBase {
             sqrtSolverPrice,
             sqrtNewPrice,
             sqrtOraclePrice,
-            maxOracleDeviationBipsLower,
-            maxOracleDeviationBipsUpper,
-            2000
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
         );
     }
 

@@ -118,7 +118,8 @@ library SOTParams {
         uint160 sqrtOraclePriceX96,
         uint256 maxOracleDeviationBipsLower,
         uint256 maxOracleDeviationBipsUpper,
-        uint256 solverMaxDiscountBips
+        uint256 solverMaxDiscountBipsLower,
+        uint256 solverMaxDiscountBipsUpper
     ) internal view {
         console.log(sqrtSpotPriceNewX96);
         // Cache sqrt spot price, lower bound, and upper bound
@@ -129,7 +130,12 @@ library SOTParams {
 
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         if (
-            !checkPriceDeviation(sqrtSolverPriceX96, sqrtSpotPriceNewX96, solverMaxDiscountBips, solverMaxDiscountBips)
+            !checkPriceDeviation(
+                sqrtSolverPriceX96,
+                sqrtSpotPriceNewX96,
+                solverMaxDiscountBipsLower,
+                solverMaxDiscountBipsUpper
+            )
         ) {
             revert SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
         }

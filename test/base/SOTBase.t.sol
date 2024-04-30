@@ -76,6 +76,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function generateDefaultSOTConstructorArgs(
         SovereignPool _pool
     ) public view returns (SOTConstructorArgs memory args) {
+        (uint16 solverDiscountDeviationLower, uint16 solverDiscountDeviationUpper) = getSqrtDeviationValues(200);
+
         args = SOTConstructorArgs({
             pool: address(_pool),
             manager: address(this),
@@ -89,7 +91,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxDelay: 9 minutes,
             maxOracleUpdateDurationFeed0: 10 minutes,
             maxOracleUpdateDurationFeed1: 10 minutes,
-            solverMaxDiscountBips: 200, // 2%
+            solverMaxDiscountBipsLower: solverDiscountDeviationLower, // Corresponds to 2%
+            solverMaxDiscountBipsUpper: solverDiscountDeviationUpper, // Corresponds to 2%
             maxOracleDeviationBound: 5000, // 50%
             minAMMFeeGrowthE6: 100,
             maxAMMFeeGrowthE6: 10000,
@@ -389,9 +392,9 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     }
 
     function getSqrtDeviationValues(
-        uint256 priceDevitationInBips
-    ) public pure returns (uint256 maxOracleDeviationBipsLower, uint256 maxOracleDeviationBipsUpper) {
-        maxOracleDeviationBipsLower = 1e4 - Math.sqrt((1e4 - priceDevitationInBips) * 1e4);
-        maxOracleDeviationBipsUpper = Math.sqrt((1e4 + priceDevitationInBips) * 1e4) - 1e4;
+        uint256 priceDeviationInBips
+    ) public pure returns (uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper) {
+        maxOracleDeviationBipsLower = (1e4 - Math.sqrt((1e4 - priceDeviationInBips) * 1e4)).toUint16();
+        maxOracleDeviationBipsUpper = (Math.sqrt((1e4 + priceDeviationInBips) * 1e4) - 1e4).toUint16();
     }
 }
