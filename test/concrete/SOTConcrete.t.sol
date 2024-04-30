@@ -426,7 +426,10 @@ contract SOTConcreteTest is SOTBase {
 
         // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
-        sotParams.solverPriceX192Discounted = 1500 << 192;
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1500 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.isZeroToOne = false;
 
         // Set Spot price to priceLow with a minimal SOT
@@ -743,8 +746,14 @@ contract SOTConcreteTest is SOTBase {
 
         //  A more updated quote is sent, but should still be considered base
         sotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
-        sotParams.solverPriceX192Base = 2001 << 192;
-        sotParams.solverPriceX192Discounted = 1990 << 192;
+        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+            2001 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1990 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2003 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -773,8 +782,14 @@ contract SOTConcreteTest is SOTBase {
         // Third Swap: Base
         sotParams.nonce = 2;
         sotParams.signatureTimestamp = (block.timestamp - 1).toUint32();
-        sotParams.solverPriceX192Base = 2002 << 192;
-        sotParams.solverPriceX192Discounted = 1998 << 192;
+        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+            2002 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1998 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -848,8 +863,14 @@ contract SOTConcreteTest is SOTBase {
         // The second quote in the new block has a more updated timestamp, should be treated as discounted
         sotParams.signatureTimestamp = (block.timestamp - 2).toUint32();
         sotParams.expectedFlag = 0;
-        sotParams.solverPriceX192Base = 2002 << 192;
-        sotParams.solverPriceX192Discounted = 1997 << 192;
+        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+            2002 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1997 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -1424,19 +1445,25 @@ contract SOTConcreteTest is SOTBase {
         sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
     }
 
-    function test_eip71Signature() public {
+    function test_eip712Signature() public {
         address publicKey = 0xA52A878CE46F233794FeE5c976eb2528e17510d7;
         uint256 privateKey = 0x709fd5c6a885a6efbe01bce2d72cb1b4b0c56abcf3599f39108764ce5bf2c59e;
         address sotAddress = 0xf678F3DF67EBea04b3a0c1C2636eEc2504c92BA2;
 
         SolverOrderType memory sotParams = SolverOrderType({
             amountInMax: 10e18,
-            solverPriceX192Discounted: 2290 * 2 ** 192,
+            sqrtSolverPriceX96Discounted: getSqrtPriceX96(
+                2290 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ),
             // Solving is expensive and we don't want to SOT reverts
             // multiple SOT can land in the same block
             // the first SOT is doing the favor of unlocking the pool, shifting the spotPrice
             // if you land first you'll get the discounted price if you land second you will get a base price
-            solverPriceX192Base: 2290 * 2 ** 192,
+            sqrtSolverPriceX96Base: getSqrtPriceX96(
+                2290 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ),
             // new AMM spot price after the swap
             sqrtSpotPriceX96New: 3791986971626720137260477456763,
             authorizedRecipient: publicKey,

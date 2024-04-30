@@ -23,7 +23,7 @@ library SOTConstants {
     bytes32 internal constant SOT_TYPEHASH =
         keccak256(
             // solhint-disable-next-line max-line-length
-            'SolverOrderType(uint256 amountInMax,uint256 solverPriceX192Discounted,uint256 solverPriceX192Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthE6Token0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthE6Token1,uint8 nonce,uint8 expectedFlag,bool isZeroToOne)'
+            'SolverOrderType(uint256 amountInMax,uint256 sqrtSolverPriceX96Discounted,uint256 sqrtSolverPriceX96Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthE6Token0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthE6Token1,uint8 nonce,uint8 expectedFlag,bool isZeroToOne)'
         );
 
     /**

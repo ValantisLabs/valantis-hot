@@ -7,8 +7,8 @@ pragma solidity 0.8.19;
     This struct is signed by `signer`, and put onchain by solvers via SOT swaps.
 
     * amountInMax: Maximum amount of input token which `authorizedSender` is allowed to swap.
-    * solverPriceX192Discounted: Price to quote if the SOT intent is eligible to update AMM state (see SOT).
-    * solverPriceX192Base: Price to quote if the SOT intent is not eligible to update AMM state (can be same as above).
+    * sqrtSolverPriceX96Discounted: sqrtPriceX96 to quote if the SOT intent is eligible to update AMM state (see SOT).
+    * sqrtSolverPriceX96Base: sqrtPriceX96 to quote if the SOT intent is not eligible to update AMM state (can be same as above).
     * sqrtSpotPriceX96New: New sqrt spot price of the AMM, in Q96 format.
     * authorizedSender: Address of authorized msg.sender in `pool`.
     * authorizedRecipient: Address of authorized recipient of tokenOut amounts.
@@ -26,8 +26,8 @@ pragma solidity 0.8.19;
  */
 struct SolverOrderType {
     uint256 amountInMax;
-    uint256 solverPriceX192Discounted;
-    uint256 solverPriceX192Base;
+    uint160 sqrtSolverPriceX96Discounted;
+    uint160 sqrtSolverPriceX96Base;
     uint160 sqrtSpotPriceX96New;
     address authorizedSender;
     address authorizedRecipient;

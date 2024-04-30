@@ -157,8 +157,14 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         // Sensible Defaults
         sotParams = SolverOrderType({
             amountInMax: 100e18,
-            solverPriceX192Discounted: 1980 << 192, // 1% discount to first solver
-            solverPriceX192Base: 2000 << 192,
+            sqrtSolverPriceX96Discounted: getSqrtPriceX96(
+                1980 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ), // 1% discount to first solver
+            sqrtSolverPriceX96Base: getSqrtPriceX96(
+                2000 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ),
             sqrtSpotPriceX96New: getSqrtPriceX96(
                 2005 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())

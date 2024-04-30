@@ -464,8 +464,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
     /**
         @notice Sets the maximum allowed deviation between AMM and oracle price.
-        @param _maxOracleDeviationBipsLower New maximum deviation in basis-points when, sqrtSpotPrice < sqrtOraclePrice.
-        @param _maxOracleDeviationBipsUpper New maximum deviation in basis-points when, sqrtSpotPrice >= sqrtOraclePrice.
+        @param _maxOracleDeviationBipsLower New maximum deviation in basis-points when sqrtSpotPrice < sqrtOraclePrice.
+        @param _maxOracleDeviationBipsUpper New maximum deviation in basis-points when sqrtSpotPrice >= sqrtOraclePrice.
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
      */
@@ -925,12 +925,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         // Pick the discounted or base price, depending on eligibility criteria set above
         // No need to check one against the other at this stage
-        uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
+        uint160 sqrtSolverPriceX96 = isDiscountedSolver ? sot.sqrtSolverPriceX96Discounted : sot.sqrtSolverPriceX96Base;
 
         // Calculate the amountOut according to the quoted price
         liquidityQuote.amountOut = almLiquidityQuoteInput.isZeroToOne
-            ? Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX192, SOTConstants.Q192)
-            : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
+            ? (almLiquidityQuoteInput.amountInMinusFee *
+                Math.mulDiv(sqrtSolverPriceX96, sqrtSolverPriceX96, SOTConstants.Q192))
+            : (Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, sqrtSolverPriceX96) /
+                sqrtSolverPriceX96);
         // Fill tokenIn amount requested, excluding fees
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
@@ -960,7 +962,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         SOTParams.validatePriceConsistency(
             _ammState,
-            solverPriceX192.sqrt().toUint160(),
+            sqrtSolverPriceX96,
             sot.sqrtSpotPriceX96New,
             getSqrtOraclePriceX96(),
             solverReadSlot.maxOracleDeviationBipsLower,
