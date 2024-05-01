@@ -157,17 +157,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     }
 
     function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {
+        // sqrt(2000) * 2^96 = 3543191142285914205922034323214
         // Sensible Defaults
         sotParams = SolverOrderType({
             amountInMax: 100e18,
-            sqrtSolverPriceX96Discounted: getSqrtPriceX96(
-                1980 * (10 ** feedToken0.decimals()),
-                1 * (10 ** feedToken1.decimals())
-            ), // 1% discount to first solver
-            sqrtSolverPriceX96Base: getSqrtPriceX96(
-                2000 * (10 ** feedToken0.decimals()),
-                1 * (10 ** feedToken1.decimals())
-            ),
+            sqrtSolverPriceX96Discounted: 3525430673841938976158389176523, // 1% discount to first solver ( 1980 )
+            sqrtSolverPriceX96Base: 3543191142285914205922034323214, // 2000
             sqrtSpotPriceX96New: getSqrtPriceX96(
                 2005 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())
@@ -359,12 +354,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     function _setSolverReadSlot(SolverReadSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
-            bytes4(0),
+            bytes2(0),
             slot.signer,
             slot.solverFeeBipsToken1,
             slot.solverFeeBipsToken0,
-            slot.maxOracleDeviationBipsLower,
             slot.maxOracleDeviationBipsUpper,
+            slot.maxOracleDeviationBipsLower,
             slot.maxAllowedQuotes,
             slot.isPaused
         );

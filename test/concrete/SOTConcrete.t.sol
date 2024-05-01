@@ -222,7 +222,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 1980,
+            reserve1: preState.reserve1 - (1980e18 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -271,7 +271,7 @@ contract SOTConcreteTest is SOTBase {
         console.log('gas: ', gasUsed);
 
         assertEq(amountInUsed, 1e18, 'amountInUsed 0');
-        assertEq(amountOut, 1980e18, 'amountOut 0');
+        assertEq(amountOut, 1980e18 - 1, 'amountOut 0');
     }
 
     function test_swap_solver_maxTokenVolume() public {
@@ -518,7 +518,7 @@ contract SOTConcreteTest is SOTBase {
         // Check that the spot price did not get updated to the new value
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 2000,
+            reserve1: preState.reserve1 - (1e18 * 2000 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -581,7 +581,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + amountIn - poolManagerFee,
-            reserve1: preState.reserve1 - amountInWithoutFee * 1980,
+            reserve1: preState.reserve1 - (amountInWithoutFee * 1980 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -723,7 +723,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 1980,
+            reserve1: preState.reserve1 - (1e18 * 1980 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -746,10 +746,7 @@ contract SOTConcreteTest is SOTBase {
 
         //  A more updated quote is sent, but should still be considered base
         sotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
-        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
-            2001 * (10 ** feedToken0.decimals()),
-            1 * (10 ** feedToken1.decimals())
-        );
+        sotParams.sqrtSolverPriceX96Base = 3544076829374435021495299114820;
         sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
             1990 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -768,7 +765,7 @@ contract SOTConcreteTest is SOTBase {
         postState = getPoolState();
 
         expectedState.reserve0 = preState.reserve0 + 2e18;
-        expectedState.reserve1 = preState.reserve1 - 2e18 * 2001;
+        expectedState.reserve1 = preState.reserve1 - ((2e18 * 2001) - 1);
 
         checkPoolState(expectedState, postState);
 
@@ -855,7 +852,7 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 6;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
-        expectedState.reserve1 = preState.reserve1 - params.amountIn * 2000;
+        expectedState.reserve1 = preState.reserve1 - (params.amountIn * 2000 - 1);
 
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
         checkPoolState(expectedState, postState);
@@ -902,7 +899,7 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 2;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
-        expectedState.reserve1 = preState.reserve1 - params.amountIn * 1997;
+        expectedState.reserve1 = preState.reserve1 - (params.amountIn * 1997 - 1);
         expectedState.sqrtSpotPriceX96 = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -1502,7 +1499,7 @@ contract SOTConcreteTest is SOTBase {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         bytes
-            memory viemSignature = hex'0fecc78e7ea8bfb5903fd7f71a9b7c65faff9cf8368da3fd8ecdc68eeeead4964de3e80cc138ad18e5b822c0c44b5bf8be32c6b9294e6fe4500b3033bfc23ffb1c';
+            memory viemSignature = hex'13f67d1246b2a59bec631062dc2186a4e35991bf91c06219f48160ffcba396d7184a7d4acc3a9d9a2c0ce78df81449544095a82706220905afb0a8a05d7ec2711b';
 
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
@@ -1561,5 +1558,22 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.feeGrowthE6Token1 = 600;
 
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+    }
+
+    function test_swap_zeroAmount() public {
+        SovereignPoolSwapContextData memory data;
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: false,
+            amountIn: 1,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token0),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_zeroAmountOut.selector);
+        pool.swap(params);
     }
 }

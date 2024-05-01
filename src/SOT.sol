@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
-
+import { console } from 'forge-std/console.sol';
 import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
 import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 
@@ -933,10 +933,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         // Calculate the amountOut according to the quoted price
         liquidityQuote.amountOut = almLiquidityQuoteInput.isZeroToOne
-            ? (almLiquidityQuoteInput.amountInMinusFee *
-                Math.mulDiv(sqrtSolverPriceX96, sqrtSolverPriceX96, SOTConstants.Q192))
+            ? (
+                Math.mulDiv(
+                    almLiquidityQuoteInput.amountInMinusFee * sqrtSolverPriceX96,
+                    sqrtSolverPriceX96,
+                    SOTConstants.Q192
+                )
+            )
             : (Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, sqrtSolverPriceX96) /
                 sqrtSolverPriceX96);
+
         // Fill tokenIn amount requested, excluding fees
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 

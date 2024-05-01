@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { console } from 'forge-std/console.sol';
-
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
@@ -121,12 +119,8 @@ library SOTParams {
         uint256 solverMaxDiscountBipsLower,
         uint256 solverMaxDiscountBipsUpper
     ) internal view {
-        console.log(sqrtSpotPriceNewX96);
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
-
-        console.log(sqrtPriceLowX96);
-        console.log(sqrtPriceHighX96);
 
         // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
         if (

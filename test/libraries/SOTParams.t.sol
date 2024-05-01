@@ -297,7 +297,7 @@ contract TestSOTParams is SOTBase {
         harness.setState(100, 1, 1000);
 
         // more than 20%
-        uint160 sqrtSolverPrice = 111; // Price = 12100
+        uint160 sqrtSolverPrice = 110; // Price = 12100
         uint160 sqrtNewPrice = 100; // Price = 10000
 
         (uint256 maxDeviationBipsLower, uint256 maxDeviationBipsUpper) = getSqrtDeviationValues(2000);
@@ -316,6 +316,7 @@ contract TestSOTParams is SOTBase {
 
         sqrtNewPrice = 101;
         uint160 sqrtOraclePrice = 126;
+        sqrtSolverPrice = 109;
         vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation.selector);
         harness.validatePriceConsistency(
             sqrtSolverPrice,
@@ -329,6 +330,7 @@ contract TestSOTParams is SOTBase {
 
         sqrtOraclePrice = 110;
         sqrtNewPrice = 95;
+        sqrtSolverPrice = 100;
         vm.expectRevert(
             SOTParams.SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation.selector
         );
