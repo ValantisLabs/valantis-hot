@@ -13,7 +13,7 @@ import {
     SovereignPoolSwapParams,
     SovereignPoolSwapContextData
 } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
-import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
+import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModuleMinimal.sol';
 
 import { SOT, ALMLiquidityQuoteInput } from 'src/SOT.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
@@ -1426,20 +1426,6 @@ contract SOTConcreteTest is SOTBase {
 
         vm.expectRevert(SOT.SOT__poolReentrant.selector);
         sot.setPriceBounds(0, 0, 0, 0);
-    }
-
-    function test_unusedCallbacks() public {
-        // Test is used to cover unused callbacks to correct coverage report.
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
-            ZERO_ADDRESS,
-            ZERO_ADDRESS,
-            0,
-            ZERO_ADDRESS,
-            new bytes(1)
-        );
-        sot.callbackOnSwapEnd(0, 0, 0, 0, swapFeeModuleData);
-
-        sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
     }
 
     function test_eip712Signature() public {
