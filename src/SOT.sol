@@ -18,10 +18,7 @@ import {
     ALMLiquidityQuoteInput
 } from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
-import {
-    ISwapFeeModuleMinimal,
-    SwapFeeModuleData
-} from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModuleMinimal.sol';
+import { ISwapFeeModule, SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
@@ -41,7 +38,7 @@ import { ISOT } from 'src/interfaces/ISOT.sol';
     @title Solver Order Type.
     @notice Valantis Sovereign Liquidity Module.
  */
-contract SOT is ISovereignALM, ISOT, EIP712, SOTOracle {
+contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     using Math for uint256;
     using SafeCast for uint256;
     using SignatureChecker for address;
@@ -761,6 +758,25 @@ contract SOT is ISovereignALM, ISOT, EIP712, SOTOracle {
             // AMM Branch
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(isZeroToOne);
         }
+    }
+
+    function callbackOnSwapEnd(
+        uint256 /*_effectiveFee*/,
+        int24 /*_spotPriceTick*/,
+        uint256 /*_amountInUsed*/,
+        uint256 /*_amountOut*/,
+        SwapFeeModuleData memory /*_swapFeeModuleData*/
+    ) external {
+        // Swap Fee Module callback for Universal Pool (not needed here)
+    }
+
+    function callbackOnSwapEnd(
+        uint256 /*_effectiveFee*/,
+        uint256 /*_amountInUsed*/,
+        uint256 /*_amountOut*/,
+        SwapFeeModuleData memory /*_swapFeeModuleData*/
+    ) external {
+        // Swap Fee Module callback for Sovereign Pool (not needed here)
     }
 
     /**
