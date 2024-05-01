@@ -1485,7 +1485,7 @@ contract SOTConcreteTest is SOTBase {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         bytes
-            memory viemSignature = hex'13f67d1246b2a59bec631062dc2186a4e35991bf91c06219f48160ffcba396d7184a7d4acc3a9d9a2c0ce78df81449544095a82706220905afb0a8a05d7ec2711b';
+            memory viemSignature = hex'982d655882b1f267e7692341df9edce4f4b9c1ce626d36dc5cd27725e1d40b9f67f4c3d6e8d356fe03112c9d9be9af0d983e7f19248f16e9573d1407f004bc191b';
 
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
