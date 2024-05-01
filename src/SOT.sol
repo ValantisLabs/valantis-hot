@@ -65,9 +65,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__constructor_invalidSolverMaxDiscountBips();
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidSovereignPoolConfig();
-    error SOT__constructor_invalidSqrtPriceBounds();
-    error SOT__constructor_invalidToken0();
-    error SOT__constructor_invalidToken1();
     error SOT__depositLiquidity_spotPriceAndOracleDeviation();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_zeroAmountOut();
