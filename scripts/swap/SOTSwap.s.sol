@@ -64,8 +64,8 @@ contract SOTSwapScript is Script {
 
         SolverOrderType memory sotParams = SolverOrderType({
             amountInMax: amountIn,
-            solverPriceX192Discounted: 0x00000000112574833ea203a54b9c8bb3e0cad2df956228097c073212c9144a43,
-            solverPriceX192Base: 0x00000000110fb9a38ba1365219cfbb2b6236cf4b777ed1a91ee635a0a210633d,
+            sqrtSolverPriceX96Discounted: 0x00000000112574833ea203a54b9c8bb3e0cad2df956228097c073212c9144a43,
+            sqrtSolverPriceX96Base: 0x00000000110fb9a38ba1365219cfbb2b6236cf4b777ed1a91ee635a0a210633d,
             sqrtSpotPriceX96New: 0x00000000000000000000000000000000000041ec95e6a4a2992195407e5d7055,
             authorizedSender: master,
             authorizedRecipient: master,

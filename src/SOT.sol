@@ -65,9 +65,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__constructor_invalidSolverMaxDiscountBips();
     error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidSovereignPoolConfig();
-    error SOT__constructor_invalidSqrtPriceBounds();
-    error SOT__constructor_invalidToken0();
-    error SOT__constructor_invalidToken1();
     error SOT__depositLiquidity_spotPriceAndOracleDeviation();
     error SOT__getLiquidityQuote_invalidFeePath();
     error SOT__getLiquidityQuote_zeroAmountOut();
@@ -104,11 +101,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 	    @notice Maximum price discount allowed for SOT quotes,
                 expressed in basis-points.
     */
-    uint16 public immutable solverMaxDiscountBips;
+    uint16 public immutable solverMaxDiscountBipsLower;
+    uint16 public immutable solverMaxDiscountBipsUpper;
 
     /**
 	    @notice Maximum allowed relative deviation
-                between spot price and oracle price,
+                between sqrt spot price and sqrt oracle price,
                 expressed in basis-points.
      */
     uint16 public immutable maxOracleDeviationBound;
@@ -259,11 +257,14 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         maxDelay = _args.maxDelay;
 
-        if (_args.solverMaxDiscountBips > SOTConstants.BIPS) {
+        if (
+            _args.solverMaxDiscountBipsLower > SOTConstants.BIPS || _args.solverMaxDiscountBipsUpper > SOTConstants.BIPS
+        ) {
             revert SOT__constructor_invalidSolverMaxDiscountBips();
         }
 
-        solverMaxDiscountBips = _args.solverMaxDiscountBips;
+        solverMaxDiscountBipsLower = _args.solverMaxDiscountBipsLower;
+        solverMaxDiscountBipsUpper = _args.solverMaxDiscountBipsUpper;
 
         if (_args.maxOracleDeviationBound > SOTConstants.BIPS) {
             revert SOT__constructor_invalidOraclePriceMaxDiffBips();
@@ -312,10 +313,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     }
 
     /**
-        @notice Returns the max allowed deviation between oracle and spot price at the time of deposits.
+        @notice Returns the lower and upper max allowed deviation between oracle and spot price
      */
-    function maxOracleDeviationBips() external view returns (uint16) {
-        return solverReadSlot.maxOracleDeviationBips;
+    function maxOracleDeviationBips() external view returns (uint16, uint16) {
+        return (solverReadSlot.maxOracleDeviationBipsLower, solverReadSlot.maxOracleDeviationBipsUpper);
     }
 
     // @audit Verify that this function is safe from view-only reentrancy.
@@ -464,18 +465,26 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
     /**
         @notice Sets the maximum allowed deviation between AMM and oracle price.
-        @param _maxOracleDeviationBips New maximum deviation in basis-points.
+        @param _maxOracleDeviationBipsLower New maximum deviation in basis-points when sqrtSpotPrice < sqrtOraclePrice.
+        @param _maxOracleDeviationBipsUpper New maximum deviation in basis-points when sqrtSpotPrice >= sqrtOraclePrice.
         @dev Only callable by `liquidityProvider`.
         @dev It assumes that `liquidityProvider` implements a timelock when calling this function.
      */
-    function setMaxOracleDeviationBips(uint16 _maxOracleDeviationBips) external onlyManager {
-        if (_maxOracleDeviationBips > maxOracleDeviationBound) {
+    function setMaxOracleDeviationBips(
+        uint16 _maxOracleDeviationBipsLower,
+        uint16 _maxOracleDeviationBipsUpper
+    ) external onlyManager {
+        if (
+            _maxOracleDeviationBipsLower > maxOracleDeviationBound ||
+            _maxOracleDeviationBipsUpper > maxOracleDeviationBound
+        ) {
             revert SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
         }
 
-        solverReadSlot.maxOracleDeviationBips = _maxOracleDeviationBips;
+        solverReadSlot.maxOracleDeviationBipsLower = _maxOracleDeviationBipsLower;
+        solverReadSlot.maxOracleDeviationBipsUpper = _maxOracleDeviationBipsUpper;
 
-        emit MaxOracleDeviationBipsSet(_maxOracleDeviationBips);
+        emit MaxOracleDeviationBipsSet(_maxOracleDeviationBipsLower, _maxOracleDeviationBipsUpper);
     }
 
     /**
@@ -519,6 +528,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             _expectedSqrtSpotPriceUpperX96
         );
 
+        SolverReadSlot memory solverReadSlotCache = solverReadSlot;
+
         // It is sufficient to check only feedToken0, because either both of the feeds are set, or both are null.
         if (address(feedToken0) != address(0)) {
             // Feeds have been set, oracle deviation should be checked.
@@ -527,7 +538,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
                 !SOTParams.checkPriceDeviation(
                     sqrtSpotPriceX96Cache,
                     getSqrtOraclePriceX96(),
-                    solverReadSlot.maxOracleDeviationBips
+                    solverReadSlotCache.maxOracleDeviationBipsLower,
+                    solverReadSlotCache.maxOracleDeviationBipsUpper
                 )
             ) {
                 revert SOT__setPriceBounds_spotPriceAndOracleDeviation();
@@ -658,7 +670,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
                 !SOTParams.checkPriceDeviation(
                     sqrtSpotPriceX96Cache,
                     getSqrtOraclePriceX96(),
-                    solverReadSlot.maxOracleDeviationBips
+                    solverReadSlot.maxOracleDeviationBipsLower,
+                    solverReadSlot.maxOracleDeviationBipsUpper
                 )
             ) {
                 revert SOT__depositLiquidity_spotPriceAndOracleDeviation();
@@ -913,12 +926,20 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         // Pick the discounted or base price, depending on eligibility criteria set above
         // No need to check one against the other at this stage
-        uint256 solverPriceX192 = isDiscountedSolver ? sot.solverPriceX192Discounted : sot.solverPriceX192Base;
+        uint160 sqrtSolverPriceX96 = isDiscountedSolver ? sot.sqrtSolverPriceX96Discounted : sot.sqrtSolverPriceX96Base;
 
         // Calculate the amountOut according to the quoted price
         liquidityQuote.amountOut = almLiquidityQuoteInput.isZeroToOne
-            ? Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, solverPriceX192, SOTConstants.Q192)
-            : Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, solverPriceX192);
+            ? (
+                Math.mulDiv(
+                    almLiquidityQuoteInput.amountInMinusFee * sqrtSolverPriceX96,
+                    sqrtSolverPriceX96,
+                    SOTConstants.Q192
+                )
+            )
+            : (Math.mulDiv(almLiquidityQuoteInput.amountInMinusFee, SOTConstants.Q192, sqrtSolverPriceX96) /
+                sqrtSolverPriceX96);
+
         // Fill tokenIn amount requested, excluding fees
         liquidityQuote.amountInFilled = almLiquidityQuoteInput.amountInMinusFee;
 
@@ -948,11 +969,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
 
         SOTParams.validatePriceConsistency(
             _ammState,
-            solverPriceX192.sqrt().toUint160(),
+            sqrtSolverPriceX96,
             sot.sqrtSpotPriceX96New,
             getSqrtOraclePriceX96(),
-            solverReadSlot.maxOracleDeviationBips,
-            solverMaxDiscountBips
+            solverReadSlot.maxOracleDeviationBipsLower,
+            solverReadSlot.maxOracleDeviationBipsUpper,
+            solverMaxDiscountBipsLower,
+            solverMaxDiscountBipsUpper
         );
 
         // Verify SOT quote signature

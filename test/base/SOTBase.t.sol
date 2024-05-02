@@ -76,6 +76,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     function generateDefaultSOTConstructorArgs(
         SovereignPool _pool
     ) public view returns (SOTConstructorArgs memory args) {
+        (uint16 solverDiscountDeviationLower, uint16 solverDiscountDeviationUpper) = getSqrtDeviationValues(200);
+
         args = SOTConstructorArgs({
             pool: address(_pool),
             manager: address(this),
@@ -89,7 +91,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxDelay: 9 minutes,
             maxOracleUpdateDurationFeed0: 10 minutes,
             maxOracleUpdateDurationFeed1: 10 minutes,
-            solverMaxDiscountBips: 200, // 2%
+            solverMaxDiscountBipsLower: solverDiscountDeviationLower, // Corresponds to 2%
+            solverMaxDiscountBipsUpper: solverDiscountDeviationUpper, // Corresponds to 2%
             maxOracleDeviationBound: 5000, // 50%
             minAMMFeeGrowthE6: 100,
             maxAMMFeeGrowthE6: 10000,
@@ -154,11 +157,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     }
 
     function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {
+        // sqrt(2000) * 2^96 = 3543191142285914205922034323214
         // Sensible Defaults
         sotParams = SolverOrderType({
             amountInMax: 100e18,
-            solverPriceX192Discounted: 1980 << 192, // 1% discount to first solver
-            solverPriceX192Base: 2000 << 192,
+            sqrtSolverPriceX96Discounted: 3525430673841938976158389176523, // 1% discount to first solver ( 1980 )
+            sqrtSolverPriceX96Base: 3543191142285914205922034323214, // 2000
             sqrtSpotPriceX96New: getSqrtPriceX96(
                 2005 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())
@@ -233,7 +237,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         (
             slot.isPaused,
             slot.maxAllowedQuotes,
-            slot.maxOracleDeviationBips,
+            slot.maxOracleDeviationBipsLower,
+            slot.maxOracleDeviationBipsUpper,
             slot.solverFeeBipsToken0,
             slot.solverFeeBipsToken1,
             slot.signer
@@ -349,11 +354,12 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     function _setSolverReadSlot(SolverReadSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
-            bytes4(0),
+            bytes2(0),
             slot.signer,
             slot.solverFeeBipsToken1,
             slot.solverFeeBipsToken0,
-            slot.maxOracleDeviationBips,
+            slot.maxOracleDeviationBipsUpper,
+            slot.maxOracleDeviationBipsLower,
             slot.maxAllowedQuotes,
             slot.isPaused
         );
@@ -366,8 +372,24 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         assertEq(slot.signer, updateSlot.signer, 'signer');
         assertEq(slot.solverFeeBipsToken1, updateSlot.solverFeeBipsToken1, 'solverFeeBipsToken1');
         assertEq(slot.solverFeeBipsToken0, updateSlot.solverFeeBipsToken0, 'solverFeeBipsToken0');
-        assertEq(slot.maxOracleDeviationBips, updateSlot.maxOracleDeviationBips, 'maxOracleDeviationBips');
+        assertEq(
+            slot.maxOracleDeviationBipsLower,
+            updateSlot.maxOracleDeviationBipsLower,
+            'maxOracleDeviationBipsLower'
+        );
+        assertEq(
+            slot.maxOracleDeviationBipsUpper,
+            updateSlot.maxOracleDeviationBipsUpper,
+            'maxOracleDeviationBipsUpper'
+        );
         assertEq(slot.maxAllowedQuotes, updateSlot.maxAllowedQuotes, 'maxAllowedQuotes');
         assertEq(slot.isPaused, updateSlot.isPaused, 'isPaused');
+    }
+
+    function getSqrtDeviationValues(
+        uint256 priceDeviationInBips
+    ) public pure returns (uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper) {
+        maxOracleDeviationBipsLower = (1e4 - Math.sqrt((1e4 - priceDeviationInBips) * 1e4)).toUint16();
+        maxOracleDeviationBipsUpper = (Math.sqrt((1e4 + priceDeviationInBips) * 1e4) - 1e4).toUint16();
     }
 }

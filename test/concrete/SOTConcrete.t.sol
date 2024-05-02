@@ -43,7 +43,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
     }
 
     function test_managerOperations() public {
@@ -62,7 +62,7 @@ contract SOTConcreteTest is SOTBase {
 
         sot.setSigner(makeAddr('SIGNER'));
 
-        (, , , , , address signer) = sot.solverReadSlot();
+        (, , , , , , address signer) = sot.solverReadSlot();
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
         sot.setMaxTokenVolumes(500, 500);
@@ -222,7 +222,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 1980,
+            reserve1: preState.reserve1 - (1980e18 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -271,7 +271,7 @@ contract SOTConcreteTest is SOTBase {
         console.log('gas: ', gasUsed);
 
         assertEq(amountInUsed, 1e18, 'amountInUsed 0');
-        assertEq(amountOut, 1980e18, 'amountOut 0');
+        assertEq(amountOut, 1980e18 - 1, 'amountOut 0');
     }
 
     function test_swap_solver_maxTokenVolume() public {
@@ -426,7 +426,10 @@ contract SOTConcreteTest is SOTBase {
 
         // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
-        sotParams.solverPriceX192Discounted = 1500 << 192;
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1500 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.isZeroToOne = false;
 
         // Set Spot price to priceLow with a minimal SOT
@@ -515,7 +518,7 @@ contract SOTConcreteTest is SOTBase {
         // Check that the spot price did not get updated to the new value
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 2000,
+            reserve1: preState.reserve1 - (1e18 * 2000 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -537,7 +540,7 @@ contract SOTConcreteTest is SOTBase {
         // Correct solver feeInBips: token0 = 0.1%, token1 = 0.5%
         sot.setSolverFeeInBips(10, 50);
 
-        (, , , uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
+        (, , , , uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
 
         assertEq(solverFeeBipsToken0, 10, 'solverFeeBipsToken0');
         assertEq(solverFeeBipsToken1, 50, 'solverFeeBipsToken1');
@@ -578,7 +581,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + amountIn - poolManagerFee,
-            reserve1: preState.reserve1 - amountInWithoutFee * 1980,
+            reserve1: preState.reserve1 - (amountInWithoutFee * 1980 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -660,14 +663,14 @@ contract SOTConcreteTest is SOTBase {
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(1e8);
 
-        (, uint8 maxAllowedQuotes, , , , ) = sot.solverReadSlot();
+        (, uint8 maxAllowedQuotes, , , , , ) = sot.solverReadSlot();
         assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
 
         vm.expectRevert(SOT.SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
         sot.setMaxAllowedQuotes(57);
 
         sot.setMaxAllowedQuotes(0);
-        (, maxAllowedQuotes, , , , ) = sot.solverReadSlot();
+        (, maxAllowedQuotes, , , , , ) = sot.solverReadSlot();
 
         assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
 
@@ -720,7 +723,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
-            reserve1: preState.reserve1 - 1e18 * 1980,
+            reserve1: preState.reserve1 - (1e18 * 1980 - 1),
             sqrtSpotPriceX96: getSqrtPriceX96(2005 * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals())),
             sqrtPriceLowX96: preState.sqrtPriceLowX96,
             sqrtPriceHighX96: preState.sqrtPriceHighX96,
@@ -743,8 +746,11 @@ contract SOTConcreteTest is SOTBase {
 
         //  A more updated quote is sent, but should still be considered base
         sotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
-        sotParams.solverPriceX192Base = 2001 << 192;
-        sotParams.solverPriceX192Discounted = 1990 << 192;
+        sotParams.sqrtSolverPriceX96Base = 3544076829374435021495299114820;
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1990 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2003 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -759,7 +765,7 @@ contract SOTConcreteTest is SOTBase {
         postState = getPoolState();
 
         expectedState.reserve0 = preState.reserve0 + 2e18;
-        expectedState.reserve1 = preState.reserve1 - 2e18 * 2001;
+        expectedState.reserve1 = preState.reserve1 - ((2e18 * 2001) - 1);
 
         checkPoolState(expectedState, postState);
 
@@ -773,8 +779,14 @@ contract SOTConcreteTest is SOTBase {
         // Third Swap: Base
         sotParams.nonce = 2;
         sotParams.signatureTimestamp = (block.timestamp - 1).toUint32();
-        sotParams.solverPriceX192Base = 2002 << 192;
-        sotParams.solverPriceX192Discounted = 1998 << 192;
+        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+            2002 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1998 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -840,7 +852,7 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 6;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
-        expectedState.reserve1 = preState.reserve1 - params.amountIn * 2000;
+        expectedState.reserve1 = preState.reserve1 - (params.amountIn * 2000 - 1);
 
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
         checkPoolState(expectedState, postState);
@@ -848,8 +860,14 @@ contract SOTConcreteTest is SOTBase {
         // The second quote in the new block has a more updated timestamp, should be treated as discounted
         sotParams.signatureTimestamp = (block.timestamp - 2).toUint32();
         sotParams.expectedFlag = 0;
-        sotParams.solverPriceX192Base = 2002 << 192;
-        sotParams.solverPriceX192Discounted = 1997 << 192;
+        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+            2002 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
+        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+            1997 * (10 ** feedToken0.decimals()),
+            1 * (10 ** feedToken1.decimals())
+        );
         sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -881,7 +899,7 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 2;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
-        expectedState.reserve1 = preState.reserve1 - params.amountIn * 1997;
+        expectedState.reserve1 = preState.reserve1 - (params.amountIn * 1997 - 1);
         expectedState.sqrtSpotPriceX96 = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
@@ -926,7 +944,7 @@ contract SOTConcreteTest is SOTBase {
 
             _setAMMState(sqrtPrice2100, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            sot.setMaxOracleDeviationBips(100);
+            sot.setMaxOracleDeviationBips(100, 100);
             feedToken0.updateAnswer(5000e8);
 
             uint160 sqrtPrice1980 = getSqrtPriceX96(
@@ -997,15 +1015,21 @@ contract SOTConcreteTest is SOTBase {
         vm.startPrank(makeAddr('NOT_MANAGER'));
         vm.expectRevert(SOT.SOT__onlyManager.selector);
 
-        sot.setMaxOracleDeviationBips(100);
+        sot.setMaxOracleDeviationBips(100, 100);
         vm.stopPrank();
 
         vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
-        sot.setMaxOracleDeviationBips(uint16(5001));
+        sot.setMaxOracleDeviationBips(uint16(5001), uint16(1));
+
+        vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
+        sot.setMaxOracleDeviationBips(uint16(1), uint16(5001));
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
-        sot.setMaxOracleDeviationBips(100);
-        assertEq(sot.maxOracleDeviationBips(), 100, 'maxOracleDeviationInBips');
+        sot.setMaxOracleDeviationBips(100, 100);
+        (uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper) = sot.maxOracleDeviationBips();
+
+        assertEq(maxOracleDeviationBipsLower, 100, 'maxOracleDeviationBipsLower');
+        assertEq(maxOracleDeviationBipsUpper, 100, 'maxOracleDeviationBipsUpper');
 
         // Spot price falls within the deviation
         {
@@ -1418,19 +1442,25 @@ contract SOTConcreteTest is SOTBase {
         sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
     }
 
-    function test_eip71Signature() public {
+    function test_eip712Signature() public {
         address publicKey = 0xA52A878CE46F233794FeE5c976eb2528e17510d7;
         uint256 privateKey = 0x709fd5c6a885a6efbe01bce2d72cb1b4b0c56abcf3599f39108764ce5bf2c59e;
         address sotAddress = 0xf678F3DF67EBea04b3a0c1C2636eEc2504c92BA2;
 
         SolverOrderType memory sotParams = SolverOrderType({
             amountInMax: 10e18,
-            solverPriceX192Discounted: 2290 * 2 ** 192,
+            sqrtSolverPriceX96Discounted: getSqrtPriceX96(
+                2290 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ),
             // Solving is expensive and we don't want to SOT reverts
             // multiple SOT can land in the same block
             // the first SOT is doing the favor of unlocking the pool, shifting the spotPrice
             // if you land first you'll get the discounted price if you land second you will get a base price
-            solverPriceX192Base: 2290 * 2 ** 192,
+            sqrtSolverPriceX96Base: getSqrtPriceX96(
+                2290 * (10 ** feedToken0.decimals()),
+                1 * (10 ** feedToken1.decimals())
+            ),
             // new AMM spot price after the swap
             sqrtSpotPriceX96New: 3791986971626720137260477456763,
             authorizedRecipient: publicKey,
@@ -1469,7 +1499,7 @@ contract SOTConcreteTest is SOTBase {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         bytes
-            memory viemSignature = hex'0fecc78e7ea8bfb5903fd7f71a9b7c65faff9cf8368da3fd8ecdc68eeeead4964de3e80cc138ad18e5b822c0c44b5bf8be32c6b9294e6fe4500b3033bfc23ffb1c';
+            memory viemSignature = hex'982d655882b1f267e7692341df9edce4f4b9c1ce626d36dc5cd27725e1d40b9f67f4c3d6e8d356fe03112c9d9be9af0d983e7f19248f16e9573d1407f004bc191b';
 
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
@@ -1528,5 +1558,22 @@ contract SOTConcreteTest is SOTBase {
         expectedSolverWriteSlot.feeGrowthE6Token1 = 600;
 
         checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+    }
+
+    function test_swap_zeroAmount() public {
+        SovereignPoolSwapContextData memory data;
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: false,
+            amountIn: 1,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token0),
+            swapContext: data
+        });
+
+        vm.expectRevert(SOT.SOT__getLiquidityQuote_zeroAmountOut.selector);
+        pool.swap(params);
     }
 }

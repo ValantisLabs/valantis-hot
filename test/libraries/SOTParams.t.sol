@@ -68,16 +68,20 @@ contract SOTParamsHarness {
         uint160 sqrtSolverPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
-        uint256 maxOracleDeviationBound,
-        uint256 solverMaxDiscountBips
+        uint256 maxOracleDeviationBipsLower,
+        uint256 maxOracleDeviationBipsUpper,
+        uint256 solverMaxDiscountBipsLower,
+        uint256 solverMaxDiscountBipsUpper
     ) public view {
         SOTParams.validatePriceConsistency(
             ammStateStorage,
             sqrtSolverPriceX96,
             sqrtSpotPriceNewX96,
             sqrtOraclePriceX96,
-            maxOracleDeviationBound,
-            solverMaxDiscountBips
+            maxOracleDeviationBipsLower,
+            maxOracleDeviationBipsUpper,
+            solverMaxDiscountBipsLower,
+            solverMaxDiscountBipsUpper
         );
     }
 
@@ -91,6 +95,21 @@ contract SOTParamsHarness {
 
     function hashParams(SolverOrderType memory sotParams) public pure returns (bytes32) {
         return SOTParams.hashParams(sotParams);
+    }
+
+    function checkPriceDeviation(
+        uint256 sqrtPriceAX96,
+        uint256 sqrtPriceBX96,
+        uint256 maxDeviationInBipsLower,
+        uint256 maxDeviationInBipsUpper
+    ) public pure returns (bool) {
+        return
+            SOTParams.checkPriceDeviation(
+                sqrtPriceAX96,
+                sqrtPriceBX96,
+                maxDeviationInBipsLower,
+                maxDeviationInBipsUpper
+            );
     }
 }
 
@@ -278,22 +297,52 @@ contract TestSOTParams is SOTBase {
         harness.setState(100, 1, 1000);
 
         // more than 20%
-        uint160 solverPrice = 110;
-        uint160 newPrice = 100; // 12000
+        uint160 sqrtSolverPrice = 110; // Price = 12100
+        uint160 sqrtNewPrice = 100; // Price = 10000
+
+        (uint256 maxDeviationBipsLower, uint256 maxDeviationBipsUpper) = getSqrtDeviationValues(2000);
+
+        // Bound Lower = 2000 ( 20% of 10000)
         vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation.selector);
-        harness.validatePriceConsistency(solverPrice, newPrice, 100, 2000, 2000);
+        harness.validatePriceConsistency(
+            sqrtSolverPrice,
+            sqrtNewPrice,
+            100,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
+        );
 
-        solverPrice = 101;
-        uint160 oraclePrice = 126;
+        sqrtNewPrice = 101;
+        uint160 sqrtOraclePrice = 126;
+        sqrtSolverPrice = 109;
         vm.expectRevert(SOTParams.SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation.selector);
-        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
+        harness.validatePriceConsistency(
+            sqrtSolverPrice,
+            sqrtNewPrice,
+            sqrtOraclePrice,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
+        );
 
-        oraclePrice = 110;
-        newPrice = 95;
+        sqrtOraclePrice = 110;
+        sqrtNewPrice = 95;
+        sqrtSolverPrice = 100;
         vm.expectRevert(
             SOTParams.SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation.selector
         );
-        harness.validatePriceConsistency(solverPrice, newPrice, oraclePrice, 2000, 2000);
+        harness.validatePriceConsistency(
+            sqrtSolverPrice,
+            sqrtNewPrice,
+            sqrtOraclePrice,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
+        );
 
         harness.setState(
             SOTConstants.MIN_SQRT_PRICE + 100,
@@ -301,16 +350,18 @@ contract TestSOTParams is SOTBase {
             SOTConstants.MIN_SQRT_PRICE + 1000
         );
 
-        solverPrice = SOTConstants.MIN_SQRT_PRICE + 101;
-        oraclePrice = SOTConstants.MIN_SQRT_PRICE + 120;
-        newPrice = SOTConstants.MIN_SQRT_PRICE + 100;
+        sqrtSolverPrice = SOTConstants.MIN_SQRT_PRICE + 101;
+        sqrtOraclePrice = SOTConstants.MIN_SQRT_PRICE + 120;
+        sqrtNewPrice = SOTConstants.MIN_SQRT_PRICE + 100;
 
         harness.validatePriceConsistency(
-            solverPrice,
-            newPrice,
-            oraclePrice,
-            SOTConstants.MIN_SQRT_PRICE + 2000,
-            SOTConstants.MIN_SQRT_PRICE + 2000
+            sqrtSolverPrice,
+            sqrtNewPrice,
+            sqrtOraclePrice,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper,
+            maxDeviationBipsLower,
+            maxDeviationBipsUpper
         );
     }
 
@@ -344,5 +395,36 @@ contract TestSOTParams is SOTBase {
         bytes32 expectedHash = keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams));
 
         assertEq(expectedHash, harness.hashParams(sotParams));
+    }
+
+    function test_checkPriceDeviation() public {
+        uint256 sqrtPriceA = 110; // True price = 12100
+        uint256 sqrtPriceB = 100; // True price = 10000
+
+        uint256 truePriceAllowedDeviation = 2000; // 20%
+        // Spot Price Lower Allowed = 8000
+        // Spot Price Upper Allowed = 12000
+        // Sqrt Price Lower Allowed = 89.44
+        // Sqrt Price Upper Allowed = 109.54
+        // Sqrt Lower Deviation = 1056
+        // Sqrt Upper Deviation = 954
+
+        uint256 maxDeviationInBipsLower = 1056;
+        uint256 maxDeviationInBipsUpper = 954;
+
+        (uint256 calculatedDeviationLower, uint256 calculatedDeviationUpper) = getSqrtDeviationValues(
+            truePriceAllowedDeviation
+        );
+
+        assertEq(calculatedDeviationLower, maxDeviationInBipsLower, 'Lower Deviation Mismatch');
+        assertEq(calculatedDeviationUpper, maxDeviationInBipsUpper, 'Upper Deviation Mismatch');
+
+        // harness.checkPriceDeviation(sqrtPriceA, sqrtPriceB, maxDeviationInBipsLower, maxDeviationInBipsUpper);
+
+        assertFalse(
+            harness.checkPriceDeviation(sqrtPriceA, sqrtPriceB, maxDeviationInBipsLower, maxDeviationInBipsUpper)
+        );
+
+        console.log(sqrtPriceB * maxDeviationInBipsUpper);
     }
 }
