@@ -554,7 +554,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         _ammState.setState(sqrtSpotPriceX96Cache, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         // Update AMM liquidity
-        _updateAMMLiquidity();
+        _updateAMMLiquidity(_calculateAMMLiquidity());
 
         emit PriceBoundSet(_sqrtPriceLowX96, _sqrtPriceHighX96);
     }
@@ -688,7 +688,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         );
 
         // Update AMM liquidity with post-deposit reserves
-        _updateAMMLiquidity();
+        _updateAMMLiquidity(_calculateAMMLiquidity());
     }
 
     // @audit: Do we need a reentrancy guard here?
@@ -722,13 +722,12 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
 
         // Update AMM liquidity with post-withdrawal reserves
-        uint128 postWithdrawalLiquidity = _updateAMMLiquidity();
+        uint128 postWithdrawalLiquidity = _calculateAMMLiquidity();
 
         // Liquidity can never increase after a withdrawal, even if some passive reserves are added.
-        if (postWithdrawalLiquidity > preWithdrawalLiquidity) {
-            // Cap liquidity to pre withdrawal values.
-            _effectiveAMMLiquidity = preWithdrawalLiquidity;
-
+        if (postWithdrawalLiquidity < preWithdrawalLiquidity) {
+            _updateAMMLiquidity(postWithdrawalLiquidity);
+        } else {
             emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
@@ -814,7 +813,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         uint256 /*_amountOut*/
     ) external override onlyPool {
         // Update AMM liquidity at the end of the swap
-        _updateAMMLiquidity();
+        uint128 liquidity = _calculateAMMLiquidity();
+        _updateAMMLiquidity(liquidity);
     }
 
     /************************************************
@@ -854,6 +854,13 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
+
+        uint128 newLiquidity = _calculateAMMLiquidity();
+
+        if(newLiquidity < _effectiveAMMLiquidity){
+            _updateAMMLiquidity(newLiquidity);
+        }
+
         // Check that the fee path was chosen correctly
         if (almLiquidityQuoteInput.feeInBips != _getAMMFeeInBips(almLiquidityQuoteInput.isZeroToOne)) {
             revert SOT__getLiquidityQuote_invalidFeePath();
@@ -1024,9 +1031,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
      ***********************************************/
 
     /**
-        @notice Helper function to update AMM's effective liquidity. 
+        @notice Helper function to calculate AMM's effective liquidity. 
      */
-    function _updateAMMLiquidity() private returns (uint128 updatedLiquidity) {
+    function _calculateAMMLiquidity() private view returns (uint128 updatedLiquidity) {
         (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
             .getState();
 
@@ -1050,12 +1057,16 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         } else {
             updatedLiquidity = liquidity1;
         }
+    }
 
+    /**
+        @notice Helper function to update AMM's effective liquidity
+     */
+    function _updateAMMLiquidity(uint128 updatedLiquidity) internal {
         // Update effective AMM liquidity
         _effectiveAMMLiquidity = updatedLiquidity;
-
-        emit EffectiveAMMLiquidityUpdate(updatedLiquidity);
     }
+
 
     /**
         @notice Checks that the current AMM spot price is within the expected range.

@@ -14,7 +14,6 @@ interface ISOT is ISOTOracle {
 
     event ALMDeployed(string indexed name, address alm, address pool);
     event AMMFeeSet(uint16 feeMaxToken0, uint16 feeMaxToken1);
-    event EffectiveAMMLiquidityUpdate(uint256 effectiveAMMLiquidity);
     event FeedSetApproval();
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
