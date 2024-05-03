@@ -131,6 +131,72 @@ contract SOTConcreteTest is SOTBase {
         checkPoolState(expectedState, postState);
     }
 
+    function test_swap_amm_negative_rebase() public {
+        // deploy rebase token pool
+        SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
+        poolArgs.isToken0Rebase = true;
+        poolArgs.isToken1Rebase = true;
+        pool = this.deploySovereignPool(poolArgs);
+        sot = deployAndSetDefaultSOT(pool);
+
+        _addToContractsToApprove(address(pool));
+        _addToContractsToApprove(address(sot));
+
+        token0.approve(address(sot), 1e26);
+        token1.approve(address(sot), 1e26);
+
+        token0.approve(address(pool), 1e26);
+        token1.approve(address(pool), 1e26);
+
+
+        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+
+        // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
+        vm.prank(address(this));
+        sot.setMaxTokenVolumes(100e18, 20_000e18);
+        sot.setMaxAllowedQuotes(2);
+
+        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
+
+        PoolState memory preState = getPoolState();
+
+
+        SovereignPoolSwapContextData memory data;
+        SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
+            isSwapCallback: false,
+            isZeroToOne: true,
+            amountIn: 1e18,
+            amountOutMin: 0,
+            recipient: address(this),
+            deadline: block.timestamp + 2,
+            swapTokenOut: address(token1),
+            swapContext: data
+        });
+
+
+        uint256 snapshot = vm.snapshot();
+
+        (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
+
+        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+
+        vm.revertTo(snapshot);
+
+        vm.startPrank(address(pool));
+        token1.transfer(address(1), preState.reserve1/2);
+        vm.stopPrank();
+
+        (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
+
+        (uint160 sqrtSpotPriceX96Rebase, , ) = sot.getAMMState();
+
+        assertEq(amountInUsedRebase, amountInUsed, 'amountInUsed');
+
+        assertLe(amountOutRebase, amountOut, 'Amount out');
+
+        assertLe(sqrtSpotPriceX96Rebase, sqrtSpotPriceX96, 'Spot price should decrease more');
+    }
+
     function test_swap_amm_depleteLiquidityInOneToken() public {
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
