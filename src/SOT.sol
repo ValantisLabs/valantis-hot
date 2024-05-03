@@ -727,7 +727,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
         // Liquidity can never increase after a withdrawal, even if some passive reserves are added.
         if (postWithdrawalLiquidity < preWithdrawalLiquidity) {
             _updateAMMLiquidity(postWithdrawalLiquidity);
-        }else{
+        } else {
             emit PostWithdrawalLiquidityCapped(sqrtSpotPriceX96Cache, preWithdrawalLiquidity, postWithdrawalLiquidity);
         }
     }
@@ -1065,8 +1065,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     function _updateAMMLiquidity(uint128 updatedLiquidity) internal {
         // Update effective AMM liquidity
         _effectiveAMMLiquidity = updatedLiquidity;
-
-        emit EffectiveAMMLiquidityUpdate(updatedLiquidity);
     }
 
 
