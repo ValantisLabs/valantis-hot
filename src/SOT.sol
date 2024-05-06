@@ -63,7 +63,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__constructor_invalidOraclePriceMaxDiffBips();
     error SOT__constructor_invalidSigner();
     error SOT__constructor_invalidSolverMaxDiscountBips();
-    error SOT__constructor_invalidSovereignPool();
     error SOT__constructor_invalidSovereignPoolConfig();
     error SOT__depositLiquidity_spotPriceAndOracleDeviation();
     error SOT__getLiquidityQuote_invalidFeePath();
@@ -224,10 +223,6 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             _args.maxOracleUpdateDurationFeed1
         )
     {
-        if (_args.pool == address(0)) {
-            revert SOT__constructor_invalidSovereignPool();
-        }
-
         // Sovereign Pool cannot have an external sovereignVault, nor a verifierModule
         bool isValidPoolConfig = (ISovereignPool(_args.pool).sovereignVault() == _args.pool) &&
             (ISovereignPool(_args.pool).verifierModule() == address(0));
