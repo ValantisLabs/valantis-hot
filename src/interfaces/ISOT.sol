@@ -51,8 +51,6 @@ interface ISOT is ISOTOracle {
 
     function maxDelay() external view returns (uint32);
 
-    function maxOracleDeviationBips() external view returns (uint16, uint16);
-
     function maxOracleDeviationBound() external view returns (uint16);
 
     function maxToken0VolumeToQuote() external view returns (uint256);

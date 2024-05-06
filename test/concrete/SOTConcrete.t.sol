@@ -1089,7 +1089,7 @@ contract SOTConcreteTest is SOTBase {
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
         sot.setMaxOracleDeviationBips(100, 100);
-        (uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper) = sot.maxOracleDeviationBips();
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = sot.solverReadSlot();
 
         assertEq(maxOracleDeviationBipsLower, 100, 'maxOracleDeviationBipsLower');
         assertEq(maxOracleDeviationBipsUpper, 100, 'maxOracleDeviationBipsUpper');

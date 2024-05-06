@@ -86,8 +86,15 @@ contract SOTDeployScript is Script {
             sot.setMaxAllowedQuotes(3);
         }
 
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = sot.solverReadSlot();
+
         if (
-            !SOTParams.checkPriceDeviation(sqrtSpotPriceX96, sot.getSqrtOraclePriceX96(), sot.maxOracleDeviationBips())
+            !SOTParams.checkPriceDeviation(
+                sqrtSpotPriceX96,
+                sot.getSqrtOraclePriceX96(),
+                maxOracleDeviationBipsLower,
+                maxOracleDeviationBipsUpper
+            )
         ) {
             revert SOTDeployScript__oraclePriceDeviation();
         }

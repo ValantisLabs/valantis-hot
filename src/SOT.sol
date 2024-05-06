@@ -304,13 +304,6 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         return _effectiveAMMLiquidity;
     }
 
-    /**
-        @notice Returns the lower and upper max allowed deviation between oracle and spot price
-     */
-    function maxOracleDeviationBips() external view returns (uint16, uint16) {
-        return (solverReadSlot.maxOracleDeviationBipsLower, solverReadSlot.maxOracleDeviationBipsUpper);
-    }
-
     // @audit Verify that this function is safe from view-only reentrancy.
     /**
         @notice Returns square-root spot price, lower and upper bounds of the AMM position. 
@@ -779,8 +772,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         uint256 /*_amountOut*/
     ) external override onlyPool {
         // Update AMM liquidity at the end of the swap
-        uint128 liquidity = _calculateAMMLiquidity();
-        _updateAMMLiquidity(liquidity);
+        _updateAMMLiquidity(_calculateAMMLiquidity());
     }
 
     /************************************************
