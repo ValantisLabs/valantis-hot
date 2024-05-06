@@ -1281,6 +1281,10 @@ contract SOTConcreteTest is SOTBase {
         );
         sot.depositLiquidity(1, 1, sqrtPrice2001, sqrtPrice2005);
 
+        // Revert if there are bounds set and we pass either of the values as zero
+        vm.expectRevert(SOT.SOT___checkSpotPriceRange_invalidBounds.selector);
+        sot.depositLiquidity(1, 1, 0, 1);
+
         // Exact spot price range for setPriceBounds, should work
         sot.setPriceBounds(sqrtPrice1999, sqrtPrice2001, sqrtPrice1991, sqrtPrice2005);
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
