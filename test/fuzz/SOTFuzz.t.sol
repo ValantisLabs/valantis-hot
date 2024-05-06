@@ -153,6 +153,9 @@ contract SOTFuzzTest is SOTBase {
         console.log('Fuzz Input: _sqrtPriceLowX96: ', _sqrtPriceLowX96);
         console.log('Fuzz Input: _sqrtPriceHighX96: ', _sqrtPriceHighX96);
 
+        // Set AMM State
+        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
         if (_reserve0 == 0 && _reserve1 == 0) {
             vm.expectRevert(SovereignPool.SovereignPool__depositLiquidity_zeroTotalDepositAmount.selector);
         }
@@ -164,9 +167,6 @@ contract SOTFuzzTest is SOTBase {
 
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
-
-        // Set AMM State
-        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
