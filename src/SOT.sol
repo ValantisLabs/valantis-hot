@@ -72,6 +72,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
     error SOT__setPriceBounds_spotPriceAndOracleDeviation();
     error SOT__setSolverFeeInBips_invalidSolverFee();
+    error SOT___checkSpotPriceRange_invalidBounds();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
     error SOT___solverSwap_invalidSignature();
@@ -1076,7 +1077,9 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     ) private view returns (uint160 sqrtSpotPriceX96Cache) {
         sqrtSpotPriceX96Cache = _ammState.getSqrtSpotPriceX96();
         bool checkSqrtSpotPriceAbsDiff = _expectedSqrtSpotPriceUpperX96 != 0 || _expectedSqrtSpotPriceLowerX96 != 0;
-        if (checkSqrtSpotPriceAbsDiff) {
+        bool isZero = _expectedSqrtSpotPriceUpperX96 == 0 || _expectedSqrtSpotPriceLowerX96 == 0;
+
+        if (checkSqrtSpotPriceAbsDiff && !isZero) {
             // Check that spot price has not been manipulated
             if (
                 sqrtSpotPriceX96Cache > _expectedSqrtSpotPriceUpperX96 ||
@@ -1084,6 +1087,8 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             ) {
                 revert SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96Cache);
             }
+        }else if(checkSqrtSpotPriceAbsDiff && isZero){
+            revert SOT___checkSpotPriceRange_invalidBounds();
         }
     }
 
