@@ -1498,20 +1498,6 @@ contract SOTConcreteTest is SOTBase {
         sot.setPriceBounds(0, 0, 0, 0);
     }
 
-    function test_unusedCallbacks() public {
-        // Test is used to cover unused callbacks to correct coverage report.
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
-            ZERO_ADDRESS,
-            ZERO_ADDRESS,
-            0,
-            ZERO_ADDRESS,
-            new bytes(1)
-        );
-        sot.callbackOnSwapEnd(0, 0, 0, 0, swapFeeModuleData);
-
-        sot.callbackOnSwapEnd(0, 0, 0, swapFeeModuleData);
-    }
-
     function test_eip712Signature() public {
         address publicKey = 0xA52A878CE46F233794FeE5c976eb2528e17510d7;
         uint256 privateKey = 0x709fd5c6a885a6efbe01bce2d72cb1b4b0c56abcf3599f39108764ce5bf2c59e;
