@@ -46,8 +46,6 @@ interface ISOT is ISOTOracle {
 
     function getReservesAtPrice(uint160 sqrtSpotPriceX96New) external view returns (uint256 reserve0, uint256 reserve1);
 
-    function isPaused() external view returns (bool);
-
     function liquidityProvider() external view returns (address);
 
     function manager() external view returns (address);

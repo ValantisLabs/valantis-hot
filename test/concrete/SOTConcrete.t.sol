@@ -148,7 +148,6 @@ contract SOTConcreteTest is SOTBase {
         token0.approve(address(pool), 1e26);
         token1.approve(address(pool), 1e26);
 
-
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
@@ -159,7 +158,6 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
 
         PoolState memory preState = getPoolState();
-
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -173,7 +171,6 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-
         uint256 snapshot = vm.snapshot();
 
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
@@ -183,7 +180,7 @@ contract SOTConcreteTest is SOTBase {
         vm.revertTo(snapshot);
 
         vm.startPrank(address(pool));
-        token1.transfer(address(1), preState.reserve1/2);
+        token1.transfer(address(1), preState.reserve1 / 2);
         vm.stopPrank();
 
         (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
@@ -1204,16 +1201,19 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_pause() public {
+        (bool isPaused, , , , , , ) = sot.solverReadSlot();
         // Default SOT is unpaused
-        assertFalse(sot.isPaused(), 'isPaused error 1');
+        assertFalse(isPaused, 'isPaused error 1');
 
         // Set to the same value again
         sot.setPause(false);
-        assertFalse(sot.isPaused(), 'isPaused error 2');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertFalse(isPaused, 'isPaused error 2');
 
         // Pause the SOT. At this point SOT has (5e18, 10_000e18) liquidity
         sot.setPause(true);
-        assertTrue(sot.isPaused(), 'isPaused error 3');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertTrue(isPaused, 'isPaused error 3');
 
         // Deposits are paused
         vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
@@ -1249,7 +1249,8 @@ contract SOTConcreteTest is SOTBase {
 
         // Unpause the SOT
         sot.setPause(false);
-        assertFalse(sot.isPaused(), 'isPaused error 4');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertFalse(isPaused, 'isPaused error 4');
 
         // Deposits are unpaused
         sot.depositLiquidity(1e18, 1e18, 0, 0);

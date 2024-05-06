@@ -18,7 +18,10 @@ import {
     ALMLiquidityQuoteInput
 } from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
 import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
-import { ISwapFeeModuleMinimal, SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
+import {
+    ISwapFeeModuleMinimal,
+    SwapFeeModuleData
+} from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
@@ -293,13 +296,6 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     /************************************************
      *  GETTER FUNCTIONS
      ***********************************************/
-
-    /**
-        @notice Returns true if the SOT is paused, false otherwise.
-     */
-    function isPaused() external view returns (bool) {
-        return solverReadSlot.isPaused;
-    }
 
     /**
         @notice Returns active AMM liquidity (which gets utilized during AMM swaps).
@@ -831,10 +827,9 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
-
         uint128 newLiquidity = _calculateAMMLiquidity();
 
-        if(newLiquidity < _effectiveAMMLiquidity){
+        if (newLiquidity < _effectiveAMMLiquidity) {
             _updateAMMLiquidity(newLiquidity);
         }
 
@@ -1044,7 +1039,6 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         _effectiveAMMLiquidity = updatedLiquidity;
     }
 
-
     /**
         @notice Checks that the current AMM spot price is within the expected range.
         @param _expectedSqrtSpotPriceLowerX96 Lower limit for expected spot price. ( inclusive )
@@ -1068,7 +1062,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             ) {
                 revert SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(sqrtSpotPriceX96Cache);
             }
-        }else if(checkSqrtSpotPriceAbsDiff && isZero){
+        } else if (checkSqrtSpotPriceAbsDiff && isZero) {
             revert SOT___checkSpotPriceRange_invalidBounds();
         }
     }
