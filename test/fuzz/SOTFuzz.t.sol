@@ -138,6 +138,15 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
+        _isZeroToOne = true;
+        _reserve0 = 304;
+        _reserve1 = 4509513;
+        _amountIn = 0;
+        _sqrtSpotPriceX96 = 79358579154410901191247198717;
+        _sqrtPriceLowX96 = 4295128739;
+        _sqrtPriceHighX96 = 4;
+
+
         // Comprehensive bounds that cover all scenarios
         _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
             .toUint160();
@@ -157,6 +166,9 @@ contract SOTFuzzTest is SOTBase {
             vm.expectRevert(SovereignPool.SovereignPool__depositLiquidity_zeroTotalDepositAmount.selector);
         }
 
+        // Set AMM State
+        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
+
         // Set Reserves
         try sot.depositLiquidity(_reserve0, _reserve1, 0, 0) {} catch {
             return;
@@ -164,9 +176,6 @@ contract SOTFuzzTest is SOTBase {
 
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
-
-        // Set AMM State
-        _setAMMState(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96);
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
