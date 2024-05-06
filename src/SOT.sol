@@ -72,6 +72,7 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
     error SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
     error SOT__setPriceBounds_spotPriceAndOracleDeviation();
+    error SOT__getReservesAtPrice_invalidActiveReserves();
     error SOT__setSolverFeeInBips_invalidSolverFee();
     error SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96(uint160 sqrtSpotPriceX96);
     error SOT___ammSwap_invalidSpotPriceAfterSwap();
@@ -353,6 +354,10 @@ contract SOT is ISovereignALM, ISwapFeeModule, ISOT, EIP712, SOTOracle {
             sqrtPriceHighX96,
             effectiveAMMLiquidityCache
         );
+
+        if(activeReserve0 > reserve0 || activeReserve1 > reserve1){
+            revert SOT__getReservesAtPrice_invalidActiveReserves();
+        }
 
         uint256 passiveReserve0 = reserve0 - activeReserve0;
         uint256 passiveReserve1 = reserve1 - activeReserve1;

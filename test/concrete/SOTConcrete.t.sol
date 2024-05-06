@@ -186,6 +186,9 @@ contract SOTConcreteTest is SOTBase {
         token1.transfer(address(1), preState.reserve1/2);
         vm.stopPrank();
 
+        vm.expectRevert(SOT.SOT__getReservesAtPrice_invalidActiveReserves.selector);
+        sot.getReservesAtPrice(preState.sqrtSpotPriceX96);
+
         (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
 
         (uint160 sqrtSpotPriceX96Rebase, , ) = sot.getAMMState();
