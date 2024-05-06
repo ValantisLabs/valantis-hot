@@ -1538,17 +1538,12 @@ contract SOTConcreteTest is SOTBase {
             isZeroToOne: false
         });
 
-        bytes32 typeHash = keccak256(
-            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-        );
-
-        bytes32 hashedName = keccak256('Valantis Solver Order Type');
-        bytes32 hashedVersion = keccak256('1');
-
-        bytes32 domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, 11155111, sotAddress));
-
         bytes32 digest = keccak256(
-            abi.encodePacked('\x19\x01', domainSeparator, keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams)))
+            abi.encodePacked(
+                '\x19\x01',
+                getDomainSeparatorV4(11155111, sotAddress),
+                keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+            )
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);

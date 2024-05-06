@@ -360,13 +360,6 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         reserve1 = passiveReserve1 + activeReserve1;
     }
 
-    /**
-        @notice EIP-712 domain separator V4. 
-     */
-    function domainSeparatorV4() external view returns (bytes32) {
-        return _domainSeparatorV4();
-    }
-
     /************************************************
      *  SETTER FUNCTIONS
      ***********************************************/

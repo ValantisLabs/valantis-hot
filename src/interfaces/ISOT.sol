@@ -34,9 +34,6 @@ interface ISOT is ISOTOracle {
     /************************************************
      *  VIEW FUNCTIONS
      ***********************************************/
-
-    function domainSeparatorV4() external view returns (bytes32);
-
     function effectiveAMMLiquidity() external view returns (uint128);
 
     function getAMMState()

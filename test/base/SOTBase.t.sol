@@ -198,6 +198,15 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();
     }
 
+    function getDomainSeparatorV4(uint256 chainId, address sotAddress) public pure returns (bytes32 domainSeparator) {
+        bytes32 typeHash = keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+        );
+        bytes32 hashedName = keccak256('Valantis Solver Order Type');
+        bytes32 hashedVersion = keccak256('1');
+        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, sotAddress));
+    }
+
     function getEOASignedQuote(
         SolverOrderType memory sotParams,
         uint256 privateKey
@@ -205,7 +214,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',
-                sot.domainSeparatorV4(),
+                getDomainSeparatorV4(block.chainid, address(sot)),
                 keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
             )
         );
