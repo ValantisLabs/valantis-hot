@@ -346,7 +346,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         poolNonReentrant
         returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
     {
-        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
+        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _getAMMState();
     }
 
     /**
@@ -834,8 +834,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         }
 
         // Cache sqrt spot price, lower bound, and upper bound
-        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
-            .getState();
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _getAMMState();
 
         // Calculate amountOut according to CPMM math
         uint160 sqrtSpotPriceX96New;
@@ -883,14 +882,16 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             revert SOT__getLiquidityQuote_invalidFeePath();
         }
 
+        uint32 blockTimestamp = block.timestamp.toUint32();
+
         // An SOT only updates state if:
         // 1. It is the first SOT that updates state in the block.
         // 2. It was signed after the last processed signature timestamp.
-        bool isDiscountedSolver = block.timestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
-            (solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp);
+        bool isDiscountedSolver = blockTimestamp > solverWriteSlotCache.lastStateUpdateTimestamp &&
+            solverWriteSlotCache.lastProcessedSignatureTimestamp < sot.signatureTimestamp;
 
         // Ensure that the number of SOT swaps per block does not exceed its maximum bound
-        uint8 quotesInCurrentBlock = block.timestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
+        uint8 quotesInCurrentBlock = blockTimestamp > solverWriteSlotCache.lastProcessedQuoteTimestamp
             ? 1
             : solverWriteSlotCache.lastProcessedBlockQuoteCount + 1;
 
@@ -931,11 +932,8 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         );
 
         sot.validateBasicParams(
-            almLiquidityQuoteInput.isZeroToOne,
+            almLiquidityQuoteInput,
             liquidityQuote.amountOut,
-            almLiquidityQuoteInput.sender,
-            almLiquidityQuoteInput.recipient,
-            almLiquidityQuoteInput.amountInMinusFee,
             almLiquidityQuoteInput.isZeroToOne ? _maxToken1VolumeToQuote : _maxToken0VolumeToQuote,
             maxDelay,
             solverWriteSlotCache.alternatingNonceBitmap
@@ -963,33 +961,30 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         // Only update the pool state, if this is a discounted solver quote
         if (isDiscountedSolver) {
             // Update `solverWriteSlot`
-            solverWriteSlot = SolverWriteSlot({
-                lastProcessedBlockQuoteCount: quotesInCurrentBlock,
-                feeGrowthE6Token0: sot.feeGrowthE6Token0,
-                feeMaxToken0: sot.feeMaxToken0,
-                feeMinToken0: sot.feeMinToken0,
-                feeGrowthE6Token1: sot.feeGrowthE6Token1,
-                feeMaxToken1: sot.feeMaxToken1,
-                feeMinToken1: sot.feeMinToken1,
-                lastStateUpdateTimestamp: block.timestamp.toUint32(),
-                lastProcessedQuoteTimestamp: block.timestamp.toUint32(),
-                lastProcessedSignatureTimestamp: sot.signatureTimestamp,
-                alternatingNonceBitmap: solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce)
-            });
+
+            solverWriteSlotCache.feeGrowthE6Token0 = sot.feeGrowthE6Token0;
+            solverWriteSlotCache.feeMaxToken0 = sot.feeMaxToken0;
+            solverWriteSlotCache.feeMinToken0 = sot.feeMinToken0;
+            solverWriteSlotCache.feeGrowthE6Token1 = sot.feeGrowthE6Token1;
+            solverWriteSlotCache.feeMaxToken1 = sot.feeMaxToken1;
+            solverWriteSlotCache.feeMinToken1 = sot.feeMinToken1;
+
+            solverWriteSlotCache.lastProcessedSignatureTimestamp = sot.signatureTimestamp;
+            solverWriteSlotCache.lastStateUpdateTimestamp = blockTimestamp;
 
             // Update AMM sqrt spot price
             _ammState.setSqrtSpotPriceX96(sot.sqrtSpotPriceX96New);
-        } else {
-            solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
-            solverWriteSlotCache.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
-            solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(
-                sot.nonce
-            );
-
-            // Update `solverWriteSlot`
-            solverWriteSlot = solverWriteSlotCache;
         }
 
+        solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
+        solverWriteSlotCache.lastProcessedQuoteTimestamp = blockTimestamp;
+        solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(
+            sot.nonce
+        );
+
+        // Update `solverWriteSlot`
+        solverWriteSlot = solverWriteSlotCache;
+    
         emit SolverSwap(sotHash);
     }
 
@@ -1001,8 +996,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         @notice Helper function to calculate AMM's effective liquidity. 
      */
     function _calculateAMMLiquidity() private view returns (uint128 updatedLiquidity) {
-        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _ammState
-            .getState();
+        (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _getAMMState();
 
         // Query current pool reserves
         (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
@@ -1032,6 +1026,13 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     function _updateAMMLiquidity(uint128 updatedLiquidity) internal {
         // Update effective AMM liquidity
         _effectiveAMMLiquidity = updatedLiquidity;
+    }
+
+    /**
+        @notice Helper function to view AMM's prices
+     */
+    function _getAMMState() private view returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96){
+        (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
     }
 
     /**
