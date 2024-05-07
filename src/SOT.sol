@@ -23,6 +23,7 @@ import {
     SwapFeeModuleData
 } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
+import { SOTLib } from 'src/libraries/SOTLib.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
@@ -354,34 +355,8 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         @return reserve0 Reserves of token0 at `sqrtSpotPriceX96New`.
         @return reserve1 Reserves of token1 at `sqrtSpotPriceX96New`.
      */
-    function getReservesAtPrice(
-        uint160 sqrtSpotPriceX96New
-    ) external view poolNonReentrant returns (uint256 reserve0, uint256 reserve1) {
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = _ammState.getState();
-
-        (reserve0, reserve1) = ISovereignPool(pool).getReserves();
-
-        uint128 effectiveAMMLiquidityCache = _effectiveAMMLiquidity;
-
-        (uint256 activeReserve0, uint256 activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtSpotPriceX96,
-            sqrtPriceLowX96,
-            sqrtPriceHighX96,
-            effectiveAMMLiquidityCache
-        );
-
-        uint256 passiveReserve0 = reserve0 - activeReserve0;
-        uint256 passiveReserve1 = reserve1 - activeReserve1;
-
-        (activeReserve0, activeReserve1) = LiquidityAmounts.getAmountsForLiquidity(
-            sqrtSpotPriceX96New,
-            sqrtPriceLowX96,
-            sqrtPriceHighX96,
-            effectiveAMMLiquidityCache
-        );
-
-        reserve0 = passiveReserve0 + activeReserve0;
-        reserve1 = passiveReserve1 + activeReserve1;
+    function getReservesAtPrice(uint160 sqrtSpotPriceX96New) external view poolNonReentrant returns (uint256, uint256) {
+        return SOTLib.getReservesAtPrice(_ammState, pool, _effectiveAMMLiquidity, sqrtSpotPriceX96New);
     }
 
     /************************************************
