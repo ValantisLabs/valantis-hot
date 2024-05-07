@@ -43,7 +43,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
     }
 
     function test_managerOperations() public {
@@ -155,7 +155,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
 
         PoolState memory preState = getPoolState();
 

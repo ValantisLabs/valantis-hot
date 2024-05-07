@@ -54,6 +54,16 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     AMMState public mockAMMState;
 
+    address public sotImmutablePool;
+    address public sotImmutableLiquidityProvider;
+    uint32 public sotImmutableMaxDelay;
+    uint16 public sotImmutableSolverMaxDiscountBipsLower;
+    uint16 public sotImmutableSolverMaxDiscountBipsUpper;
+    uint16 public sotImmutableMaxOracleDeviationBound;
+    uint16 public sotImmutableMinAMMFeeGrowthE6;
+    uint16 public sotImmutableMaxAMMFeeGrowthE6;
+    uint16 public sotImmutableMinAMMFee;
+
     function setUp() public virtual override {
         _setupBase();
 
@@ -68,6 +78,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
         pool = this.deploySovereignPool(poolArgs);
         sot = deployAndSetDefaultSOT(pool);
+
+        _updateImmutables(sot);
 
         _addToContractsToApprove(address(pool));
         _addToContractsToApprove(address(sot));
@@ -154,6 +166,30 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             _maxOracleUpdateDurationFeed0,
             _maxOracleUpdateDurationFeed1
         );
+    }
+
+    function _updateImmutables(SOT _sot) internal {
+        (
+            address _sotImmutablePool,
+            address _sotImmutableLiquidityProvider,
+            uint32 _sotImmutableMaxDelay,
+            uint16 _sotImmutableSolverMaxDiscountBipsLower,
+            uint16 _sotImmutableSolverMaxDiscountBipsUpper,
+            uint16 _sotImmutableMaxOracleDeviationBound,
+            uint16 _sotImmutableMinAMMFeeGrowthE6,
+            uint16 _sotImmutableMaxAMMFeeGrowthE6,
+            uint16 _sotImmutableMinAMMFee
+        ) = _sot.immutables();
+
+        sotImmutablePool = _sotImmutablePool;
+        sotImmutableLiquidityProvider = _sotImmutableLiquidityProvider;
+        sotImmutableMaxDelay = _sotImmutableMaxDelay;
+        sotImmutableSolverMaxDiscountBipsLower = _sotImmutableSolverMaxDiscountBipsLower;
+        sotImmutableSolverMaxDiscountBipsUpper = _sotImmutableSolverMaxDiscountBipsUpper;
+        sotImmutableMaxOracleDeviationBound = _sotImmutableMaxOracleDeviationBound;
+        sotImmutableMinAMMFeeGrowthE6 = _sotImmutableMinAMMFeeGrowthE6;
+        sotImmutableMaxAMMFeeGrowthE6 = _sotImmutableMaxAMMFeeGrowthE6;
+        sotImmutableMinAMMFee = _sotImmutableMinAMMFee;
     }
 
     function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {

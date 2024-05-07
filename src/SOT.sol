@@ -88,31 +88,31 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     /**
 	    @notice Sovereign Pool to which this Liquidity Module is bound.
     */
-    address public immutable pool;
+    address internal immutable pool;
 
     /**
 	    @notice Address of account which is meant to deposit & withdraw liquidity.
      */
-    address public immutable liquidityProvider;
+    address internal immutable liquidityProvider;
 
     /**
 	    @notice Maximum delay, in seconds, for acceptance of SOT quotes.
     */
-    uint32 public immutable maxDelay;
+    uint32 internal immutable maxDelay;
 
     /**
 	    @notice Maximum price discount allowed for SOT quotes,
                 expressed in basis-points.
     */
-    uint16 public immutable solverMaxDiscountBipsLower;
-    uint16 public immutable solverMaxDiscountBipsUpper;
+    uint16 internal immutable solverMaxDiscountBipsLower;
+    uint16 internal immutable solverMaxDiscountBipsUpper;
 
     /**
 	    @notice Maximum allowed relative deviation
                 between sqrt spot price and sqrt oracle price,
                 expressed in basis-points.
      */
-    uint16 public immutable maxOracleDeviationBound;
+    uint16 internal immutable maxOracleDeviationBound;
 
     /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
@@ -121,14 +121,14 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         Max Value: 0.65535 % per second
         @dev SOT reverts if feeGrowthE6 exceeds these bounds.
      */
-    uint16 public immutable minAMMFeeGrowthE6;
-    uint16 public immutable maxAMMFeeGrowthE6;
+    uint16 internal immutable minAMMFeeGrowthE6;
+    uint16 internal immutable maxAMMFeeGrowthE6;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
 	    @dev SOT reverts if feeMinToken{0,1} is below this value.
      */
-    uint16 public immutable minAMMFee;
+    uint16 internal immutable minAMMFee;
 
     /************************************************
      *  STORAGE
@@ -296,6 +296,37 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     /************************************************
      *  GETTER FUNCTIONS
      ***********************************************/
+
+    /**
+        @notice Returns all immutable values of the SOT.
+     */
+    function immutables()
+        external
+        view
+        returns (
+            address _pool,
+            address _liquidityProvider,
+            uint32 _maxDelay,
+            uint16 _solverMaxDiscountBipsLower,
+            uint16 _solverMaxDiscountBipsUpper,
+            uint16 _maxOracleDeviationBound,
+            uint16 _minAMMFeeGrowthE6,
+            uint16 _maxAMMFeeGrowthE6,
+            uint16 _minAMMFee
+        )
+    {
+        return (
+            pool,
+            liquidityProvider,
+            maxDelay,
+            solverMaxDiscountBipsLower,
+            solverMaxDiscountBipsUpper,
+            maxOracleDeviationBound,
+            minAMMFeeGrowthE6,
+            maxAMMFeeGrowthE6,
+            minAMMFee
+        );
+    }
 
     /**
         @notice Returns active AMM liquidity (which gets utilized during AMM swaps).
