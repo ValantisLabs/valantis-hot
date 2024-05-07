@@ -66,8 +66,9 @@ contract SOTConcreteTest is SOTBase {
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
         sot.setMaxTokenVolumes(500, 500);
-        assertEq(sot.maxToken0VolumeToQuote(), 500, 'maxTokenVolume0');
-        assertEq(sot.maxToken0VolumeToQuote(), 500, 'maxTokenVolume1');
+        (uint256 maxToken0VolumeToQuote, ) = sot.maxTokenVolumes();
+        assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume0');
+        assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume1');
 
         sot.setManager(makeAddr('MANAGER'));
         assertEq(sot.manager(), makeAddr('MANAGER'), 'manager');

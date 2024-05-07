@@ -45,9 +45,7 @@ interface ISOT is ISOTOracle {
 
     function manager() external view returns (address);
 
-    function maxToken0VolumeToQuote() external view returns (uint256);
-
-    function maxToken1VolumeToQuote() external view returns (uint256);
+    function maxTokenVolumes() external view returns (uint256, uint256);
 
     function solverReadSlot()
         external

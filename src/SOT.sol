@@ -179,8 +179,8 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
 	    @notice Maximum amount of token{0,1} to quote to solvers on each SOT.
         @dev Can be updated by `manager`.
      */
-    uint256 public maxToken0VolumeToQuote;
-    uint256 public maxToken1VolumeToQuote;
+    uint256 internal _maxToken0VolumeToQuote;
+    uint256 internal _maxToken1VolumeToQuote;
 
     /************************************************
      *  MODIFIERS
@@ -359,6 +359,10 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         return SOTLib.getReservesAtPrice(_ammState, pool, _effectiveAMMLiquidity, sqrtSpotPriceX96New);
     }
 
+    function maxTokenVolumes() external view override returns (uint256, uint256) {
+        return (_maxToken0VolumeToQuote, _maxToken1VolumeToQuote);
+    }
+
     /************************************************
      *  SETTER FUNCTIONS
      ***********************************************/
@@ -406,11 +410,11 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         @dev Only callable by `manager`.
         @dev It assumes that `manager` implements a timelock when calling this function.
      */
-    function setMaxTokenVolumes(uint256 _maxToken0VolumeToQuote, uint256 _maxToken1VolumeToQuote) external onlyManager {
-        maxToken0VolumeToQuote = _maxToken0VolumeToQuote;
-        maxToken1VolumeToQuote = _maxToken1VolumeToQuote;
+    function setMaxTokenVolumes(uint256 maxToken0VolumeToQuote, uint256 maxToken1VolumeToQuote) external onlyManager {
+        _maxToken0VolumeToQuote = maxToken0VolumeToQuote;
+        _maxToken1VolumeToQuote = maxToken1VolumeToQuote;
 
-        emit MaxTokenVolumeSet(_maxToken0VolumeToQuote, _maxToken1VolumeToQuote);
+        emit MaxTokenVolumeSet(maxToken0VolumeToQuote, maxToken1VolumeToQuote);
     }
 
     /**
@@ -932,7 +936,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             almLiquidityQuoteInput.sender,
             almLiquidityQuoteInput.recipient,
             almLiquidityQuoteInput.amountInMinusFee,
-            almLiquidityQuoteInput.isZeroToOne ? maxToken1VolumeToQuote : maxToken0VolumeToQuote,
+            almLiquidityQuoteInput.isZeroToOne ? _maxToken1VolumeToQuote : _maxToken0VolumeToQuote,
             maxDelay,
             solverWriteSlotCache.alternatingNonceBitmap
         );
