@@ -23,7 +23,7 @@ import {
     SwapFeeModuleData
 } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOTLib } from 'src/libraries/SOTLib.sol';
+import { ReserveMath } from 'src/libraries/ReserveMath.sol';
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
@@ -89,31 +89,31 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     /**
 	    @notice Sovereign Pool to which this Liquidity Module is bound.
     */
-    address internal immutable pool;
+    address internal immutable _pool;
 
     /**
 	    @notice Address of account which is meant to deposit & withdraw liquidity.
      */
-    address internal immutable liquidityProvider;
+    address internal immutable _liquidityProvider;
 
     /**
 	    @notice Maximum delay, in seconds, for acceptance of SOT quotes.
     */
-    uint32 internal immutable maxDelay;
+    uint32 internal immutable _maxDelay;
 
     /**
 	    @notice Maximum price discount allowed for SOT quotes,
                 expressed in basis-points.
     */
-    uint16 internal immutable solverMaxDiscountBipsLower;
-    uint16 internal immutable solverMaxDiscountBipsUpper;
+    uint16 internal immutable _solverMaxDiscountBipsLower;
+    uint16 internal immutable _solverMaxDiscountBipsUpper;
 
     /**
 	    @notice Maximum allowed relative deviation
                 between sqrt spot price and sqrt oracle price,
                 expressed in basis-points.
      */
-    uint16 internal immutable maxOracleDeviationBound;
+    uint16 internal immutable _maxOracleDeviationBound;
 
     /**
 	    @notice Bounds the growth rate, in basis-points, of the AMM fee 
@@ -122,14 +122,14 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         Max Value: 0.65535 % per second
         @dev SOT reverts if feeGrowthE6 exceeds these bounds.
      */
-    uint16 internal immutable minAMMFeeGrowthE6;
-    uint16 internal immutable maxAMMFeeGrowthE6;
+    uint16 internal immutable _minAMMFeeGrowthE6;
+    uint16 internal immutable _maxAMMFeeGrowthE6;
 
     /**
 	    @notice Minimum allowed AMM fee, in basis-points.
 	    @dev SOT reverts if feeMinToken{0,1} is below this value.
      */
-    uint16 internal immutable minAMMFee;
+    uint16 internal immutable _minAMMFee;
 
     /************************************************
      *  STORAGE
@@ -235,7 +235,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             revert SOT__constructor_invalidSovereignPoolConfig();
         }
 
-        pool = _args.pool;
+        _pool = _args.pool;
 
         if (_args.manager == address(0)) {
             revert SOT__constructor_invalidManager();
@@ -253,9 +253,9 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             revert SOT__constructor_invalidLiquidityProvider();
         }
 
-        liquidityProvider = _args.liquidityProvider;
+        _liquidityProvider = _args.liquidityProvider;
 
-        maxDelay = _args.maxDelay;
+        _maxDelay = _args.maxDelay;
 
         if (
             _args.solverMaxDiscountBipsLower > SOTConstants.BIPS || _args.solverMaxDiscountBipsUpper > SOTConstants.BIPS
@@ -263,33 +263,33 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             revert SOT__constructor_invalidSolverMaxDiscountBips();
         }
 
-        solverMaxDiscountBipsLower = _args.solverMaxDiscountBipsLower;
-        solverMaxDiscountBipsUpper = _args.solverMaxDiscountBipsUpper;
+        _solverMaxDiscountBipsLower = _args.solverMaxDiscountBipsLower;
+        _solverMaxDiscountBipsUpper = _args.solverMaxDiscountBipsUpper;
 
         if (_args.maxOracleDeviationBound > SOTConstants.BIPS) {
             revert SOT__constructor_invalidOraclePriceMaxDiffBips();
         }
 
-        maxOracleDeviationBound = _args.maxOracleDeviationBound;
+        _maxOracleDeviationBound = _args.maxOracleDeviationBound;
 
         if (_args.minAMMFeeGrowthE6 > _args.maxAMMFeeGrowthE6) {
             revert SOT__constructor_invalidFeeGrowthBounds();
         }
-        minAMMFeeGrowthE6 = _args.minAMMFeeGrowthE6;
+        _minAMMFeeGrowthE6 = _args.minAMMFeeGrowthE6;
 
-        maxAMMFeeGrowthE6 = _args.maxAMMFeeGrowthE6;
+        _maxAMMFeeGrowthE6 = _args.maxAMMFeeGrowthE6;
 
         if (_args.minAMMFee > SOTConstants.BIPS) {
             revert SOT__constructor_invalidMinAMMFee();
         }
 
-        minAMMFee = _args.minAMMFee;
+        _minAMMFee = _args.minAMMFee;
 
         SOTParams.validatePriceBounds(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
         _ammState.setState(_args.sqrtSpotPriceX96, _args.sqrtPriceLowX96, _args.sqrtPriceHighX96);
 
-        emit ALMDeployed('SOT V1', address(this), address(pool));
+        emit ALMDeployed('SOT V1', address(this), address(_pool));
 
         // AMM State is initialized as unpaused
     }
@@ -300,32 +300,41 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
 
     /**
         @notice Returns all immutable values of the SOT.
+        @return pool Sovereign Pool address.
+        @return liquidityProvider Liquidity provider address.
+        @return maxDelay Maximum delay, in seconds, for acceptance of SOT quotes.
+        @return solverMaxDiscountBipsLower Maximum discount allowed for SOT quotes.
+        @return solverMaxDiscountBipsUpper Maximum discount allowed for SOT quotes.
+        @return maxOracleDeviationBound Maximum allowed deviation between AMM and oracle price.
+        @return minAMMFeeGrowthE6 Minimum AMM fee growth rate.
+        @return maxAMMFeeGrowthE6 Maximum AMM fee growth rate.
+        @return minAMMFee Minimum AMM fee.
      */
     function immutables()
         external
         view
         returns (
-            address _pool,
-            address _liquidityProvider,
-            uint32 _maxDelay,
-            uint16 _solverMaxDiscountBipsLower,
-            uint16 _solverMaxDiscountBipsUpper,
-            uint16 _maxOracleDeviationBound,
-            uint16 _minAMMFeeGrowthE6,
-            uint16 _maxAMMFeeGrowthE6,
-            uint16 _minAMMFee
+            address pool,
+            address liquidityProvider,
+            uint32 maxDelay,
+            uint16 solverMaxDiscountBipsLower,
+            uint16 solverMaxDiscountBipsUpper,
+            uint16 maxOracleDeviationBound,
+            uint16 minAMMFeeGrowthE6,
+            uint16 maxAMMFeeGrowthE6,
+            uint16 minAMMFee
         )
     {
         return (
-            pool,
-            liquidityProvider,
-            maxDelay,
-            solverMaxDiscountBipsLower,
-            solverMaxDiscountBipsUpper,
-            maxOracleDeviationBound,
-            minAMMFeeGrowthE6,
-            maxAMMFeeGrowthE6,
-            minAMMFee
+            _pool,
+            _liquidityProvider,
+            _maxDelay,
+            _solverMaxDiscountBipsLower,
+            _solverMaxDiscountBipsUpper,
+            _maxOracleDeviationBound,
+            _minAMMFeeGrowthE6,
+            _maxAMMFeeGrowthE6,
+            _minAMMFee
         );
     }
 
@@ -356,9 +365,14 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         @return reserve1 Reserves of token1 at `sqrtSpotPriceX96New`.
      */
     function getReservesAtPrice(uint160 sqrtSpotPriceX96New) external view poolNonReentrant returns (uint256, uint256) {
-        return SOTLib.getReservesAtPrice(_ammState, pool, _effectiveAMMLiquidity, sqrtSpotPriceX96New);
+        return ReserveMath.getReservesAtPrice(_ammState, _pool, _effectiveAMMLiquidity, sqrtSpotPriceX96New);
     }
 
+    /**
+        @notice Returns the maximum token volumes allowed to be swapped in a single SOT quote.
+        @return maxToken0VolumeToQuote Maximum token0 volume.
+        @return maxToken1VolumeToQuote Maximum token1 volume.
+     */
     function maxTokenVolumes() external view override returns (uint256, uint256) {
         return (_maxToken0VolumeToQuote, _maxToken1VolumeToQuote);
     }
@@ -463,8 +477,8 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         uint16 _maxOracleDeviationBipsUpper
     ) external onlyManager {
         if (
-            _maxOracleDeviationBipsLower > maxOracleDeviationBound ||
-            _maxOracleDeviationBipsUpper > maxOracleDeviationBound
+            _maxOracleDeviationBipsLower > _maxOracleDeviationBound ||
+            _maxOracleDeviationBipsUpper > _maxOracleDeviationBound
         ) {
             revert SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
         }
@@ -573,9 +587,9 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             _feeMinToken1,
             _feeMaxToken1,
             _feeGrowthE6Token1,
-            minAMMFee,
-            minAMMFeeGrowthE6,
-            maxAMMFeeGrowthE6
+            _minAMMFee,
+            _minAMMFeeGrowthE6,
+            _maxAMMFeeGrowthE6
         );
 
         SolverWriteSlot memory solverWriteSlotCache = solverWriteSlot;
@@ -667,10 +681,10 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         }
 
         // Deposit amount(s) into pool
-        (amount0Deposited, amount1Deposited) = ISovereignPool(pool).depositLiquidity(
+        (amount0Deposited, amount1Deposited) = ISovereignPool(_pool).depositLiquidity(
             _amount0,
             _amount1,
-            liquidityProvider,
+            _liquidityProvider,
             '',
             ''
         );
@@ -707,7 +721,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
 
         uint128 preWithdrawalLiquidity = _effectiveAMMLiquidity;
 
-        ISovereignPool(pool).withdrawLiquidity(_amount0, _amount1, liquidityProvider, _recipient, '');
+        ISovereignPool(_pool).withdrawLiquidity(_amount0, _amount1, _liquidityProvider, _recipient, '');
 
         // Update AMM liquidity with post-withdrawal reserves
         uint128 postWithdrawalLiquidity = _calculateAMMLiquidity();
@@ -759,14 +773,14 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     ) external override onlyPool {
         if (_amount0 > 0) {
             // Transfer token0 amount from `liquidityProvider` to `pool`
-            address token0 = ISovereignPool(pool).token0();
-            IERC20(token0).safeTransferFrom(liquidityProvider, msg.sender, _amount0);
+            address token0 = ISovereignPool(_pool).token0();
+            IERC20(token0).safeTransferFrom(_liquidityProvider, msg.sender, _amount0);
         }
 
         if (_amount1 > 0) {
-            // Transfer token1 amount from `liquidityProvider` to `pool`
-            address token1 = ISovereignPool(pool).token1();
-            IERC20(token1).safeTransferFrom(liquidityProvider, msg.sender, _amount1);
+            // Transfer token1 amount from `_liquidityProvider` to `pool`
+            address token1 = ISovereignPool(_pool).token1();
+            IERC20(token1).safeTransferFrom(_liquidityProvider, msg.sender, _amount1);
         }
     }
 
@@ -926,16 +940,16 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             sot.feeMinToken1,
             sot.feeMaxToken1,
             sot.feeGrowthE6Token1,
-            minAMMFee,
-            minAMMFeeGrowthE6,
-            maxAMMFeeGrowthE6
+            _minAMMFee,
+            _minAMMFeeGrowthE6,
+            _maxAMMFeeGrowthE6
         );
 
         sot.validateBasicParams(
             almLiquidityQuoteInput,
             liquidityQuote.amountOut,
             almLiquidityQuoteInput.isZeroToOne ? _maxToken1VolumeToQuote : _maxToken0VolumeToQuote,
-            maxDelay,
+            _maxDelay,
             solverWriteSlotCache.alternatingNonceBitmap
         );
 
@@ -946,8 +960,8 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
             getSqrtOraclePriceX96(),
             solverReadSlot.maxOracleDeviationBipsLower,
             solverReadSlot.maxOracleDeviationBipsUpper,
-            solverMaxDiscountBipsLower,
-            solverMaxDiscountBipsUpper
+            _solverMaxDiscountBipsLower,
+            _solverMaxDiscountBipsUpper
         );
 
         // Verify SOT quote signature
@@ -978,13 +992,11 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
 
         solverWriteSlotCache.lastProcessedBlockQuoteCount = quotesInCurrentBlock;
         solverWriteSlotCache.lastProcessedQuoteTimestamp = blockTimestamp;
-        solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(
-            sot.nonce
-        );
+        solverWriteSlotCache.alternatingNonceBitmap = solverWriteSlotCache.alternatingNonceBitmap.flipNonce(sot.nonce);
 
         // Update `solverWriteSlot`
         solverWriteSlot = solverWriteSlotCache;
-    
+
         emit SolverSwap(sotHash);
     }
 
@@ -999,7 +1011,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         (uint160 sqrtSpotPriceX96Cache, uint160 sqrtPriceLowX96Cache, uint160 sqrtPriceHighX96Cache) = _getAMMState();
 
         // Query current pool reserves
-        (uint256 reserve0, uint256 reserve1) = ISovereignPool(pool).getReserves();
+        (uint256 reserve0, uint256 reserve1) = ISovereignPool(_pool).getReserves();
 
         // Calculate liquidity corresponding to each of token's reserves and respective price ranges
         uint128 liquidity0 = LiquidityAmounts.getLiquidityForAmount0(
@@ -1031,7 +1043,11 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     /**
         @notice Helper function to view AMM's prices
      */
-    function _getAMMState() private view returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96){
+    function _getAMMState()
+        private
+        view
+        returns (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96)
+    {
         (sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96) = _ammState.getState();
     }
 
@@ -1064,7 +1080,7 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     }
 
     function _onlyPool() private view {
-        if (msg.sender != pool) {
+        if (msg.sender != _pool) {
             revert SOT__onlyPool();
         }
     }
@@ -1082,13 +1098,13 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
     }
 
     function _onlyLiquidityProvider() private view {
-        if (msg.sender != liquidityProvider) {
+        if (msg.sender != _liquidityProvider) {
             revert SOT__onlyLiquidityProvider();
         }
     }
 
     function _poolNonReentrant() private view {
-        if (ISovereignPool(pool).isLocked()) {
+        if (ISovereignPool(_pool).isLocked()) {
             revert SOT__poolReentrant();
         }
     }
