@@ -54,6 +54,16 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     AMMState public mockAMMState;
 
+    address public sotImmutablePool;
+    address public sotImmutableLiquidityProvider;
+    uint32 public sotImmutableMaxDelay;
+    uint16 public sotImmutableSolverMaxDiscountBipsLower;
+    uint16 public sotImmutableSolverMaxDiscountBipsUpper;
+    uint16 public sotImmutableMaxOracleDeviationBound;
+    uint16 public sotImmutableMinAMMFeeGrowthE6;
+    uint16 public sotImmutableMaxAMMFeeGrowthE6;
+    uint16 public sotImmutableMinAMMFee;
+
     function setUp() public virtual override {
         _setupBase();
 
@@ -68,6 +78,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
         pool = this.deploySovereignPool(poolArgs);
         sot = deployAndSetDefaultSOT(pool);
+
+        _updateImmutables(sot);
 
         _addToContractsToApprove(address(pool));
         _addToContractsToApprove(address(sot));
@@ -156,6 +168,30 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
     }
 
+    function _updateImmutables(SOT _sot) internal {
+        (
+            address _sotImmutablePool,
+            address _sotImmutableLiquidityProvider,
+            uint32 _sotImmutableMaxDelay,
+            uint16 _sotImmutableSolverMaxDiscountBipsLower,
+            uint16 _sotImmutableSolverMaxDiscountBipsUpper,
+            uint16 _sotImmutableMaxOracleDeviationBound,
+            uint16 _sotImmutableMinAMMFeeGrowthE6,
+            uint16 _sotImmutableMaxAMMFeeGrowthE6,
+            uint16 _sotImmutableMinAMMFee
+        ) = _sot.immutables();
+
+        sotImmutablePool = _sotImmutablePool;
+        sotImmutableLiquidityProvider = _sotImmutableLiquidityProvider;
+        sotImmutableMaxDelay = _sotImmutableMaxDelay;
+        sotImmutableSolverMaxDiscountBipsLower = _sotImmutableSolverMaxDiscountBipsLower;
+        sotImmutableSolverMaxDiscountBipsUpper = _sotImmutableSolverMaxDiscountBipsUpper;
+        sotImmutableMaxOracleDeviationBound = _sotImmutableMaxOracleDeviationBound;
+        sotImmutableMinAMMFeeGrowthE6 = _sotImmutableMinAMMFeeGrowthE6;
+        sotImmutableMaxAMMFeeGrowthE6 = _sotImmutableMaxAMMFeeGrowthE6;
+        sotImmutableMinAMMFee = _sotImmutableMinAMMFee;
+    }
+
     function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {
         // sqrt(2000) * 2^96 = 3543191142285914205922034323214
         // Sensible Defaults
@@ -198,6 +234,15 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();
     }
 
+    function getDomainSeparatorV4(uint256 chainId, address sotAddress) public pure returns (bytes32 domainSeparator) {
+        bytes32 typeHash = keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+        );
+        bytes32 hashedName = keccak256('Valantis Solver Order Type');
+        bytes32 hashedVersion = keccak256('1');
+        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, sotAddress));
+    }
+
     function getEOASignedQuote(
         SolverOrderType memory sotParams,
         uint256 privateKey
@@ -205,7 +250,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',
-                sot.domainSeparatorV4(),
+                getDomainSeparatorV4(block.chainid, address(sot)),
                 keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
             )
         );

@@ -43,7 +43,7 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
     }
 
     function test_managerOperations() public {
@@ -66,8 +66,9 @@ contract SOTConcreteTest is SOTBase {
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
         sot.setMaxTokenVolumes(500, 500);
-        assertEq(sot.maxToken0VolumeToQuote(), 500, 'maxTokenVolume0');
-        assertEq(sot.maxToken0VolumeToQuote(), 500, 'maxTokenVolume1');
+        (uint256 maxToken0VolumeToQuote, ) = sot.maxTokenVolumes();
+        assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume0');
+        assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume1');
 
         sot.setManager(makeAddr('MANAGER'));
         assertEq(sot.manager(), makeAddr('MANAGER'), 'manager');
@@ -148,7 +149,6 @@ contract SOTConcreteTest is SOTBase {
         token0.approve(address(pool), 1e26);
         token1.approve(address(pool), 1e26);
 
-
         sot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
@@ -156,10 +156,9 @@ contract SOTConcreteTest is SOTBase {
         sot.setMaxTokenVolumes(100e18, 20_000e18);
         sot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sot.maxOracleDeviationBound(), sot.maxOracleDeviationBound());
+        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
 
         PoolState memory preState = getPoolState();
-
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -173,7 +172,6 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-
         uint256 snapshot = vm.snapshot();
 
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
@@ -183,7 +181,7 @@ contract SOTConcreteTest is SOTBase {
         vm.revertTo(snapshot);
 
         vm.startPrank(address(pool));
-        token1.transfer(address(1), preState.reserve1/2);
+        token1.transfer(address(1), preState.reserve1 / 2);
         vm.stopPrank();
 
         (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
@@ -1092,7 +1090,7 @@ contract SOTConcreteTest is SOTBase {
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
         sot.setMaxOracleDeviationBips(100, 100);
-        (uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper) = sot.maxOracleDeviationBips();
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = sot.solverReadSlot();
 
         assertEq(maxOracleDeviationBipsLower, 100, 'maxOracleDeviationBipsLower');
         assertEq(maxOracleDeviationBipsUpper, 100, 'maxOracleDeviationBipsUpper');
@@ -1204,16 +1202,19 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_pause() public {
+        (bool isPaused, , , , , , ) = sot.solverReadSlot();
         // Default SOT is unpaused
-        assertFalse(sot.isPaused(), 'isPaused error 1');
+        assertFalse(isPaused, 'isPaused error 1');
 
         // Set to the same value again
         sot.setPause(false);
-        assertFalse(sot.isPaused(), 'isPaused error 2');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertFalse(isPaused, 'isPaused error 2');
 
         // Pause the SOT. At this point SOT has (5e18, 10_000e18) liquidity
         sot.setPause(true);
-        assertTrue(sot.isPaused(), 'isPaused error 3');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertTrue(isPaused, 'isPaused error 3');
 
         // Deposits are paused
         vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
@@ -1249,7 +1250,8 @@ contract SOTConcreteTest is SOTBase {
 
         // Unpause the SOT
         sot.setPause(false);
-        assertFalse(sot.isPaused(), 'isPaused error 4');
+        (isPaused, , , , , , ) = sot.solverReadSlot();
+        assertFalse(isPaused, 'isPaused error 4');
 
         // Deposits are unpaused
         sot.depositLiquidity(1e18, 1e18, 0, 0);
@@ -1537,17 +1539,12 @@ contract SOTConcreteTest is SOTBase {
             isZeroToOne: false
         });
 
-        bytes32 typeHash = keccak256(
-            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-        );
-
-        bytes32 hashedName = keccak256('Valantis Solver Order Type');
-        bytes32 hashedVersion = keccak256('1');
-
-        bytes32 domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, 11155111, sotAddress));
-
         bytes32 digest = keccak256(
-            abi.encodePacked('\x19\x01', domainSeparator, keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams)))
+            abi.encodePacked(
+                '\x19\x01',
+                getDomainSeparatorV4(11155111, sotAddress),
+                keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+            )
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);

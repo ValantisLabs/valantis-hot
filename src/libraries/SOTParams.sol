@@ -7,6 +7,10 @@ import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
 import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import {
+    ALMLiquidityQuoteInput
+} from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
+
 
 /**
     @notice Library for validating all parameters of a signed Solver Rrder Type (SOT) quote.
@@ -44,22 +48,19 @@ library SOTParams {
 
     function validateBasicParams(
         SolverOrderType memory sot,
-        bool isZeroToOne,
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         uint256 amountOut,
-        address sender,
-        address recipient,
-        uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint56 alternatingNonceBitmap
     ) internal view {
-        if (sot.isZeroToOne != isZeroToOne) revert SOTParams__validateBasicParams_incorrectSwapDirection();
+        if (sot.isZeroToOne != almLiquidityQuoteInput.isZeroToOne) revert SOTParams__validateBasicParams_incorrectSwapDirection();
 
-        if (sot.authorizedSender != sender) revert SOTParams__validateBasicParams_unauthorizedSender();
+        if (sot.authorizedSender != almLiquidityQuoteInput.sender) revert SOTParams__validateBasicParams_unauthorizedSender();
 
-        if (sot.authorizedRecipient != recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
+        if (sot.authorizedRecipient != almLiquidityQuoteInput.recipient) revert SOTParams__validateBasicParams_unauthorizedRecipient();
 
-        if (amountIn > sot.amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
+        if (almLiquidityQuoteInput.amountInMinusFee > sot.amountInMax) revert SOTParams__validateBasicParams_excessiveTokenInAmount();
 
         if (sot.expiry > maxDelay) revert SOTParams__validateBasicParams_excessiveExpiryTime();
 

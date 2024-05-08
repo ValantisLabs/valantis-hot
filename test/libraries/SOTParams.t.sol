@@ -4,6 +4,9 @@ pragma solidity 0.8.19;
 import { Test } from 'forge-std/Test.sol';
 import { console } from 'forge-std/console.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+import {
+    ALMLiquidityQuoteInput
+} from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
 
 import { SOTParams } from 'src/libraries/SOTParams.sol';
 import { TightPack } from 'src/libraries/utils/TightPack.sol';
@@ -23,22 +26,16 @@ contract SOTParamsHarness {
 
     function validateBasicParams(
         SolverOrderType memory sot,
-        bool isZeroToOne,
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         uint256 amountOut,
-        address sender,
-        address recipient,
-        uint256 amountIn,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint56 alternatingNonceBitmap
     ) public view {
         SOTParams.validateBasicParams(
             sot,
-            isZeroToOne,
+            almLiquidityQuoteInput,
             amountOut,
-            sender,
-            recipient,
-            amountIn,
             tokenOutMaxBound,
             maxDelay,
             alternatingNonceBitmap
@@ -134,13 +131,17 @@ contract TestSOTParams is SOTBase {
 
         sotParams.expectedFlag = 1;
         // Correct Case
+
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
@@ -150,14 +151,19 @@ contract TestSOTParams is SOTBase {
     function test_validateBasicParams_expiredQuote() public {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
         sotParams.signatureTimestamp = (block.timestamp - 25).toUint32();
+
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
+
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_quoteExpired.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
@@ -168,14 +174,18 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
         sotParams.expiry = 37;
 
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
+
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveExpiryTime.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
@@ -185,29 +195,32 @@ contract TestSOTParams is SOTBase {
     function test_validateBasicParams_incorrectSenderRecipient() public {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('WRONG_RECIPIENT');
+
         // Incorrect Recipient
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedRecipient.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('WRONG_RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
         });
 
+        almLiquidityQuoteInput.sender = makeAddr('WRONG_SENDER');
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
         // Incorrect Sender
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_unauthorizedSender.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: makeAddr('WRONG_SENDER'),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
@@ -217,27 +230,29 @@ contract TestSOTParams is SOTBase {
     function test_validateBasicParams_excessiveTokenAmounts() public {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 101e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenInAmount.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 101e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
         });
 
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 1000e18 + 1,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap
@@ -248,14 +263,18 @@ contract TestSOTParams is SOTBase {
         SolverOrderType memory sotParams = _getSensibleSOTParams();
 
         sotParams.expectedFlag = 0;
+
+        ALMLiquidityQuoteInput memory almLiquidityQuoteInput;
+        almLiquidityQuoteInput.isZeroToOne = true;
+        almLiquidityQuoteInput.amountInMinusFee = 100e18;
+        almLiquidityQuoteInput.sender = address(this);
+        almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
+
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
         harness.validateBasicParams({
             sot: sotParams,
-            isZeroToOne: true,
+            almLiquidityQuoteInput: almLiquidityQuoteInput,
             amountOut: 500e18,
-            sender: address(this),
-            recipient: makeAddr('RECIPIENT'),
-            amountIn: 100e18,
             tokenOutMaxBound: tokenOutMaxBound,
             maxDelay: maxDelay,
             alternatingNonceBitmap: alternatingNonceBitmap

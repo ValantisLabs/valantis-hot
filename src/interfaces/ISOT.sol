@@ -34,9 +34,6 @@ interface ISOT is ISOTOracle {
     /************************************************
      *  VIEW FUNCTIONS
      ***********************************************/
-
-    function domainSeparatorV4() external view returns (bytes32);
-
     function effectiveAMMLiquidity() external view returns (uint128);
 
     function getAMMState()
@@ -46,32 +43,9 @@ interface ISOT is ISOTOracle {
 
     function getReservesAtPrice(uint160 sqrtSpotPriceX96New) external view returns (uint256 reserve0, uint256 reserve1);
 
-    function isPaused() external view returns (bool);
-
-    function liquidityProvider() external view returns (address);
-
     function manager() external view returns (address);
 
-    function maxAMMFeeGrowthE6() external view returns (uint16);
-
-    function maxDelay() external view returns (uint32);
-
-    function maxOracleDeviationBips() external view returns (uint16, uint16);
-
-    function maxOracleDeviationBound() external view returns (uint16);
-
-    function maxToken0VolumeToQuote() external view returns (uint256);
-
-    function maxToken1VolumeToQuote() external view returns (uint256);
-
-    function minAMMFee() external view returns (uint16);
-
-    function minAMMFeeGrowthE6() external view returns (uint16);
-
-    function pool() external view returns (address);
-
-    function solverMaxDiscountBipsLower() external view returns (uint16);
-    function solverMaxDiscountBipsUpper() external view returns (uint16);
+    function maxTokenVolumes() external view returns (uint256, uint256);
 
     function solverReadSlot()
         external
