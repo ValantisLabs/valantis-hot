@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { SOTOracle } from 'src/SOTOracle.sol';
-import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { SOTOracle } from '../../src/SOTOracle.sol';
+import { AggregatorV3Interface } from '../../src/vendor/chainlink/AggregatorV3Interface.sol';
 
 contract SOTOracleHelper is SOTOracle {
     constructor(

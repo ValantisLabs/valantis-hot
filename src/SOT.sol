@@ -1,42 +1,42 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
-import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
-import { LiquidityAmounts } from '@uniswap/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
+import { SwapMath } from '../lib/v3-core/contracts/libraries/SwapMath.sol';
+import { LiquidityAmounts } from '../lib/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
 
-import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
-import { SafeERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
-import { EIP712 } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+import { IERC20 } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
+import { SafeERC20 } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
+import { EIP712 } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol';
+import { Math } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import {
     SignatureChecker
-} from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
+} from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol';
 import {
     ISovereignALM,
     ALMLiquidityQuote,
     ALMLiquidityQuoteInput
-} from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
-import { ISovereignPool } from 'valantis-core/src/pools/interfaces/ISovereignPool.sol';
+} from '../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
+import { ISovereignPool } from '../lib/valantis-core/src/pools/interfaces/ISovereignPool.sol';
 import {
     ISwapFeeModuleMinimal,
     SwapFeeModuleData
-} from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
+} from '../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { ReserveMath } from 'src/libraries/ReserveMath.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { TightPack } from 'src/libraries/utils/TightPack.sol';
-import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { ReserveMath } from './libraries/ReserveMath.sol';
+import { SOTParams } from './libraries/SOTParams.sol';
+import { TightPack } from './libraries/utils/TightPack.sol';
+import { AlternatingNonceBitmap } from './libraries/AlternatingNonceBitmap.sol';
+import { SOTConstants } from './libraries/SOTConstants.sol';
 import {
     SolverOrderType,
     SolverWriteSlot,
     SolverReadSlot,
     SOTConstructorArgs,
     AMMState
-} from 'src/structs/SOTStructs.sol';
-import { SOTOracle } from 'src/SOTOracle.sol';
-import { ISOT } from 'src/interfaces/ISOT.sol';
+} from './structs/SOTStructs.sol';
+import { SOTOracle } from './SOTOracle.sol';
+import { ISOT } from './interfaces/ISOT.sol';
 
 /**
     @title Solver Order Type.

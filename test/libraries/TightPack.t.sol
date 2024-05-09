@@ -3,8 +3,8 @@ pragma solidity 0.8.19;
 
 import { Test } from 'forge-std/Test.sol';
 
-import { TightPack } from 'src/libraries/utils/TightPack.sol';
-import { AMMState } from 'src/structs/SOTStructs.sol';
+import { TightPack } from '../../src/libraries/utils/TightPack.sol';
+import { AMMState } from '../../src/structs/SOTStructs.sol';
 
 contract TightPackHarness {
     AMMState public harnessState;
