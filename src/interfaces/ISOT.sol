@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
-import { ISOTOracle } from 'src/interfaces/ISOTOracle.sol';
-import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { ISOTOracle } from './ISOTOracle.sol';
+import { AggregatorV3Interface } from '../vendor/chainlink/AggregatorV3Interface.sol';
 
-import { SwapFeeModuleData } from 'valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
-import { ALMLiquidityQuote, ALMLiquidityQuoteInput } from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
+import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
+import {
+    ALMLiquidityQuote,
+    ALMLiquidityQuoteInput
+} from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
 
 interface ISOT is ISOTOracle {
     /************************************************

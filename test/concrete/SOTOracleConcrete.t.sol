@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
+import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { ERC20 } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-import { SOTOracle } from 'src/SOTOracle.sol';
-import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
+import { SOTOracle } from '../../src/SOTOracle.sol';
+import { AggregatorV3Interface } from '../../src/vendor/chainlink/AggregatorV3Interface.sol';
 
-import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-import { MockToken } from 'test/mocks/MockToken.sol';
-import { SOTBase } from 'test/base/SOTBase.t.sol';
-import { SOTOracleHelper } from 'test/helpers/SOTOracleHelper.sol';
+import { MockChainlinkOracle } from '../mocks/MockChainlinkOracle.sol';
+import { MockToken } from '../mocks/MockToken.sol';
+import { SOTBase } from '../base/SOTBase.t.sol';
+import { SOTOracleHelper } from '../helpers/SOTOracleHelper.sol';
 
 contract SOTOracleConcrete is SOTBase {
     SOTOracle public oracle;

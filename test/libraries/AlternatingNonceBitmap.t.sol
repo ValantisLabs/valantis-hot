@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { Test } from 'forge-std/Test.sol';
 import { console } from 'forge-std/console.sol';
 
-import { AlternatingNonceBitmap } from 'src/libraries/AlternatingNonceBitmap.sol';
+import { AlternatingNonceBitmap } from '../../src/libraries/AlternatingNonceBitmap.sol';
 
 contract AlternatingNonceBitmapHarness {
     function flipNonce(uint56 bitmap, uint8 nonce) external pure returns (uint56) {

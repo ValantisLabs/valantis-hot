@@ -3,15 +3,15 @@ pragma solidity 0.8.19;
 
 import {
     IERC20Metadata
-} from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+} from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol';
+import { Math } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
-import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { AggregatorV3Interface } from './vendor/chainlink/AggregatorV3Interface.sol';
+import { SOTParams } from './libraries/SOTParams.sol';
+import { SOTConstants } from './libraries/SOTConstants.sol';
 
-import { ISOTOracle } from 'src/interfaces/ISOTOracle.sol';
+import { ISOTOracle } from './interfaces/ISOTOracle.sol';
 
 contract SOTOracle is ISOTOracle {
     using SafeCast for int256;

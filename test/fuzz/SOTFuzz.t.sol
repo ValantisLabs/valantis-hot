@@ -2,31 +2,28 @@
 pragma solidity 0.8.19;
 
 import { console } from 'forge-std/console.sol';
-import { SwapMath } from '@uniswap/v3-core/contracts/libraries/SwapMath.sol';
-import '@uniswap/v3-core/contracts/libraries/FixedPoint96.sol';
+
+import { SwapMath } from '../../lib/v3-core/contracts/libraries/SwapMath.sol';
+import '../../lib/v3-core/contracts/libraries/FixedPoint96.sol';
+import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
+import { SafeCast } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import {
     SovereignPool,
     SovereignPoolBase,
     SovereignPoolConstructorArgs,
     SovereignPoolSwapParams,
     SovereignPoolSwapContextData
-} from 'valantis-core/test/base/SovereignPoolBase.t.sol';
-import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+} from '../../lib/valantis-core/test/base/SovereignPoolBase.t.sol';
+import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOT } from 'src/SOT.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
-import { TightPack } from 'src/libraries/utils/TightPack.sol';
-import {
-    SOTConstructorArgs,
-    SolverOrderType,
-    SolverWriteSlot,
-    SolverReadSlot,
-    AMMState
-} from 'src/structs/SOTStructs.sol';
+import { SOT, ALMLiquidityQuoteInput } from '../../src/SOT.sol';
+import { SOTParams } from '../../src/libraries/SOTParams.sol';
+import { SOTOracle } from '../../src/SOTOracle.sol';
+import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from '../../src/structs/SOTStructs.sol';
+import { SOTConstants } from '../../src/libraries/SOTConstants.sol';
+import { TightPack } from '../../src/libraries/utils/TightPack.sol';
 
-import { SOTBase } from 'test/base/SOTBase.t.sol';
+import { SOTBase } from '../base/SOTBase.t.sol';
 
 contract SOTFuzzTest is SOTBase {
     using SafeCast for uint256;

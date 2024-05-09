@@ -3,17 +3,15 @@ pragma solidity 0.8.19;
 
 import { Test } from 'forge-std/Test.sol';
 import { console } from 'forge-std/console.sol';
-import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
-import {
-    ALMLiquidityQuoteInput
-} from 'valantis-core/src/alm/interfaces/ISovereignALM.sol';
+import { SafeCast } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
+import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
 
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { TightPack } from 'src/libraries/utils/TightPack.sol';
-import { SolverOrderType, AMMState } from 'src/structs/SOTStructs.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { SOTParams } from '../../src/libraries/SOTParams.sol';
+import { TightPack } from '../../src/libraries/utils/TightPack.sol';
+import { SolverOrderType, AMMState } from '../../src/structs/SOTStructs.sol';
+import { SOTConstants } from '../../src/libraries/SOTConstants.sol';
 
-import { SOTBase } from 'test/base/SOTBase.t.sol';
+import { SOTBase } from '../base/SOTBase.t.sol';
 
 contract SOTParamsHarness {
     using TightPack for AMMState;
@@ -158,7 +156,6 @@ contract TestSOTParams is SOTBase {
         almLiquidityQuoteInput.sender = address(this);
         almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
 
-
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_quoteExpired.selector);
         harness.validateBasicParams({
             sot: sotParams,
@@ -179,7 +176,6 @@ contract TestSOTParams is SOTBase {
         almLiquidityQuoteInput.amountInMinusFee = 100e18;
         almLiquidityQuoteInput.sender = address(this);
         almLiquidityQuoteInput.recipient = makeAddr('RECIPIENT');
-
 
         vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveExpiryTime.selector);
         harness.validateBasicParams({

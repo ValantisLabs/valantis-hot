@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
+import { ERC20 } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
 contract MockToken is ERC20 {
     uint8 internalDecimals;
