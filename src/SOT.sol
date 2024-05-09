@@ -365,7 +365,15 @@ contract SOT is ISovereignALM, ISwapFeeModuleMinimal, ISOT, EIP712, SOTOracle {
         @return reserve1 Reserves of token1 at `sqrtSpotPriceX96New`.
      */
     function getReservesAtPrice(uint160 sqrtSpotPriceX96New) external view poolNonReentrant returns (uint256, uint256) {
-        return ReserveMath.getReservesAtPrice(_ammState, _pool, _effectiveAMMLiquidity, sqrtSpotPriceX96New);
+        uint128 effectiveAMMLiquidityCache = _effectiveAMMLiquidity;
+
+        uint128 calculatedLiquidity = _calculateAMMLiquidity();
+
+        if (calculatedLiquidity < effectiveAMMLiquidityCache) {
+            effectiveAMMLiquidityCache = calculatedLiquidity;
+        }
+
+        return ReserveMath.getReservesAtPrice(_ammState, _pool, effectiveAMMLiquidityCache, sqrtSpotPriceX96New);
     }
 
     /**

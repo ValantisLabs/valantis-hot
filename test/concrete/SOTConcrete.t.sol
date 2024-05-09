@@ -161,6 +161,8 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory preState = getPoolState();
 
+        (uint256 reserve0, uint256 reserve1) = sot.getReservesAtPrice(preState.sqrtSpotPriceX96);
+
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
@@ -184,6 +186,13 @@ contract SOTConcreteTest is SOTBase {
         vm.startPrank(address(pool));
         token1.transfer(address(1), preState.reserve1 / 2);
         vm.stopPrank();
+
+        PoolState memory postRebaseState = getPoolState();
+
+        (uint256 reserve0New, uint256 reserve1New) = sot.getReservesAtPrice(postRebaseState.sqrtSpotPriceX96);
+
+        assertLe(reserve0New, reserve0);
+        assertLe(reserve1New, reserve1);
 
         (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
 
