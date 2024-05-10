@@ -3,10 +3,10 @@ pragma solidity ^0.8.19;
 
 import 'forge-std/Script.sol';
 
-import { SOT } from 'src/SOT.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
-import { SOTBase } from 'test/base/SOTBase.t.sol';
+import { HOT } from 'src/HOT.sol';
+import { HOTParams } from 'src/libraries/HOTParams.sol';
+import { HOTConstructorArgs } from 'src/structs/HOTStructs.sol';
+import { HOTBase } from 'test/base/HOTBase.t.sol';
 import {
     SovereignPool,
     SovereignPoolSwapParams,
@@ -18,7 +18,7 @@ import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
 import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-contract SOTQueryScript is Script {
+contract HOTQueryScript is Script {
     function run() external {
         string memory path = DeployHelper.getPath();
         string memory json = vm.readFile(path);
@@ -27,7 +27,7 @@ contract SOTQueryScript is Script {
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
         address liquidityProvider = vm.parseJsonAddress(json, '.LiquidityProvider');
         SovereignPool pool = SovereignPool(vm.parseJsonAddress(json, '.SovereignPool'));
-        SOT sot = SOT(vm.parseJsonAddress(json, '.SOT'));
+        HOT hot = HOT(vm.parseJsonAddress(json, '.HOT'));
 
         AggregatorV3Interface feedToken0 = AggregatorV3Interface(vm.parseJsonAddress(json, '.FeedToken0'));
         AggregatorV3Interface feedToken1 = AggregatorV3Interface(vm.parseJsonAddress(json, '.FeedToken1'));

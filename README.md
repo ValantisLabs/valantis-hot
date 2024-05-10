@@ -2,7 +2,7 @@
 
 # Valantis
 
-Implementation of the Valantis SOT LM smart contracts in Solidity.
+Implementation of the Valantis HOT smart contracts in Solidity.
 
 ## Setting up Foundry
 
@@ -39,7 +39,7 @@ forge doc --serve --port 8080
 ### lib:
 
 Contains all smart contract external dependencies, installed via Foundry as git submodules.
-There are 4 dependencies to build SOT smart contracts -
+There are 4 dependencies to build HOT smart contracts -
 
 - forge-std
 - valantis-core
@@ -54,16 +54,16 @@ All relevant contracts to be audited are in src folder (excluding `/mocks` folde
 cloc src --not-match-d=mocks
 ```
 
-**SOT:** The main SOT smart contract logic, which implements `ISovereignALM` and `ISwapFeeModule` from `valantis-core`. SOT also inherits the SOTOracle logic. SOT holds the logic to calculate the liquidity algorithm
+**HOT:** The main HOT smart contract logic, which implements `ISovereignALM` and `ISwapFeeModule` from `valantis-core`. HOT also inherits the HOTOracle logic. HOT holds the logic to calculate the liquidity algorithm
 
-**SOTOracle:** Logic to retrieve latest price from chainlink feeds, and convert it into sqrtPriceX96.
+**HOTOracle:** Logic to retrieve latest price from chainlink feeds, and convert it into sqrtPriceX96.
 
 **libraries:** Various helper libraries used in other contracts.
 
 - TightPack: Low level library to pack 3 uint160 variables, into 2 storage slots at the byte level.
 - AlternatingNonceBitmap: Implements a nonce data structure, to allow for cheap replay protection.
-- SOTConstants: Internal library to store all the constant values for SOT and SOTOracle.
-- SOTParams: Helper library to verify the correctness of the SOT values.
+- HOTConstants: Internal library to store all the constant values for HOT and HOTOracle.
+- HOTParams: Helper library to verify the correctness of the HOT values.
 
 **vendor:** Interfaces for external smart contract dependencies i.e ArrakisMetaVault and Chainlink AggregatorV3 feeds.
 
@@ -81,6 +81,6 @@ All relevent tests for contracts in src are in this folder
 
 **concrete:** Concrete tests are used to unit test target contract with hard coded values.
 
-**fuzz:** Fuzz tests are used to test public functions in target contracts like SOT.
+**fuzz:** Fuzz tests are used to test public functions in target contracts like HOT.
 
 **mocks:** Mock contracts used to simulate different behaviour for different components.

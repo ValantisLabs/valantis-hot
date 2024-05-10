@@ -13,7 +13,7 @@ import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/
 uint256 constant maxAmount1 = 152 * 10 ** 6;
 uint256 constant maxAmount0 = 177561115760341835;
 
-contract SOTDepositScript is Script {
+contract HOTDepositScript is Script {
     function run() public {
         string memory path = DeployHelper.getPath();
         string memory json = vm.readFile(path);

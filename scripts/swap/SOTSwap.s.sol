@@ -6,11 +6,11 @@ import 'forge-std/Script.sol';
 import { Math } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { SafeCast } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
-import { SOT } from 'src/SOT.sol';
+import { HOT } from 'src/HOT.sol';
 import { MockLiquidityProvider } from 'test/mocks/MockLiquidityProvider.sol';
-import { SOTConstructorArgs, SolverOrderType } from 'src/structs/SOTStructs.sol';
-import { SOTBase } from 'test/base/SOTBase.t.sol';
-import { SOTConstants } from 'src/libraries/SOTConstants.sol';
+import { HOTConstructorArgs, HybridOrderType } from 'src/structs/HOTStructs.sol';
+import { HOTBase } from 'test/base/HOTBase.t.sol';
+import { HOTConstants } from 'src/libraries/HOTConstants.sol';
 
 import {
     SovereignPool,
@@ -22,7 +22,7 @@ import {
 
 import { MockToken } from 'test/mocks/MockToken.sol';
 import { MockChainlinkOracle } from 'test/mocks/MockChainlinkOracle.sol';
-import { SOTDeployer } from 'test/deployers/SOTDeployer.sol';
+import { HOTDeployer } from 'test/deployers/HOTDeployer.sol';
 import { SovereignPoolDeployer } from 'valantis-core/test/deployers/SovereignPoolDeployer.sol';
 
 import { AggregatorV3Interface } from 'src/vendor/chainlink/AggregatorV3Interface.sol';
@@ -31,16 +31,16 @@ import { IERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token
 import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
 
-contract SOTSwapScript is Script {
+contract HOTSwapScript is Script {
     using SafeCast for uint256;
 
-    function getDomainSeparatorV4(uint256 chainId, address sotAddress) public pure returns (bytes32 domainSeparator) {
+    function getDomainSeparatorV4(uint256 chainId, address hotAddress) public pure returns (bytes32 domainSeparator) {
         bytes32 typeHash = keccak256(
             'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
         );
-        bytes32 hashedName = keccak256('Valantis Solver Order Type');
+        bytes32 hashedName = keccak256('Valantis HOT');
         bytes32 hashedVersion = keccak256('1');
-        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, sotAddress));
+        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, hotAddress));
     }
 
     function run() external {
@@ -51,13 +51,13 @@ contract SOTSwapScript is Script {
 
         SovereignPool pool = SovereignPool(vm.parseJsonAddress(json, '.SovereignPool'));
         address master = vm.parseJsonAddress(json, '.DeployerPublicKey');
-        SOT sot = SOT(pool.alm());
+        HOT hot = HOT(pool.alm());
 
         IERC20 token0 = IERC20(pool.token0());
         IERC20 token1 = IERC20(pool.token1());
 
-        AggregatorV3Interface feedToken0 = AggregatorV3Interface(sot.feedToken0());
-        AggregatorV3Interface feedToken1 = AggregatorV3Interface(sot.feedToken1());
+        AggregatorV3Interface feedToken0 = AggregatorV3Interface(hot.feedToken0());
+        AggregatorV3Interface feedToken1 = AggregatorV3Interface(hot.feedToken1());
 
         token0.approve(address(pool), type(uint256).max);
         token1.approve(address(pool), type(uint256).max);
@@ -65,16 +65,16 @@ contract SOTSwapScript is Script {
         bool isZeroToOne = true;
         uint256 amountIn = 0x0000000000000000000000000000000000000000000000000000000000000db7;
 
-        // Note: Update these to relevant values, before making an SOT Swap. Not needed for AMM swap.
-        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        // Note: Update these to relevant values, before making an HOT Swap. Not needed for AMM swap.
+        (uint160 sqrtSpotPriceX96, , ) = hot.getAMMState();
         uint256 spotPrice = Math.mulDiv(sqrtSpotPriceX96, sqrtSpotPriceX96, 1 << 192);
 
         console.log('Spot Price AMM : ', spotPrice);
 
-        SolverOrderType memory sotParams = SolverOrderType({
+        HybridOrderType memory hotParams = HybridOrderType({
             amountInMax: amountIn,
-            sqrtSolverPriceX96Discounted: 0x00000000112574833ea203a54b9c8bb3e0cad2df956228097c073212c9144a43,
-            sqrtSolverPriceX96Base: 0x00000000110fb9a38ba1365219cfbb2b6236cf4b777ed1a91ee635a0a210633d,
+            sqrtHotPriceX96Discounted: 0x00000000112574833ea203a54b9c8bb3e0cad2df956228097c073212c9144a43,
+            sqrtHotPriceX96Base: 0x00000000110fb9a38ba1365219cfbb2b6236cf4b777ed1a91ee635a0a210633d,
             sqrtSpotPriceX96New: 0x00000000000000000000000000000000000041ec95e6a4a2992195407e5d7055,
             authorizedSender: master,
             authorizedRecipient: master,
@@ -96,14 +96,14 @@ contract SOTSwapScript is Script {
             keccak256(
                 abi.encodePacked(
                     '\x19\x01',
-                    getDomainSeparatorV4(block.chainid, address(sot)),
-                    keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+                    getDomainSeparatorV4(block.chainid, address(hot)),
+                    keccak256(abi.encode(HOTConstants.HOT_TYPEHASH, hotParams))
                 )
             )
         );
 
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: abi.encode(sotParams, abi.encodePacked(r, s, bytes1(v))),
+            externalContext: abi.encode(hotParams, abi.encodePacked(r, s, bytes1(v))),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')

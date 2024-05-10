@@ -12,7 +12,7 @@
   "SovereignPoolFactory": "0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61",
   "SovereignPool": "0x69abfae29aa7a1cac061d3e05eee806291a4db87",
   "LiquidityProvider": "0xb0a76a387f1fc9433ad1e244c530548c872d7932",
-  "SOT": "0x614b8b047cafec2fcfc788dd4afe9e32fe924cd0",
+  "HOT": "0x614b8b047cafec2fcfc788dd4afe9e32fe924cd0",
   "ArrakisVault": "0x8cE9786dc4bbB558C1F219f10b1F2f70A6Ced7eC",
   "ArrakisRouter": "0x0210771fE1D7aDC2a4F747e3553A5710132d2b36"
 }

@@ -345,7 +345,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         return _effectiveAMMLiquidity;
     }
 
-    // @audit Verify that this function is safe from view-only reentrancy.
     /**
         @notice Returns square-root spot price, lower and upper bounds of the AMM position. 
      */
@@ -618,7 +617,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
      *  EXTERNAL FUNCTIONS
      ***********************************************/
 
-    // @audit Verify that we don't need a reentrancy guard for getLiquidityQuote/deposit/withdraw
     /**
         @notice Sovereign ALM function to be called on every swap.
         @param _almLiquidityQuoteInput Contains fundamental information about the swap and `pool`.
@@ -646,7 +644,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         }
     }
 
-    // @audit: Do we need a reentrancy guard here?
     /**
         @notice Sovereign ALM function to deposit reserves into `pool`.
         @param _amount0 Amount of token0 to deposit.
@@ -701,7 +698,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         _updateAMMLiquidity(_calculateAMMLiquidity());
     }
 
-    // @audit: Do we need a reentrancy guard here?
     /**
         @notice Sovereign ALM function to withdraw reserves from `pool`.
         @param _amount0 Amount of token0 to withdraw.
@@ -885,7 +881,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         bytes memory externalContext,
         ALMLiquidityQuote memory liquidityQuote
     ) internal {
-        // @audit Verify if this is safe ( more info in HOTConcrete.t.sol with @audit tag)
         (HybridOrderType memory hot, bytes memory signature) = abi.decode(externalContext, (HybridOrderType, bytes));
 
         // Execute HOT swap
@@ -973,8 +968,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         );
 
         // Verify HOT quote signature
-        // @audit: Verify that this is a safe way to check signatures
-        // @audit: Verify that the typehash is correct in the HOTConstants file
         bytes32 hotHash = hot.hashParams();
         if (!hotReadSlotCache.signer.isValidSignatureNow(_hashTypedDataV4(hotHash), signature)) {
             revert HOT___hotSwap_invalidSignature();
