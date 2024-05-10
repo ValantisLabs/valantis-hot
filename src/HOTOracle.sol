@@ -8,12 +8,12 @@ import { Math } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/
 import { SafeCast } from '../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 
 import { AggregatorV3Interface } from './vendor/chainlink/AggregatorV3Interface.sol';
-import { SOTParams } from './libraries/SOTParams.sol';
-import { SOTConstants } from './libraries/SOTConstants.sol';
+import { HOTParams } from './libraries/HOTParams.sol';
+import { HOTConstants } from './libraries/HOTConstants.sol';
 
-import { ISOTOracle } from './interfaces/ISOTOracle.sol';
+import { IHOTOracle } from './interfaces/IHOTOracle.sol';
 
-contract SOTOracle is ISOTOracle {
+contract HOTOracle is IHOTOracle {
     using SafeCast for int256;
     using SafeCast for uint256;
 
@@ -21,10 +21,10 @@ contract SOTOracle is ISOTOracle {
      *  CUSTOM ERRORS
      ***********************************************/
 
-    error SOTOracle___getOraclePriceUSD_stalePrice();
-    error SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
-    error SOTOracle___setFeeds_feedsAlreadySet();
-    error SOTOracle___setFeeds_newFeedsCannotBeZero();
+    error HOTOracle___getOraclePriceUSD_stalePrice();
+    error HOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
+    error HOTOracle___setFeeds_feedsAlreadySet();
+    error HOTOracle___setFeeds_newFeedsCannotBeZero();
 
     /************************************************
      *  IMMUTABLES
@@ -107,8 +107,8 @@ contract SOTOracle is ISOTOracle {
             10 ** feedToken1.decimals()
         );
 
-        if (sqrtOraclePriceX96 < SOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > SOTConstants.MAX_SQRT_PRICE) {
-            revert SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
+        if (sqrtOraclePriceX96 < HOTConstants.MIN_SQRT_PRICE || sqrtOraclePriceX96 > HOTConstants.MAX_SQRT_PRICE) {
+            revert HOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds();
         }
     }
 
@@ -124,11 +124,11 @@ contract SOTOracle is ISOTOracle {
      */
     function _setFeeds(address _feedToken0, address _feedToken1) internal {
         if (address(feedToken0) != address(0) || address(feedToken1) != address(0)) {
-            revert SOTOracle___setFeeds_feedsAlreadySet();
+            revert HOTOracle___setFeeds_feedsAlreadySet();
         }
 
         if (_feedToken0 == address(0) || _feedToken1 == address(0)) {
-            revert SOTOracle___setFeeds_newFeedsCannotBeZero();
+            revert HOTOracle___setFeeds_newFeedsCannotBeZero();
         }
 
         feedToken0 = AggregatorV3Interface(_feedToken0);
@@ -142,7 +142,7 @@ contract SOTOracle is ISOTOracle {
         (, int256 oraclePriceUSDInt, , uint256 updatedAt, ) = feed.latestRoundData();
 
         if (block.timestamp - updatedAt > maxOracleUpdateDuration) {
-            revert SOTOracle___getOraclePriceUSD_stalePrice();
+            revert HOTOracle___getOraclePriceUSD_stalePrice();
         }
 
         oraclePriceUSD = oraclePriceUSDInt.toUint256();
@@ -163,7 +163,7 @@ contract SOTOracle is ISOTOracle {
         // amount1USD = _token1Base / (oraclePrice1USD / oracle1Base)
         // amount0USD = _token0Base / (oraclePrice0USD / oracle0Base)
         //
-        // Following SOT and sqrt spot price definition:
+        // Following HOT and sqrt spot price definition:
         //
         // sqrtOraclePriceX96 = sqrt(amount1USD / amount0USD) * 2 ** 96
         // solhint-disable-next-line max-line-length
@@ -171,7 +171,7 @@ contract SOTOracle is ISOTOracle {
 
         uint256 oraclePriceX96 = Math.mulDiv(
             oraclePrice0USD * oracle1Base * _token1Base,
-            SOTConstants.Q96,
+            HOTConstants.Q96,
             oraclePrice1USD * oracle0Base * _token0Base
         );
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();

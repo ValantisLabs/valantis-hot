@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { SolverOrderType } from '../../src/structs/SOTStructs.sol';
+import { HybridOrderType } from '../../src/structs/HOTStructs.sol';
 
 contract MockSigner {
     /**
@@ -10,10 +10,10 @@ contract MockSigner {
      */
     bytes4 internal constant MAGICVALUE = 0x1626ba7e;
 
-    function getSignedQuote(SolverOrderType memory sot) public pure returns (bytes memory signedQuoteExternalContext) {
+    function getSignedQuote(HybridOrderType memory hot) public pure returns (bytes memory signedQuoteExternalContext) {
         bytes memory signature;
 
-        signedQuoteExternalContext = abi.encode(sot, signature);
+        signedQuoteExternalContext = abi.encode(hot, signature);
     }
 
     /**

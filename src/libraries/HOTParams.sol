@@ -4,15 +4,15 @@ pragma solidity 0.8.19;
 import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
 
-import { SolverOrderType, AMMState } from '../structs/SOTStructs.sol';
+import { HybridOrderType, AMMState } from '../structs/HOTStructs.sol';
 import { TightPack } from '../libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from '../libraries/AlternatingNonceBitmap.sol';
-import { SOTConstants } from '../libraries/SOTConstants.sol';
+import { HOTConstants } from '../libraries/HOTConstants.sol';
 
 /**
-    @notice Library for validating all parameters of a signed Solver Rrder Type (SOT) quote.
+    @notice Library for validating all parameters of a signed Hybrid Order Type (HOT) quote.
  */
-library SOTParams {
+library HOTParams {
     using TightPack for AMMState;
     using AlternatingNonceBitmap for uint56;
 
@@ -20,61 +20,61 @@ library SOTParams {
      *  CUSTOM ERRORS
      ***********************************************/
 
-    error SOTParams__validateBasicParams_excessiveTokenInAmount();
-    error SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
-    error SOTParams__validateBasicParams_excessiveExpiryTime();
-    error SOTParams__validateBasicParams_incorrectSwapDirection();
-    error SOTParams__validateBasicParams_replayedQuote();
-    error SOTParams__validateBasicParams_quoteExpired();
-    error SOTParams__validateBasicParams_unauthorizedSender();
-    error SOTParams__validateBasicParams_unauthorizedRecipient();
-    error SOTParams__validateBasicParams_invalidSignatureTimestamp();
-    error SOTParams__validateFeeParams_insufficientFee();
-    error SOTParams__validateFeeParams_invalidfeeGrowthE6();
-    error SOTParams__validateFeeParams_invalidFeeMax();
-    error SOTParams__validateFeeParams_invalidFeeMin();
-    error SOTParams__validatePriceBounds_invalidPriceBounds();
-    error SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
-    error SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
-    error SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
-    error SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
+    error HOTParams__validateBasicParams_excessiveTokenInAmount();
+    error HOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+    error HOTParams__validateBasicParams_excessiveExpiryTime();
+    error HOTParams__validateBasicParams_incorrectSwapDirection();
+    error HOTParams__validateBasicParams_replayedQuote();
+    error HOTParams__validateBasicParams_quoteExpired();
+    error HOTParams__validateBasicParams_unauthorizedSender();
+    error HOTParams__validateBasicParams_unauthorizedRecipient();
+    error HOTParams__validateBasicParams_invalidSignatureTimestamp();
+    error HOTParams__validateFeeParams_insufficientFee();
+    error HOTParams__validateFeeParams_invalidfeeGrowthE6();
+    error HOTParams__validateFeeParams_invalidFeeMax();
+    error HOTParams__validateFeeParams_invalidFeeMin();
+    error HOTParams__validatePriceBounds_invalidPriceBounds();
+    error HOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
+    error HOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
+    error HOTParams__validatePriceConsistency_hotAndSpotPriceNewExcessiveDeviation();
+    error HOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
 
     /************************************************
      *  FUNCTIONS
      ***********************************************/
 
     function validateBasicParams(
-        SolverOrderType memory sot,
+        HybridOrderType memory hot,
         ALMLiquidityQuoteInput memory almLiquidityQuoteInput,
         uint256 amountOut,
         uint256 tokenOutMaxBound,
         uint32 maxDelay,
         uint56 alternatingNonceBitmap
     ) internal view {
-        if (sot.isZeroToOne != almLiquidityQuoteInput.isZeroToOne)
-            revert SOTParams__validateBasicParams_incorrectSwapDirection();
+        if (hot.isZeroToOne != almLiquidityQuoteInput.isZeroToOne)
+            revert HOTParams__validateBasicParams_incorrectSwapDirection();
 
-        if (sot.authorizedSender != almLiquidityQuoteInput.sender)
-            revert SOTParams__validateBasicParams_unauthorizedSender();
+        if (hot.authorizedSender != almLiquidityQuoteInput.sender)
+            revert HOTParams__validateBasicParams_unauthorizedSender();
 
-        if (sot.authorizedRecipient != almLiquidityQuoteInput.recipient)
-            revert SOTParams__validateBasicParams_unauthorizedRecipient();
+        if (hot.authorizedRecipient != almLiquidityQuoteInput.recipient)
+            revert HOTParams__validateBasicParams_unauthorizedRecipient();
 
-        if (almLiquidityQuoteInput.amountInMinusFee > sot.amountInMax)
-            revert SOTParams__validateBasicParams_excessiveTokenInAmount();
+        if (almLiquidityQuoteInput.amountInMinusFee > hot.amountInMax)
+            revert HOTParams__validateBasicParams_excessiveTokenInAmount();
 
-        if (sot.expiry > maxDelay) revert SOTParams__validateBasicParams_excessiveExpiryTime();
+        if (hot.expiry > maxDelay) revert HOTParams__validateBasicParams_excessiveExpiryTime();
 
-        if (sot.signatureTimestamp > block.timestamp) revert SOTParams__validateBasicParams_invalidSignatureTimestamp();
+        if (hot.signatureTimestamp > block.timestamp) revert HOTParams__validateBasicParams_invalidSignatureTimestamp();
 
         // Also equivalent to: signatureTimestamp >= block.timestamp - maxDelay
         // So, block.timestamp - maxDelay <= signatureTimestamp <= block.timestamp
-        if (block.timestamp > sot.signatureTimestamp + sot.expiry) revert SOTParams__validateBasicParams_quoteExpired();
+        if (block.timestamp > hot.signatureTimestamp + hot.expiry) revert HOTParams__validateBasicParams_quoteExpired();
 
-        if (amountOut > tokenOutMaxBound) revert SOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
+        if (amountOut > tokenOutMaxBound) revert HOTParams__validateBasicParams_excessiveTokenOutAmountRequested();
 
-        if (!alternatingNonceBitmap.checkNonce(sot.nonce, sot.expectedFlag)) {
-            revert SOTParams__validateBasicParams_replayedQuote();
+        if (!alternatingNonceBitmap.checkNonce(hot.nonce, hot.expectedFlag)) {
+            revert HOTParams__validateBasicParams_replayedQuote();
         }
     }
 
@@ -90,7 +90,7 @@ library SOTParams {
         uint16 feeGrowthE6MaxBound
     ) internal pure {
         if (feeMinToken0 < feeMinBound || feeMinToken1 < feeMinBound)
-            revert SOTParams__validateFeeParams_insufficientFee();
+            revert HOTParams__validateFeeParams_insufficientFee();
 
         if (
             feeGrowthE6Token0 < feeGrowthE6MinBound ||
@@ -98,42 +98,42 @@ library SOTParams {
             feeGrowthE6Token0 > feeGrowthE6MaxBound ||
             feeGrowthE6Token1 > feeGrowthE6MaxBound
         ) {
-            revert SOTParams__validateFeeParams_invalidfeeGrowthE6();
+            revert HOTParams__validateFeeParams_invalidfeeGrowthE6();
         }
 
         // feeMax should be strictly less than 50% of total amountIn.
         // Note: A fee of 10_000 bips represents that for X amountIn swapped, we will charge X fee.
         // So, if amountIn = A, and feeBips = 100%, then amountInMinusFee = A/2, and effectiveFee = A/2.
-        if (feeMaxToken0 >= SOTConstants.BIPS || feeMaxToken1 >= SOTConstants.BIPS)
-            revert SOTParams__validateFeeParams_invalidFeeMax();
+        if (feeMaxToken0 >= HOTConstants.BIPS || feeMaxToken1 >= HOTConstants.BIPS)
+            revert HOTParams__validateFeeParams_invalidFeeMax();
 
         if (feeMinToken0 > feeMaxToken0 || feeMinToken1 > feeMaxToken1)
-            revert SOTParams__validateFeeParams_invalidFeeMin();
+            revert HOTParams__validateFeeParams_invalidFeeMin();
     }
 
     function validatePriceConsistency(
         AMMState storage ammState,
-        uint160 sqrtSolverPriceX96,
+        uint160 sqrtHotPriceX96,
         uint160 sqrtSpotPriceNewX96,
         uint160 sqrtOraclePriceX96,
         uint256 maxOracleDeviationBipsLower,
         uint256 maxOracleDeviationBipsUpper,
-        uint256 solverMaxDiscountBipsLower,
-        uint256 solverMaxDiscountBipsUpper
+        uint256 hotMaxDiscountBipsLower,
+        uint256 hotMaxDiscountBipsUpper
     ) internal view {
         // Cache sqrt spot price, lower bound, and upper bound
         (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = ammState.getState();
 
-        // sqrt solver and new AMM spot price cannot differ beyond allowed bounds
+        // sqrt hot and new AMM spot price cannot differ beyond allowed bounds
         if (
             !checkPriceDeviation(
-                sqrtSolverPriceX96,
+                sqrtHotPriceX96,
                 sqrtSpotPriceNewX96,
-                solverMaxDiscountBipsLower,
-                solverMaxDiscountBipsUpper
+                hotMaxDiscountBipsLower,
+                hotMaxDiscountBipsUpper
             )
         ) {
-            revert SOTParams__validatePriceConsistency_solverAndSpotPriceNewExcessiveDeviation();
+            revert HOTParams__validatePriceConsistency_hotAndSpotPriceNewExcessiveDeviation();
         }
 
         // Current AMM sqrt spot price and oracle sqrt price cannot differ beyond allowed bounds
@@ -145,10 +145,10 @@ library SOTParams {
                 maxOracleDeviationBipsUpper
             )
         ) {
-            revert SOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
+            revert HOTParams__validatePriceConsistency_spotAndOraclePricesExcessiveDeviation();
         }
 
-        // New AMM sqrt spot price (provided by SOT quote) and oracle sqrt price cannot differ
+        // New AMM sqrt spot price (provided by HOT quote) and oracle sqrt price cannot differ
         // beyond allowed bounds
         if (
             !checkPriceDeviation(
@@ -158,7 +158,7 @@ library SOTParams {
                 maxOracleDeviationBipsUpper
             )
         ) {
-            revert SOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
+            revert HOTParams__validatePriceConsistency_newSpotAndOraclePricesExcessiveDeviation();
         }
 
         validatePriceBounds(sqrtSpotPriceNewX96, sqrtPriceLowX96, sqrtPriceHighX96);
@@ -173,15 +173,15 @@ library SOTParams {
         // and price bounds are within the MAX and MIN sqrt prices
         if (
             sqrtPriceLowX96 >= sqrtPriceHighX96 ||
-            sqrtPriceLowX96 < SOTConstants.MIN_SQRT_PRICE ||
-            sqrtPriceHighX96 > SOTConstants.MAX_SQRT_PRICE
+            sqrtPriceLowX96 < HOTConstants.MIN_SQRT_PRICE ||
+            sqrtPriceHighX96 > HOTConstants.MAX_SQRT_PRICE
         ) {
-            revert SOTParams__validatePriceBounds_invalidPriceBounds();
+            revert HOTParams__validatePriceBounds_invalidPriceBounds();
         }
 
         // sqrt spot price cannot exceed or equal lower/upper AMM position's bounds
         if (sqrtSpotPriceX96 <= sqrtPriceLowX96 || sqrtSpotPriceX96 >= sqrtPriceHighX96) {
-            revert SOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
+            revert HOTParams__validatePriceBounds_newSpotPriceOutOfBounds();
         }
     }
 
@@ -194,13 +194,13 @@ library SOTParams {
         uint256 diff = sqrtPriceAX96 > sqrtPriceBX96 ? sqrtPriceAX96 - sqrtPriceBX96 : sqrtPriceBX96 - sqrtPriceAX96;
         uint256 maxDeviationInBips = sqrtPriceAX96 < sqrtPriceBX96 ? maxDeviationInBipsLower : maxDeviationInBipsUpper;
 
-        if (diff * SOTConstants.BIPS > maxDeviationInBips * sqrtPriceBX96) {
+        if (diff * HOTConstants.BIPS > maxDeviationInBips * sqrtPriceBX96) {
             return false;
         }
         return true;
     }
 
-    function hashParams(SolverOrderType memory sot) internal pure returns (bytes32) {
-        return keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sot));
+    function hashParams(HybridOrderType memory hot) internal pure returns (bytes32) {
+        return keccak256(abi.encode(HOTConstants.HOT_TYPEHASH, hot));
     }
 }

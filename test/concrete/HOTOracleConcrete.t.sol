@@ -4,16 +4,16 @@ pragma solidity 0.8.19;
 import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 import { ERC20 } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-import { SOTOracle } from '../../src/SOTOracle.sol';
+import { HOTOracle } from '../../src/HOTOracle.sol';
 import { AggregatorV3Interface } from '../../src/vendor/chainlink/AggregatorV3Interface.sol';
 
 import { MockChainlinkOracle } from '../mocks/MockChainlinkOracle.sol';
 import { MockToken } from '../mocks/MockToken.sol';
-import { SOTBase } from '../base/SOTBase.t.sol';
-import { SOTOracleHelper } from '../helpers/SOTOracleHelper.sol';
+import { HOTBase } from '../base/HOTBase.t.sol';
+import { HOTOracleHelper } from '../helpers/HOTOracleHelper.sol';
 
-contract SOTOracleConcrete is SOTBase {
-    SOTOracle public oracle;
+contract HOTOracleConcrete is HOTBase {
+    HOTOracle public oracle;
 
     uint32 ORACLE_FEED_UPDATE_PERIOD = 10 minutes;
 
@@ -21,7 +21,7 @@ contract SOTOracleConcrete is SOTBase {
         super.setUp();
 
         (feedToken0, feedToken1) = deployChainlinkOracles(8, 8);
-        oracle = deploySOTOracleIndependently(
+        oracle = deployHOTOracleIndependently(
             feedToken0,
             feedToken1,
             ORACLE_FEED_UPDATE_PERIOD,
@@ -40,7 +40,7 @@ contract SOTOracleConcrete is SOTBase {
     function test_setFeeds() public {
         (feedToken0, feedToken1) = deployChainlinkOracles(18, 6);
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+        HOTOracleHelper oracleHelper = deployHOTOracleHelper(
             address(token0),
             address(token1),
             MockChainlinkOracle(address(0)),
@@ -49,10 +49,10 @@ contract SOTOracleConcrete is SOTBase {
             ORACLE_FEED_UPDATE_PERIOD
         );
 
-        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_newFeedsCannotBeZero.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___setFeeds_newFeedsCannotBeZero.selector);
         oracleHelper.setFeeds(address(0), address(1));
 
-        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_newFeedsCannotBeZero.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___setFeeds_newFeedsCannotBeZero.selector);
         oracleHelper.setFeeds(address(1), address(0));
 
         oracleHelper.setFeeds(address(feedToken0), address(feedToken1));
@@ -60,7 +60,7 @@ contract SOTOracleConcrete is SOTBase {
         assertEq(address(oracleHelper.feedToken0()), address(feedToken0));
         assertEq(address(oracleHelper.feedToken1()), address(feedToken1));
 
-        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_feedsAlreadySet.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___setFeeds_feedsAlreadySet.selector);
         oracleHelper.setFeeds(address(1), address(1));
     }
 
@@ -70,7 +70,7 @@ contract SOTOracleConcrete is SOTBase {
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(50e8);
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+        HOTOracleHelper oracleHelper = deployHOTOracleHelper(
             address(token0),
             address(token1),
             feedToken0,
@@ -126,7 +126,7 @@ contract SOTOracleConcrete is SOTBase {
         // Decimals of feed0 = 18
         // Decimals of feed1 = 6
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+        HOTOracleHelper oracleHelper = deployHOTOracleHelper(
             address(token0),
             address(token1),
             feedToken0,
@@ -151,7 +151,7 @@ contract SOTOracleConcrete is SOTBase {
         MockToken _token0 = new MockToken('Token0', '', 8);
         MockToken _token1 = new MockToken('Token1', '', 18);
 
-        SOTOracleHelper oracleHelper = deploySOTOracleHelper(
+        HOTOracleHelper oracleHelper = deployHOTOracleHelper(
             address(_token0),
             address(_token1),
             feedToken0,
@@ -173,7 +173,7 @@ contract SOTOracleConcrete is SOTBase {
         vm.warp(block.timestamp + 11 minutes);
 
         // Check error on stale oracle price update (older than 10 minutes)
-        vm.expectRevert(SOTOracle.SOTOracle___getOraclePriceUSD_stalePrice.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___getOraclePriceUSD_stalePrice.selector);
         oracle.getSqrtOraclePriceX96();
     }
 
@@ -182,7 +182,7 @@ contract SOTOracleConcrete is SOTBase {
         feedToken1.updateAnswer(1e38);
 
         // Check error if price is below minimum bound
-        vm.expectRevert(SOTOracle.SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
         oracle.getSqrtOraclePriceX96();
 
         // sqrt(MAX_SQRT_PRICE) = 1208903099295063476464878.59531099144682633284710852807764469
@@ -192,7 +192,7 @@ contract SOTOracleConcrete is SOTBase {
         feedToken1.updateAnswer(1e8);
 
         // Check error if price is above minimum bound
-        vm.expectRevert(SOTOracle.SOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
+        vm.expectRevert(HOTOracle.HOTOracle___getSqrtOraclePriceX96_sqrtOraclePriceOutOfBounds.selector);
         oracle.getSqrtOraclePriceX96();
     }
 }

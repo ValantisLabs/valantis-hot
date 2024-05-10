@@ -2,13 +2,13 @@
 pragma solidity 0.8.19;
 
 /**
-    @notice Stores all constants used in the family of SOT Contracts.
+    @notice Stores all constants used in the family of HOT Contracts.
  */
-library SOTConstants {
+library HOTConstants {
     /**
-        @notice Maximum allowed solver fee, in basis-points.
+        @notice Maximum allowed hot fee, in basis-points.
       */
-    uint16 internal constant MAX_SOLVER_FEE_IN_BIPS = 100;
+    uint16 internal constant MAX_HOT_FEE_IN_BIPS = 100;
 
     /**
         @notice Min and max sqrt price bounds.
@@ -18,12 +18,12 @@ library SOTConstants {
     uint160 internal constant MAX_SQRT_PRICE = 1461446703485210103287273052203988822378723970342;
 
     /**
-        @notice The typehash for the SolverOrderType struct for EIP-712 signatures.
+        @notice The typehash for the HybridOrderType struct for EIP-712 signatures.
      */
-    bytes32 internal constant SOT_TYPEHASH =
+    bytes32 internal constant HOT_TYPEHASH =
         keccak256(
             // solhint-disable-next-line max-line-length
-            'SolverOrderType(uint256 amountInMax,uint160 sqrtSolverPriceX96Discounted,uint160 sqrtSolverPriceX96Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthE6Token0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthE6Token1,uint8 nonce,uint8 expectedFlag,bool isZeroToOne)'
+            'HybridOrderType(uint256 amountInMax,uint160 sqrtHotPriceX96Discounted,uint160 sqrtHotPriceX96Base,uint160 sqrtSpotPriceX96New,address authorizedSender,address authorizedRecipient,uint32 signatureTimestamp,uint32 expiry,uint16 feeMinToken0,uint16 feeMaxToken0,uint16 feeGrowthE6Token0,uint16 feeMinToken1,uint16 feeMaxToken1,uint16 feeGrowthE6Token1,uint8 nonce,uint8 expectedFlag,bool isZeroToOne)'
         );
 
     /**
@@ -47,7 +47,7 @@ library SOTConstants {
     uint256 internal constant E6 = 1_000_000;
 
     /**
-        @notice The maximum number of SOT quotes that can be processed in a single block.
+        @notice The maximum number of HOT quotes that can be processed in a single block.
      */
-    uint256 internal constant MAX_SOT_QUOTES_IN_BLOCK = 56;
+    uint256 internal constant MAX_HOT_QUOTES_IN_BLOCK = 56;
 }

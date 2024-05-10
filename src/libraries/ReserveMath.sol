@@ -6,7 +6,7 @@ import { LiquidityAmounts } from '../../lib/v3-periphery/contracts/libraries/Liq
 import { ISovereignPool } from '../../lib/valantis-core/src/pools/interfaces/ISovereignPool.sol';
 
 import { TightPack } from '../libraries/utils/TightPack.sol';
-import { AMMState } from '../structs/SOTStructs.sol';
+import { AMMState } from '../structs/HOTStructs.sol';
 
 library ReserveMath {
     using TightPack for AMMState;
