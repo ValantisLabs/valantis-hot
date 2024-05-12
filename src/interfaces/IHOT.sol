@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
-import { ISOTOracle } from './ISOTOracle.sol';
+import { IHOTOracle } from './IHOTOracle.sol';
 import { AggregatorV3Interface } from '../vendor/chainlink/AggregatorV3Interface.sol';
 
 import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
@@ -10,7 +10,7 @@ import {
     ALMLiquidityQuoteInput
 } from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
 
-interface ISOT is ISOTOracle {
+interface IHOT is IHOTOracle {
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -31,8 +31,8 @@ interface ISOT is ISOTOracle {
     );
     event PriceBoundSet(uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96);
     event SignerUpdate(address indexed signer);
-    event SolverFeeSet(uint16 fee0Bips, uint16 fee1Bips);
-    event SolverSwap(bytes32 sotHash);
+    event HotFeeSet(uint16 fee0Bips, uint16 fee1Bips);
+    event HotSwap(bytes32 hotHash);
 
     /************************************************
      *  VIEW FUNCTIONS
@@ -50,7 +50,7 @@ interface ISOT is ISOTOracle {
 
     function maxTokenVolumes() external view returns (uint256, uint256);
 
-    function solverReadSlot()
+    function hotReadSlot()
         external
         view
         returns (
@@ -63,7 +63,7 @@ interface ISOT is ISOTOracle {
             address signer
         );
 
-    function solverWriteSlot()
+    function hotWriteSlot()
         external
         view
         returns (
@@ -106,7 +106,7 @@ interface ISOT is ISOTOracle {
 
     function setSigner(address _signer) external;
 
-    function setSolverFeeInBips(uint16 _solverFeeBipsToken0, uint16 _solverFeeBipsToken1) external;
+    function setHotFeeInBips(uint16 _hotFeeBipsToken0, uint16 _hotFeeBipsToken1) external;
 
     function depositLiquidity(
         uint256 _amount0,

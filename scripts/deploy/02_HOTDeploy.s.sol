@@ -3,10 +3,10 @@ pragma solidity ^0.8.19;
 
 import 'forge-std/Script.sol';
 
-import { SOT } from 'src/SOT.sol';
-import { SOTParams } from 'src/libraries/SOTParams.sol';
-import { SOTConstructorArgs } from 'src/structs/SOTStructs.sol';
-import { SOTBase } from 'test/base/SOTBase.t.sol';
+import { HOT } from 'src/HOT.sol';
+import { HOTParams } from 'src/libraries/HOTParams.sol';
+import { HOTConstructorArgs } from 'src/structs/HOTStructs.sol';
+import { HOTBase } from 'test/base/HOTBase.t.sol';
 import {
     SovereignPool,
     SovereignPoolSwapParams,
@@ -18,9 +18,9 @@ import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
 import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-contract SOTDeployScript is Script {
-    error SOTDeployScript__oraclePriceDeviation();
-    error SOTDeployScript__token0GteToken1();
+contract HOTDeployScript is Script {
+    error HOTDeployScript__oraclePriceDeviation();
+    error HOTDeployScript__token0GteToken1();
 
     function run() external {
         string memory path = DeployHelper.getPath();
@@ -40,19 +40,19 @@ contract SOTDeployScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         if (token0 >= token1) {
-            revert SOTDeployScript__token0GteToken1();
+            revert HOTDeployScript__token0GteToken1();
         }
 
         uint160 sqrtSpotPriceX96 = 4358039060504156305358848;
 
-        SOT sot;
+        HOT hot;
         {
             uint160 sqrtPriceLowX96 = 4339505179874779489431521;
             uint160 sqrtPriceHighX96 = 5010828967500958623728276;
 
-            SOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
+            HOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            SOTConstructorArgs memory sotArgs = SOTConstructorArgs({
+            HOTConstructorArgs memory hotArgs = HOTConstructorArgs({
                 pool: address(pool),
                 manager: deployerPublicKey,
                 signer: deployerPublicKey,
@@ -65,14 +65,14 @@ contract SOTDeployScript is Script {
                 maxDelay: 20 minutes,
                 maxOracleUpdateDurationFeed0: 24 hours,
                 maxOracleUpdateDurationFeed1: 24 hours,
-                solverMaxDiscountBips: 1000, // 10%
+                hotMaxDiscountBips: 1000, // 10%
                 maxOracleDeviationBound: 10000, // 100%
                 minAMMFeeGrowthE6: 1,
                 maxAMMFeeGrowthE6: 10000,
                 minAMMFee: 1 // 0.01%
             });
 
-            sot = new SOT(sotArgs);
+            hot = new HOT(hotArgs);
         }
 
         {
@@ -80,31 +80,31 @@ contract SOTDeployScript is Script {
             uint256 token0MaxVolume = 100 * (10 ** ERC20(token0).decimals());
             uint256 token1MaxVolume = 20_000 * (10 ** ERC20(token1).decimals());
 
-            // Set SOT Parameters
-            sot.setMaxOracleDeviationBips(500); // 5%
-            sot.setMaxTokenVolumes(token0MaxVolume, token1MaxVolume);
-            sot.setMaxAllowedQuotes(3);
+            // Set HOT Parameters
+            hot.setMaxOracleDeviationBips(500); // 5%
+            hot.setMaxTokenVolumes(token0MaxVolume, token1MaxVolume);
+            hot.setMaxAllowedQuotes(3);
         }
 
-        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = sot.solverReadSlot();
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = hot.hotReadSlot();
 
         if (
-            !SOTParams.checkPriceDeviation(
+            !HOTParams.checkPriceDeviation(
                 sqrtSpotPriceX96,
-                sot.getSqrtOraclePriceX96(),
+                hot.getSqrtOraclePriceX96(),
                 maxOracleDeviationBipsLower,
                 maxOracleDeviationBipsUpper
             )
         ) {
-            revert SOTDeployScript__oraclePriceDeviation();
+            revert HOTDeployScript__oraclePriceDeviation();
         }
 
-        // Set SOT in the Sovereign Pool
-        pool.setALM(address(sot));
-        pool.setSwapFeeModule(address(sot));
+        // Set HOT in the Sovereign Pool
+        pool.setALM(address(hot));
+        pool.setSwapFeeModule(address(hot));
         pool.setPoolManager(liquidityProvider);
 
-        vm.writeJson(Strings.toHexString(address(sot)), path, '.SOT');
+        vm.writeJson(Strings.toHexString(address(hot)), path, '.HOT');
 
         vm.stopBroadcast();
     }

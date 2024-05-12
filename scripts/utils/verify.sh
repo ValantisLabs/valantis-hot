@@ -32,7 +32,7 @@
 #     lib/valantis-core/src/pools/SovereignPool.sol:SovereignPool 
 
     
-# SOT Verify Script
+# HOT Verify Script
 forge verify-contract \
     --chain-id 100 \
     --num-of-optimizations 20000 \
@@ -41,6 +41,6 @@ forge verify-contract \
     --etherscan-api-key G3C7HAXCHCSQDDIWPAHQSTE4MNFEUEUPKF \
     --compiler-version v0.8.19 \
     0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61 \
-    src/SOT.sol:SOT 
+    src/HOT.sol:HOT 
 
 

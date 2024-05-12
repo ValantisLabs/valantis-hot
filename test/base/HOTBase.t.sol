@@ -12,24 +12,24 @@ import { Base } from '../../lib/valantis-core/test/base/Base.sol';
 import { SafeCast } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
 import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
-import { SOT } from '../../src/SOT.sol';
-import { SOTConstants } from '../../src/libraries/SOTConstants.sol';
+import { HOT } from '../../src/HOT.sol';
+import { HOTConstants } from '../../src/libraries/HOTConstants.sol';
 import {
-    SOTConstructorArgs,
-    SolverOrderType,
-    SolverWriteSlot,
-    SolverReadSlot,
+    HOTConstructorArgs,
+    HybridOrderType,
+    HotWriteSlot,
+    HotReadSlot,
     AMMState
-} from '../../src/structs/SOTStructs.sol';
-import { SOTOracle } from '../../src/SOTOracle.sol';
+} from '../../src/structs/HOTStructs.sol';
+import { HOTOracle } from '../../src/HOTOracle.sol';
 import { TightPack } from '../../src/libraries/utils/TightPack.sol';
 
-import { SOTOracleHelper } from '../helpers/SOTOracleHelper.sol';
-import { SOTDeployer } from '../deployers/SOTDeployer.sol';
+import { HOTOracleHelper } from '../helpers/HOTOracleHelper.sol';
+import { HOTDeployer } from '../deployers/HOTDeployer.sol';
 import { MockChainlinkOracle } from '../mocks/MockChainlinkOracle.sol';
 import { MockSigner } from '../mocks/MockSigner.sol';
 
-contract SOTBase is SovereignPoolBase, SOTDeployer {
+contract HOTBase is SovereignPoolBase, HOTDeployer {
     using SafeCast for uint256;
     using TightPack for AMMState;
 
@@ -46,7 +46,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
     uint256 public EOASignerPrivateKey = 0x12345;
     address public EOASigner = vm.addr(EOASignerPrivateKey);
 
-    SOT public sot;
+    HOT public hot;
 
     MockSigner public mockSigner;
 
@@ -55,15 +55,15 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
     AMMState public mockAMMState;
 
-    address public sotImmutablePool;
-    address public sotImmutableLiquidityProvider;
-    uint32 public sotImmutableMaxDelay;
-    uint16 public sotImmutableSolverMaxDiscountBipsLower;
-    uint16 public sotImmutableSolverMaxDiscountBipsUpper;
-    uint16 public sotImmutableMaxOracleDeviationBound;
-    uint16 public sotImmutableMinAMMFeeGrowthE6;
-    uint16 public sotImmutableMaxAMMFeeGrowthE6;
-    uint16 public sotImmutableMinAMMFee;
+    address public hotImmutablePool;
+    address public hotImmutableLiquidityProvider;
+    uint32 public hotImmutableMaxDelay;
+    uint16 public hotImmutableHotMaxDiscountBipsLower;
+    uint16 public hotImmutableHotMaxDiscountBipsUpper;
+    uint16 public hotImmutableMaxOracleDeviationBound;
+    uint16 public hotImmutableMinAMMFeeGrowthE6;
+    uint16 public hotImmutableMaxAMMFeeGrowthE6;
+    uint16 public hotImmutableMinAMMFee;
 
     function setUp() public virtual override {
         _setupBase();
@@ -78,20 +78,20 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
         SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
         pool = this.deploySovereignPool(poolArgs);
-        sot = deployAndSetDefaultSOT(pool);
+        hot = deployAndSetDefaultHOT(pool);
 
-        _updateImmutables(sot);
+        _updateImmutables(hot);
 
         _addToContractsToApprove(address(pool));
-        _addToContractsToApprove(address(sot));
+        _addToContractsToApprove(address(hot));
     }
 
-    function generateDefaultSOTConstructorArgs(
+    function generateDefaultHOTConstructorArgs(
         SovereignPool _pool
-    ) public view returns (SOTConstructorArgs memory args) {
-        (uint16 solverDiscountDeviationLower, uint16 solverDiscountDeviationUpper) = getSqrtDeviationValues(200);
+    ) public view returns (HOTConstructorArgs memory args) {
+        (uint16 hotDiscountDeviationLower, uint16 hotDiscountDeviationUpper) = getSqrtDeviationValues(200);
 
-        args = SOTConstructorArgs({
+        args = HOTConstructorArgs({
             pool: address(_pool),
             manager: address(this),
             signer: address(mockSigner),
@@ -104,8 +104,8 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             maxDelay: 9 minutes,
             maxOracleUpdateDurationFeed0: 10 minutes,
             maxOracleUpdateDurationFeed1: 10 minutes,
-            solverMaxDiscountBipsLower: solverDiscountDeviationLower, // Corresponds to 2%
-            solverMaxDiscountBipsUpper: solverDiscountDeviationUpper, // Corresponds to 2%
+            hotMaxDiscountBipsLower: hotDiscountDeviationLower, // Corresponds to 2%
+            hotMaxDiscountBipsUpper: hotDiscountDeviationUpper, // Corresponds to 2%
             maxOracleDeviationBound: 5000, // 50%
             minAMMFeeGrowthE6: 100,
             maxAMMFeeGrowthE6: 10000,
@@ -113,13 +113,13 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         });
     }
 
-    function deployAndSetDefaultSOT(SovereignPool _pool) public returns (SOT _sot) {
-        SOTConstructorArgs memory args = generateDefaultSOTConstructorArgs(_pool);
+    function deployAndSetDefaultHOT(SovereignPool _pool) public returns (HOT _hot) {
+        HOTConstructorArgs memory args = generateDefaultHOTConstructorArgs(_pool);
 
         vm.startPrank(_pool.poolManager());
-        _sot = this.deploySOT(args);
-        _pool.setALM(address(_sot));
-        _pool.setSwapFeeModule(address(_sot));
+        _hot = this.deployHOT(args);
+        _pool.setALM(address(_hot));
+        _pool.setSwapFeeModule(address(_hot));
         vm.stopPrank();
     }
 
@@ -133,14 +133,14 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         return (_feedToken0, _feedToken1);
     }
 
-    /// @dev This is only used for testing, during deployment SOTOracle is inherited by SOT
-    function deploySOTOracleIndependently(
+    /// @dev This is only used for testing, during deployment HOTOracle is inherited by HOT
+    function deployHOTOracleIndependently(
         MockChainlinkOracle _feedToken0,
         MockChainlinkOracle _feedToken1,
         uint32 _maxOracleUpdateDurationFeed0,
         uint32 _maxOracleUpdateDurationFeed1
-    ) public returns (SOTOracle oracle) {
-        oracle = new SOTOracle(
+    ) public returns (HOTOracle oracle) {
+        oracle = new HOTOracle(
             address(pool.token0()),
             address(pool.token1()),
             address(_feedToken0),
@@ -150,16 +150,16 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
     }
 
-    /// @dev This is only used for testing, during deployment SOTOracle is inherited by SOT
-    function deploySOTOracleHelper(
+    /// @dev This is only used for testing, during deployment HOTOracle is inherited by HOT
+    function deployHOTOracleHelper(
         address _token0,
         address _token1,
         MockChainlinkOracle _feedToken0,
         MockChainlinkOracle _feedToken1,
         uint32 _maxOracleUpdateDurationFeed0,
         uint32 _maxOracleUpdateDurationFeed1
-    ) public returns (SOTOracleHelper oracle) {
-        oracle = new SOTOracleHelper(
+    ) public returns (HOTOracleHelper oracle) {
+        oracle = new HOTOracleHelper(
             _token0,
             _token1,
             address(_feedToken0),
@@ -169,37 +169,37 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
     }
 
-    function _updateImmutables(SOT _sot) internal {
+    function _updateImmutables(HOT _hot) internal {
         (
-            address _sotImmutablePool,
-            address _sotImmutableLiquidityProvider,
-            uint32 _sotImmutableMaxDelay,
-            uint16 _sotImmutableSolverMaxDiscountBipsLower,
-            uint16 _sotImmutableSolverMaxDiscountBipsUpper,
-            uint16 _sotImmutableMaxOracleDeviationBound,
-            uint16 _sotImmutableMinAMMFeeGrowthE6,
-            uint16 _sotImmutableMaxAMMFeeGrowthE6,
-            uint16 _sotImmutableMinAMMFee
-        ) = _sot.immutables();
+            address _hotImmutablePool,
+            address _hotImmutableLiquidityProvider,
+            uint32 _hotImmutableMaxDelay,
+            uint16 _hotImmutableHotMaxDiscountBipsLower,
+            uint16 _hotImmutableHotMaxDiscountBipsUpper,
+            uint16 _hotImmutableMaxOracleDeviationBound,
+            uint16 _hotImmutableMinAMMFeeGrowthE6,
+            uint16 _hotImmutableMaxAMMFeeGrowthE6,
+            uint16 _hotImmutableMinAMMFee
+        ) = _hot.immutables();
 
-        sotImmutablePool = _sotImmutablePool;
-        sotImmutableLiquidityProvider = _sotImmutableLiquidityProvider;
-        sotImmutableMaxDelay = _sotImmutableMaxDelay;
-        sotImmutableSolverMaxDiscountBipsLower = _sotImmutableSolverMaxDiscountBipsLower;
-        sotImmutableSolverMaxDiscountBipsUpper = _sotImmutableSolverMaxDiscountBipsUpper;
-        sotImmutableMaxOracleDeviationBound = _sotImmutableMaxOracleDeviationBound;
-        sotImmutableMinAMMFeeGrowthE6 = _sotImmutableMinAMMFeeGrowthE6;
-        sotImmutableMaxAMMFeeGrowthE6 = _sotImmutableMaxAMMFeeGrowthE6;
-        sotImmutableMinAMMFee = _sotImmutableMinAMMFee;
+        hotImmutablePool = _hotImmutablePool;
+        hotImmutableLiquidityProvider = _hotImmutableLiquidityProvider;
+        hotImmutableMaxDelay = _hotImmutableMaxDelay;
+        hotImmutableHotMaxDiscountBipsLower = _hotImmutableHotMaxDiscountBipsLower;
+        hotImmutableHotMaxDiscountBipsUpper = _hotImmutableHotMaxDiscountBipsUpper;
+        hotImmutableMaxOracleDeviationBound = _hotImmutableMaxOracleDeviationBound;
+        hotImmutableMinAMMFeeGrowthE6 = _hotImmutableMinAMMFeeGrowthE6;
+        hotImmutableMaxAMMFeeGrowthE6 = _hotImmutableMaxAMMFeeGrowthE6;
+        hotImmutableMinAMMFee = _hotImmutableMinAMMFee;
     }
 
-    function _getSensibleSOTParams() internal returns (SolverOrderType memory sotParams) {
+    function _getSensibleHOTParams() internal returns (HybridOrderType memory hotParams) {
         // sqrt(2000) * 2^96 = 3543191142285914205922034323214
         // Sensible Defaults
-        sotParams = SolverOrderType({
+        hotParams = HybridOrderType({
             amountInMax: 100e18,
-            sqrtSolverPriceX96Discounted: 3525430673841938976158389176523, // 1% discount to first solver ( 1980 )
-            sqrtSolverPriceX96Base: 3543191142285914205922034323214, // 2000
+            sqrtHotPriceX96Discounted: 3525430673841938976158389176523, // 1% discount to first HOT ( 1980 )
+            sqrtHotPriceX96Base: 3543191142285914205922034323214, // 2000
             sqrtSpotPriceX96New: getSqrtPriceX96(
                 2005 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())
@@ -235,24 +235,24 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         return (Math.sqrt(oraclePriceX96) << 48).toUint160();
     }
 
-    function getDomainSeparatorV4(uint256 chainId, address sotAddress) public pure returns (bytes32 domainSeparator) {
+    function getDomainSeparatorV4(uint256 chainId, address hotAddress) public pure returns (bytes32 domainSeparator) {
         bytes32 typeHash = keccak256(
             'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
         );
-        bytes32 hashedName = keccak256('Valantis Solver Order Type');
+        bytes32 hashedName = keccak256('Valantis HOT');
         bytes32 hashedVersion = keccak256('1');
-        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, sotAddress));
+        domainSeparator = keccak256(abi.encode(typeHash, hashedName, hashedVersion, chainId, hotAddress));
     }
 
     function getEOASignedQuote(
-        SolverOrderType memory sotParams,
+        HybridOrderType memory hotParams,
         uint256 privateKey
     ) public view returns (bytes memory signedQuoteExternalContext) {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',
-                getDomainSeparatorV4(block.chainid, address(sot)),
-                keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+                getDomainSeparatorV4(block.chainid, address(hot)),
+                keccak256(abi.encode(HOTConstants.HOT_TYPEHASH, hotParams))
             )
         );
 
@@ -260,13 +260,13 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
 
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
-        signedQuoteExternalContext = abi.encode(sotParams, signature);
+        signedQuoteExternalContext = abi.encode(hotParams, signature);
     }
 
     function getPoolState() public view returns (PoolState memory state) {
         (uint256 poolReserve0, uint256 poolReserve1) = pool.getReserves();
         (uint256 managerFee0, uint256 managerFee1) = pool.getPoolManagerFees();
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
         state = PoolState({
             sqrtSpotPriceX96: sqrtSpotPriceX96,
@@ -279,19 +279,19 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         });
     }
 
-    function getSolverReadSlot() public view returns (SolverReadSlot memory slot) {
+    function getHotReadSlot() public view returns (HotReadSlot memory slot) {
         (
             slot.isPaused,
             slot.maxAllowedQuotes,
             slot.maxOracleDeviationBipsLower,
             slot.maxOracleDeviationBipsUpper,
-            slot.solverFeeBipsToken0,
-            slot.solverFeeBipsToken1,
+            slot.hotFeeBipsToken0,
+            slot.hotFeeBipsToken1,
             slot.signer
-        ) = sot.solverReadSlot();
+        ) = hot.hotReadSlot();
     }
 
-    function getSolverWriteSlot() public view returns (SolverWriteSlot memory slot) {
+    function getHotWriteSlot() public view returns (HotWriteSlot memory slot) {
         // This pattern is used to prevent stack too deep errors
         (
             ,
@@ -305,7 +305,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastProcessedQuoteTimestamp,
             slot.lastProcessedSignatureTimestamp,
             slot.alternatingNonceBitmap
-        ) = sot.solverWriteSlot();
+        ) = hot.hotWriteSlot();
 
         (
             slot.lastProcessedBlockQuoteCount,
@@ -319,7 +319,7 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             ,
             ,
 
-        ) = sot.solverWriteSlot();
+        ) = hot.hotWriteSlot();
     }
 
     function checkPoolState(PoolState memory actual, PoolState memory expected) public {
@@ -332,55 +332,55 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         assertEq(actual.managerFee1, expected.managerFee1, 'checkPoolState: managerFee1');
     }
 
-    function checkSolverWriteSlot(SolverWriteSlot memory actual, SolverWriteSlot memory expected) public {
+    function checkHotWriteSlot(HotWriteSlot memory actual, HotWriteSlot memory expected) public {
         assertEq(
             actual.lastProcessedBlockQuoteCount,
             expected.lastProcessedBlockQuoteCount,
-            'checkSolverWriteSlot: lastProcessedBlockQuoteCount'
+            'checkHotWriteSlot: lastProcessedBlockQuoteCount'
         );
-        assertEq(actual.feeGrowthE6Token0, expected.feeGrowthE6Token0, 'checkSolverWriteSlot: feeGrowthE6Token0');
-        assertEq(actual.feeMaxToken0, expected.feeMaxToken0, 'checkSolverWriteSlot: feeMaxToken0');
-        assertEq(actual.feeMinToken0, expected.feeMinToken0, 'checkSolverWriteSlot: feeMinToken0');
-        assertEq(actual.feeGrowthE6Token1, expected.feeGrowthE6Token1, 'checkSolverWriteSlot: feeGrowthE6Token1');
-        assertEq(actual.feeMaxToken1, expected.feeMaxToken1, 'checkSolverWriteSlot: feeMaxToken1');
-        assertEq(actual.feeMinToken1, expected.feeMinToken1, 'checkSolverWriteSlot: feeMinToken1');
+        assertEq(actual.feeGrowthE6Token0, expected.feeGrowthE6Token0, 'checkHotWriteSlot: feeGrowthE6Token0');
+        assertEq(actual.feeMaxToken0, expected.feeMaxToken0, 'checkHotWriteSlot: feeMaxToken0');
+        assertEq(actual.feeMinToken0, expected.feeMinToken0, 'checkHotWriteSlot: feeMinToken0');
+        assertEq(actual.feeGrowthE6Token1, expected.feeGrowthE6Token1, 'checkHotWriteSlot: feeGrowthE6Token1');
+        assertEq(actual.feeMaxToken1, expected.feeMaxToken1, 'checkHotWriteSlot: feeMaxToken1');
+        assertEq(actual.feeMinToken1, expected.feeMinToken1, 'checkHotWriteSlot: feeMinToken1');
         assertEq(
             actual.lastStateUpdateTimestamp,
             expected.lastStateUpdateTimestamp,
-            'checkSolverWriteSlot: lastStateUpdateTimestamp'
+            'checkHotWriteSlot: lastStateUpdateTimestamp'
         );
         assertEq(
             actual.lastProcessedQuoteTimestamp,
             expected.lastProcessedQuoteTimestamp,
-            'checkSolverWriteSlot: lastProcessedQuoteTimestamp'
+            'checkHotWriteSlot: lastProcessedQuoteTimestamp'
         );
         assertEq(
             actual.lastProcessedSignatureTimestamp,
             expected.lastProcessedSignatureTimestamp,
-            'checkSolverWriteSlot: lastProcessedSignatureTimestamp'
+            'checkHotWriteSlot: lastProcessedSignatureTimestamp'
         );
         assertEq(
             actual.alternatingNonceBitmap,
             expected.alternatingNonceBitmap,
-            'checkSolverWriteSlot: alternatingNonceBitmap'
+            'checkHotWriteSlot: alternatingNonceBitmap'
         );
     }
 
     function _setAMMState(uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) internal {
         mockAMMState.setState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
-        vm.store(address(sot), bytes32(uint256(5)), bytes32(uint256(mockAMMState.slot1)));
-        vm.store(address(sot), bytes32(uint256(6)), bytes32(uint256(mockAMMState.slot2)));
+        vm.store(address(hot), bytes32(uint256(5)), bytes32(uint256(mockAMMState.slot1)));
+        vm.store(address(hot), bytes32(uint256(6)), bytes32(uint256(mockAMMState.slot2)));
 
         // Check that the amm state is setup correctly
-        (uint160 _sqrtSpotPriceX96, uint160 _sqrtPriceLowX96, uint160 _sqrtPriceHighX96) = sot.getAMMState();
+        (uint160 _sqrtSpotPriceX96, uint160 _sqrtPriceLowX96, uint160 _sqrtPriceHighX96) = hot.getAMMState();
 
         assertEq(sqrtSpotPriceX96, _sqrtSpotPriceX96, 'sqrtSpotPriceX96New');
         assertEq(sqrtPriceLowX96, _sqrtPriceLowX96, 'sqrtPriceLowX96New');
         assertEq(sqrtPriceHighX96, _sqrtPriceHighX96, 'sqrtPriceHighX96New');
     }
 
-    function _setSolverWriteSlot(SolverWriteSlot memory slot) internal {
+    function _setHotWriteSlot(HotWriteSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
             slot.alternatingNonceBitmap,
             slot.lastProcessedSignatureTimestamp,
@@ -395,15 +395,15 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
             slot.lastProcessedBlockQuoteCount
         );
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(7)), data);
+        vm.store(address(hot), bytes32(uint256(7)), data);
     }
 
-    function _setSolverReadSlot(SolverReadSlot memory slot) internal {
+    function _setHotReadSlot(HotReadSlot memory slot) internal {
         bytes memory encodedData = abi.encodePacked(
             bytes2(0),
             slot.signer,
-            slot.solverFeeBipsToken1,
-            slot.solverFeeBipsToken0,
+            slot.hotFeeBipsToken1,
+            slot.hotFeeBipsToken0,
             slot.maxOracleDeviationBipsUpper,
             slot.maxOracleDeviationBipsLower,
             slot.maxAllowedQuotes,
@@ -411,13 +411,13 @@ contract SOTBase is SovereignPoolBase, SOTDeployer {
         );
 
         bytes32 data = bytes32(encodedData);
-        vm.store(address(sot), bytes32(uint256(8)), data);
+        vm.store(address(hot), bytes32(uint256(8)), data);
 
-        SolverReadSlot memory updateSlot = getSolverReadSlot();
+        HotReadSlot memory updateSlot = getHotReadSlot();
 
         assertEq(slot.signer, updateSlot.signer, 'signer');
-        assertEq(slot.solverFeeBipsToken1, updateSlot.solverFeeBipsToken1, 'solverFeeBipsToken1');
-        assertEq(slot.solverFeeBipsToken0, updateSlot.solverFeeBipsToken0, 'solverFeeBipsToken0');
+        assertEq(slot.hotFeeBipsToken1, updateSlot.hotFeeBipsToken1, 'hotFeeBipsToken1');
+        assertEq(slot.hotFeeBipsToken0, updateSlot.hotFeeBipsToken0, 'hotFeeBipsToken0');
         assertEq(
             slot.maxOracleDeviationBipsLower,
             updateSlot.maxOracleDeviationBipsLower,

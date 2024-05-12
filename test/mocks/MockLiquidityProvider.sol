@@ -7,14 +7,14 @@ import {
 } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ISovereignPool } from '../../lib/valantis-core/src/pools/interfaces/ISovereignPool.sol';
 
-import { SolverOrderType } from '../../src/structs/SOTStructs.sol';
-import { SOT } from '../../src/SOT.sol';
+import { HybridOrderType } from '../../src/structs/HOTStructs.sol';
+import { HOT } from '../../src/HOT.sol';
 
 contract MockLiquidityProvider {
     using SafeERC20 for IERC20;
 
     address public owner;
-    SOT public sot;
+    HOT public hot;
 
     constructor() {
         owner = msg.sender;
@@ -29,8 +29,8 @@ contract MockLiquidityProvider {
         owner = _owner;
     }
 
-    function setSOT(address _sot) public onlyOwner {
-        sot = SOT(_sot);
+    function setHOT(address _hot) public onlyOwner {
+        hot = HOT(_hot);
     }
 
     function depositLiquidity(
@@ -43,10 +43,10 @@ contract MockLiquidityProvider {
         IERC20 token0 = IERC20(ISovereignPool(_pool).token0());
         IERC20 token1 = IERC20(ISovereignPool(_pool).token1());
 
-        token0.approve(address(sot), _amount0);
-        token1.approve(address(sot), _amount1);
+        token0.approve(address(hot), _amount0);
+        token1.approve(address(hot), _amount1);
 
-        sot.depositLiquidity(_amount0, _amount1, _expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
+        hot.depositLiquidity(_amount0, _amount1, _expectedSqrtSpotPriceUpperX96, _expectedSqrtSpotPriceLowerX96);
     }
 
     function withdrawLiquidity(
@@ -56,7 +56,7 @@ contract MockLiquidityProvider {
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     ) public onlyOwner {
-        sot.withdrawLiquidity(
+        hot.withdrawLiquidity(
             _amount0,
             _amount1,
             _recipient,
@@ -71,7 +71,7 @@ contract MockLiquidityProvider {
         uint160 _expectedSqrtSpotPriceUpperX96,
         uint160 _expectedSqrtSpotPriceLowerX96
     ) public onlyOwner {
-        sot.setPriceBounds(
+        hot.setPriceBounds(
             _sqrtPriceLowX96,
             _sqrtPriceHighX96,
             _expectedSqrtSpotPriceUpperX96,

@@ -16,16 +16,16 @@ import {
 } from '../../lib/valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOT, ALMLiquidityQuoteInput } from '../../src/SOT.sol';
-import { SOTParams } from '../../src/libraries/SOTParams.sol';
-import { SOTOracle } from '../../src/SOTOracle.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from '../../src/structs/SOTStructs.sol';
-import { SOTConstants } from '../../src/libraries/SOTConstants.sol';
+import { HOT, ALMLiquidityQuoteInput } from '../../src/HOT.sol';
+import { HOTParams } from '../../src/libraries/HOTParams.sol';
+import { HOTOracle } from '../../src/HOTOracle.sol';
+import { HOTConstructorArgs, HybridOrderType, HotWriteSlot, HotReadSlot } from '../../src/structs/HOTStructs.sol';
+import { HOTConstants } from '../../src/libraries/HOTConstants.sol';
 import { TightPack } from '../../src/libraries/utils/TightPack.sol';
 
-import { SOTBase } from '../base/SOTBase.t.sol';
+import { HOTBase } from '../base/HOTBase.t.sol';
 
-contract SOTFuzzTest is SOTBase {
+contract HOTFuzzTest is HOTBase {
     using SafeCast for uint256;
 
     event LogBytes(bytes data);
@@ -39,23 +39,23 @@ contract SOTFuzzTest is SOTBase {
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
         vm.prank(address(this));
-        sot.setMaxTokenVolumes(100e18, 20_000e18);
-        sot.setMaxAllowedQuotes(2);
+        hot.setMaxTokenVolumes(100e18, 20_000e18);
+        hot.setMaxAllowedQuotes(2);
     }
 
     function test_getReservesAtPrice(uint256 priceToken0USD) public {
-        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+        hot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         priceToken0USD = bound(priceToken0USD, 1900, 2100);
 
         console.log('priceToken0USD: ', priceToken0USD);
 
         // Check reserves at priceToken0USD
-        (uint256 reserve0Expected, uint256 reserve1Expected) = sot.getReservesAtPrice(
+        (uint256 reserve0Expected, uint256 reserve1Expected) = hot.getReservesAtPrice(
             getSqrtPriceX96(priceToken0USD * (10 ** feedToken0.decimals()), 1 * (10 ** feedToken1.decimals()))
         );
 
-        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, , ) = hot.getAMMState();
 
         SovereignPoolSwapContextData memory data;
 
@@ -77,7 +77,7 @@ contract SOTFuzzTest is SOTBase {
             vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
         }
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
-        (sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (sqrtSpotPriceX96, , ) = hot.getAMMState();
 
         assertApproxEqRel(
             sqrtSpotPriceX96,
@@ -107,7 +107,7 @@ contract SOTFuzzTest is SOTBase {
             vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
         }
         (amountInUsed, amountOut) = pool.swap(params);
-        (sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (sqrtSpotPriceX96, , ) = hot.getAMMState();
 
         assertGe(amountIn, amountOut, 'pathIndependence');
         assertApproxEqRel(
@@ -136,9 +136,9 @@ contract SOTFuzzTest is SOTBase {
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
         // Comprehensive bounds that cover all scenarios
-        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, SOTConstants.MIN_SQRT_PRICE, SOTConstants.MAX_SQRT_PRICE)
+        _sqrtPriceLowX96 = bound(_sqrtPriceLowX96, HOTConstants.MIN_SQRT_PRICE, HOTConstants.MAX_SQRT_PRICE)
             .toUint160();
-        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, SOTConstants.MAX_SQRT_PRICE).toUint160();
+        _sqrtPriceHighX96 = bound(_sqrtPriceHighX96, _sqrtPriceLowX96, HOTConstants.MAX_SQRT_PRICE).toUint160();
         _sqrtSpotPriceX96 = bound(_sqrtSpotPriceX96, _sqrtPriceLowX96, _sqrtPriceHighX96).toUint160();
         _amountIn = bound(_amountIn, 1, 2 ** 255 - 1);
 
@@ -158,7 +158,7 @@ contract SOTFuzzTest is SOTBase {
         }
 
         // Set Reserves
-        try sot.depositLiquidity(_reserve0, _reserve1, 0, 0) {} catch {
+        try hot.depositLiquidity(_reserve0, _reserve1, 0, 0) {} catch {
             return;
         }
 
@@ -177,14 +177,14 @@ contract SOTFuzzTest is SOTBase {
             swapContext: data
         });
 
-        uint128 preLiquidity = sot.effectiveAMMLiquidity();
+        uint128 preLiquidity = hot.effectiveAMMLiquidity();
 
         if (params.amountIn == 0) {
             vm.expectRevert(SovereignPool.SovereignPool__swap_insufficientAmountIn.selector);
         }
 
         try pool.swap(params) returns (uint256, uint256 amountOutFirst) {
-            uint128 postLiquidity = sot.effectiveAMMLiquidity();
+            uint128 postLiquidity = hot.effectiveAMMLiquidity();
             assertEq(preLiquidity, postLiquidity, 'liquidity inconsistency');
 
             params.isZeroToOne = !_isZeroToOne;

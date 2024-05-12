@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
-import { AMMState } from '../../structs/SOTStructs.sol';
+import { AMMState } from '../../structs/HOTStructs.sol';
 
 /**
     @notice Helper library for tight packing multiple uint160 values into minimum amount of uint256 slots.

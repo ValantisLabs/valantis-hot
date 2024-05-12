@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 import { AggregatorV3Interface } from '../vendor/chainlink/AggregatorV3Interface.sol';
 
-interface ISOTOracle {
+interface IHOTOracle {
     /**
 	    @notice Price feeds for token{0,1}, denominated in USD.
 	    @dev These must be valid Chainlink Price Feeds.

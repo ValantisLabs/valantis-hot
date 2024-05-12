@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import { SOTOracle } from '../../src/SOTOracle.sol';
+import { HOTOracle } from '../../src/HOTOracle.sol';
 import { AggregatorV3Interface } from '../../src/vendor/chainlink/AggregatorV3Interface.sol';
 
-contract SOTOracleHelper is SOTOracle {
+contract HOTOracleHelper is HOTOracle {
     constructor(
         address _token0,
         address _token1,
@@ -13,7 +13,7 @@ contract SOTOracleHelper is SOTOracle {
         uint32 _maxOracleUpdateDurationFeed0,
         uint32 _maxOracleUpdateDurationFeed1
     )
-        SOTOracle(
+        HOTOracle(
             _token0,
             _token1,
             _feedToken0,

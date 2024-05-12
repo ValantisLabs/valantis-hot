@@ -16,16 +16,16 @@ import {
 } from '../../lib/valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/interfaces/ISwapFeeModule.sol';
 
-import { SOT, ALMLiquidityQuoteInput } from '../../src/SOT.sol';
-import { SOTParams } from '../../src/libraries/SOTParams.sol';
-import { SOTOracle } from '../../src/SOTOracle.sol';
-import { SOTConstructorArgs, SolverOrderType, SolverWriteSlot, SolverReadSlot } from '../../src/structs/SOTStructs.sol';
-import { SOTConstants } from '../../src/libraries/SOTConstants.sol';
+import { HOT, ALMLiquidityQuoteInput } from '../../src/HOT.sol';
+import { HOTParams } from '../../src/libraries/HOTParams.sol';
+import { HOTOracle } from '../../src/HOTOracle.sol';
+import { HOTConstructorArgs, HybridOrderType, HotWriteSlot, HotReadSlot } from '../../src/structs/HOTStructs.sol';
+import { HOTConstants } from '../../src/libraries/HOTConstants.sol';
 import { TightPack } from '../../src/libraries/utils/TightPack.sol';
 
-import { SOTBase } from '../base/SOTBase.t.sol';
+import { HOTBase } from '../base/HOTBase.t.sol';
 
-contract SOTConcreteTest is SOTBase {
+contract HOTConcreteTest is HOTBase {
     using SafeCast for uint256;
 
     event LogBytes(bytes data);
@@ -37,52 +37,52 @@ contract SOTConcreteTest is SOTBase {
         _setupBalanceForUser(address(this), address(token0), type(uint256).max);
         _setupBalanceForUser(address(this), address(token1), type(uint256).max);
 
-        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+        hot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
         vm.prank(address(this));
-        sot.setMaxTokenVolumes(100e18, 20_000e18);
-        sot.setMaxAllowedQuotes(2);
+        hot.setMaxTokenVolumes(100e18, 20_000e18);
+        hot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
+        hot.setMaxOracleDeviationBips(hotImmutableMaxOracleDeviationBound, hotImmutableMaxOracleDeviationBound);
     }
 
     function test_managerOperations() public {
         vm.startPrank(makeAddr('NOT_MANAGER'));
 
-        vm.expectRevert(SOT.SOT__onlyManager.selector);
-        sot.setManager(makeAddr('MANAGER'));
+        vm.expectRevert(HOT.HOT__onlyManager.selector);
+        hot.setManager(makeAddr('MANAGER'));
 
-        vm.expectRevert(SOT.SOT__onlyManager.selector);
-        sot.setSigner(makeAddr('SIGNER'));
+        vm.expectRevert(HOT.HOT__onlyManager.selector);
+        hot.setSigner(makeAddr('SIGNER'));
 
-        vm.expectRevert(SOT.SOT__onlyManager.selector);
-        sot.setMaxTokenVolumes(500, 500);
+        vm.expectRevert(HOT.HOT__onlyManager.selector);
+        hot.setMaxTokenVolumes(500, 500);
 
         vm.stopPrank();
 
-        sot.setSigner(makeAddr('SIGNER'));
+        hot.setSigner(makeAddr('SIGNER'));
 
-        (, , , , , , address signer) = sot.solverReadSlot();
+        (, , , , , , address signer) = hot.hotReadSlot();
         assertEq(signer, makeAddr('SIGNER'), 'signer');
 
-        sot.setMaxTokenVolumes(500, 500);
-        (uint256 maxToken0VolumeToQuote, ) = sot.maxTokenVolumes();
+        hot.setMaxTokenVolumes(500, 500);
+        (uint256 maxToken0VolumeToQuote, ) = hot.maxTokenVolumes();
         assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume0');
         assertEq(maxToken0VolumeToQuote, 500, 'maxTokenVolume1');
 
-        sot.setManager(makeAddr('MANAGER'));
-        assertEq(sot.manager(), makeAddr('MANAGER'), 'manager');
+        hot.setManager(makeAddr('MANAGER'));
+        assertEq(hot.manager(), makeAddr('MANAGER'), 'manager');
     }
 
     function test_onlyPool() public {
-        vm.expectRevert(SOT.SOT__onlyPool.selector);
-        sot.onSwapCallback(false, 0, 0);
+        vm.expectRevert(HOT.HOT__onlyPool.selector);
+        hot.onSwapCallback(false, 0, 0);
 
-        vm.expectRevert(SOT.SOT__onlyPool.selector);
-        sot.onDepositLiquidityCallback(0, 0, bytes(''));
+        vm.expectRevert(HOT.HOT__onlyPool.selector);
+        hot.onDepositLiquidityCallback(0, 0, bytes(''));
 
-        vm.expectRevert(SOT.SOT__onlyPool.selector);
+        vm.expectRevert(HOT.HOT__onlyPool.selector);
         ALMLiquidityQuoteInput memory poolInput = ALMLiquidityQuoteInput(
             false,
             0,
@@ -91,7 +91,7 @@ contract SOTConcreteTest is SOTBase {
             address(0),
             address(0)
         );
-        sot.getLiquidityQuote(poolInput, bytes(''), bytes(''));
+        hot.getLiquidityQuote(poolInput, bytes(''), bytes(''));
     }
 
     function test_swap_amm() public {
@@ -117,7 +117,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory postState = getPoolState();
 
-        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, , ) = hot.getAMMState();
 
         PoolState memory expectedState = PoolState({
             reserve0: preState.reserve0 + 1e18,
@@ -139,29 +139,29 @@ contract SOTConcreteTest is SOTBase {
         poolArgs.isToken0Rebase = true;
         poolArgs.isToken1Rebase = true;
         pool = this.deploySovereignPool(poolArgs);
-        sot = deployAndSetDefaultSOT(pool);
+        hot = deployAndSetDefaultHOT(pool);
 
         _addToContractsToApprove(address(pool));
-        _addToContractsToApprove(address(sot));
+        _addToContractsToApprove(address(hot));
 
-        token0.approve(address(sot), 1e26);
-        token1.approve(address(sot), 1e26);
+        token0.approve(address(hot), 1e26);
+        token1.approve(address(hot), 1e26);
 
         token0.approve(address(pool), 1e26);
         token1.approve(address(pool), 1e26);
 
-        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+        hot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
         // Max volume for token0 ( Eth ) is 100, and for token1 ( USDC ) is 20,000
         vm.prank(address(this));
-        sot.setMaxTokenVolumes(100e18, 20_000e18);
-        sot.setMaxAllowedQuotes(2);
+        hot.setMaxTokenVolumes(100e18, 20_000e18);
+        hot.setMaxAllowedQuotes(2);
 
-        sot.setMaxOracleDeviationBips(sotImmutableMaxOracleDeviationBound, sotImmutableMaxOracleDeviationBound);
+        hot.setMaxOracleDeviationBips(hotImmutableMaxOracleDeviationBound, hotImmutableMaxOracleDeviationBound);
 
         PoolState memory preState = getPoolState();
 
-        (uint256 reserve0, uint256 reserve1) = sot.getReservesAtPrice(preState.sqrtSpotPriceX96);
+        (uint256 reserve0, uint256 reserve1) = hot.getReservesAtPrice(preState.sqrtSpotPriceX96);
 
         SovereignPoolSwapContextData memory data;
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
@@ -179,7 +179,7 @@ contract SOTConcreteTest is SOTBase {
 
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
-        (uint160 sqrtSpotPriceX96, , ) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, , ) = hot.getAMMState();
 
         vm.revertTo(snapshot);
 
@@ -189,14 +189,14 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory postRebaseState = getPoolState();
 
-        (uint256 reserve0New, uint256 reserve1New) = sot.getReservesAtPrice(postRebaseState.sqrtSpotPriceX96);
+        (uint256 reserve0New, uint256 reserve1New) = hot.getReservesAtPrice(postRebaseState.sqrtSpotPriceX96);
 
         assertLe(reserve0New, reserve0);
         assertLe(reserve1New, reserve1);
 
         (uint256 amountInUsedRebase, uint256 amountOutRebase) = pool.swap(params);
 
-        (uint160 sqrtSpotPriceX96Rebase, , ) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96Rebase, , ) = hot.getAMMState();
 
         assertEq(amountInUsedRebase, amountInUsed, 'amountInUsed');
 
@@ -219,18 +219,18 @@ contract SOTConcreteTest is SOTBase {
         });
 
         // Deplete liquidity in one token, but spot price reaches the edge
-        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
+        vm.expectRevert(HOT.HOT___ammSwap_invalidSpotPriceAfterSwap.selector);
         pool.swap(params);
 
-        (, uint160 sqrtPriceLowX96, ) = sot.getAMMState();
+        (, uint160 sqrtPriceLowX96, ) = hot.getAMMState();
 
-        (uint256 amount0, ) = sot.getReservesAtPrice(sqrtPriceLowX96 + 1);
+        (uint256 amount0, ) = hot.getReservesAtPrice(sqrtPriceLowX96 + 1);
         (uint256 reserve0, ) = pool.getReserves();
 
         params.isZeroToOne = !params.isZeroToOne;
         params.swapTokenOut = params.isZeroToOne ? address(token1) : address(token0);
 
-        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
+        vm.expectRevert(HOT.HOT___ammSwap_invalidSpotPriceAfterSwap.selector);
         pool.swap(params);
 
         // Extra one is substracted for precision issues
@@ -253,7 +253,7 @@ contract SOTConcreteTest is SOTBase {
         params.amountIn = 1;
 
         // Trying to swap even 1 amount on the other side results in revert
-        vm.expectRevert(SOT.SOT___ammSwap_invalidSpotPriceAfterSwap.selector);
+        vm.expectRevert(HOT.HOT___ammSwap_invalidSpotPriceAfterSwap.selector);
         (amountInUsed, amountOut) = pool.swap(params);
 
         params.isZeroToOne = !params.isZeroToOne;
@@ -269,10 +269,10 @@ contract SOTConcreteTest is SOTBase {
         assertNotEq(postState.sqrtSpotPriceX96, postState.sqrtPriceLowX96, 'Wrong sqrt spot price update');
     }
 
-    function test_swap_solver_contractSigner() public {
+    function test_swap_hot_contractSigner() public {
         // Test Swap with Contract Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
+            externalContext: mockSigner.getSignedQuote(_getSensibleHOTParams()),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -307,14 +307,14 @@ contract SOTConcreteTest is SOTBase {
         checkPoolState(expectedState, postState);
     }
 
-    function test_swap_solver_EOASigner() public {
-        sot.setSigner(EOASigner);
+    function test_swap_hot_EOASigner() public {
+        hot.setSigner(EOASigner);
 
-        bytes memory quote = getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey);
+        bytes memory quote = getEOASignedQuote(_getSensibleHOTParams(), EOASignerPrivateKey);
 
         // Test Swap with EOA Signer ( but corrupted data )
         // NOTE: if abi.encodePacked is used here instead of abi.encode, the test will fail
-        // @audit: verify if these kind of quote manipulations are safe in the SOT.
+        // @audit: verify if these kind of quote manipulations are safe in the HOT.
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
             externalContext: abi.encode(quote, bytes('random')),
             verifierContext: bytes(''),
@@ -348,11 +348,11 @@ contract SOTConcreteTest is SOTBase {
         assertEq(amountOut, 1980e18 - 1, 'amountOut 0');
     }
 
-    function test_swap_solver_maxTokenVolume() public {
-        sot.setMaxTokenVolumes(type(uint256).max, 500);
+    function test_swap_hot_maxTokenVolume() public {
+        hot.setMaxTokenVolumes(type(uint256).max, 500);
 
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
+            externalContext: mockSigner.getSignedQuote(_getSensibleHOTParams()),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -369,29 +369,29 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
+        vm.expectRevert(HOTParams.HOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
         pool.swap(params);
 
-        sot.setMaxTokenVolumes(500, type(uint256).max);
+        hot.setMaxTokenVolumes(500, type(uint256).max);
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
-        sotParams.isZeroToOne = false;
-        params.swapContext.externalContext = mockSigner.getSignedQuote(sotParams);
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
+        hotParams.isZeroToOne = false;
+        params.swapContext.externalContext = mockSigner.getSignedQuote(hotParams);
 
-        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
+        vm.expectRevert(HOTParams.HOTParams__validateBasicParams_excessiveTokenOutAmountRequested.selector);
         pool.swap(params);
 
-        sot.setMaxTokenVolumes(type(uint256).max, type(uint256).max);
+        hot.setMaxTokenVolumes(type(uint256).max, type(uint256).max);
         pool.swap(params);
     }
 
-    function test_swap_solver_invalidSignature() public {
-        sot.setSigner(vm.addr(0x111));
+    function test_swap_hot_invalidSignature() public {
+        hot.setSigner(vm.addr(0x111));
 
         // Test Swap with EOA Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            externalContext: getEOASignedQuote(_getSensibleHOTParams(), EOASignerPrivateKey),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -408,16 +408,16 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT___solverSwap_invalidSignature.selector);
+        vm.expectRevert(HOT.HOT___hotSwap_invalidSignature.selector);
         pool.swap(params);
     }
 
-    function test_swap_solver_incorrectSwapDirection() public {
-        sot.setSigner(EOASigner);
+    function test_swap_hot_incorrectSwapDirection() public {
+        hot.setSigner(EOASigner);
 
         // Test Swap with EOA Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            externalContext: getEOASignedQuote(_getSensibleHOTParams(), EOASignerPrivateKey),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -434,15 +434,15 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_incorrectSwapDirection.selector);
+        vm.expectRevert(HOTParams.HOTParams__validateBasicParams_incorrectSwapDirection.selector);
         pool.swap(params);
     }
 
-    function test_swap_solver_replayProtection() public {
-        sot.setSigner(EOASigner);
+    function test_swap_hot_replayProtection() public {
+        hot.setSigner(EOASigner);
 
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            externalContext: getEOASignedQuote(_getSensibleHOTParams(), EOASignerPrivateKey),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -461,14 +461,14 @@ contract SOTConcreteTest is SOTBase {
 
         pool.swap(params);
 
-        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_replayedQuote.selector);
+        vm.expectRevert(HOTParams.HOTParams__validateBasicParams_replayedQuote.selector);
 
         pool.swap(params);
 
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
-        sotParams.expectedFlag = 1;
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
+        hotParams.expectedFlag = 1;
 
-        data.externalContext = getEOASignedQuote(sotParams, EOASignerPrivateKey);
+        data.externalContext = getEOASignedQuote(hotParams, EOASignerPrivateKey);
 
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
@@ -477,7 +477,7 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_swap_amm_singleSidedLiquidity() public {
-        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+        hot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
 
         (uint256 amount0, uint256 amount1) = pool.getReserves();
         assertEq(amount0 + amount1, 0, 'pool not empty');
@@ -485,37 +485,37 @@ contract SOTConcreteTest is SOTBase {
         // Depositing single sided liquidity
         // One unit of token1 is necessary, so that it can be concentrated to infinity
         // when spotPrice = spotPriceLow. Without this, the effective liquidity becomes 0.
-        sot.depositLiquidity(5e18, 1, 0, 0);
+        hot.depositLiquidity(5e18, 1, 0, 0);
 
         (amount0, amount1) = pool.getReserves();
 
         assertEq(amount0, 5e18, 'amount0');
         assertEq(amount1, 1, 'amount1');
 
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
 
-        (, uint160 sqrtSpotPriceLowX96, ) = sot.getAMMState();
+        (, uint160 sqrtSpotPriceLowX96, ) = hot.getAMMState();
         // Exactly sqrtPriceLow will cause revert
-        sotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96 + 1;
+        hotParams.sqrtSpotPriceX96New = sqrtSpotPriceLowX96 + 1;
 
         // Update the Oracle so that it allows the spot price to be updated to the edge
         feedToken0.updateAnswer(1500e8);
-        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+        hotParams.sqrtHotPriceX96Discounted = getSqrtPriceX96(
             1500 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.isZeroToOne = false;
+        hotParams.isZeroToOne = false;
 
-        // Set Spot price to priceLow with a minimal SOT
+        // Set Spot price to priceLow with a minimal HOT
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(sotParams),
+            externalContext: mockSigner.getSignedQuote(hotParams),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
         });
 
         // AmountIn is set to 2000, so that amountOut is just 1,
-        // to prevent SOT from reverting with amountOut == 0 error
+        // to prevent HOT from reverting with amountOut == 0 error
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: false,
@@ -527,10 +527,10 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        // Perform SOT swap to update the spot price
+        // Perform HOT swap to update the spot price
         (uint256 amountInUsed, uint256 amountOut) = pool.swap(params);
 
-        assertNotEq(sot.effectiveAMMLiquidity(), 0, 'effectiveAMMLiquidity');
+        assertNotEq(hot.effectiveAMMLiquidity(), 0, 'effectiveAMMLiquidity');
 
         (amount0, amount1) = pool.getReserves();
 
@@ -550,12 +550,12 @@ contract SOTConcreteTest is SOTBase {
         assertNotEq(amountOut, 0, 'amountOut Right Direction');
     }
 
-    function test_swap_solver_baseSolver() public {
-        sot.setSigner(EOASigner);
+    function test_swap_hot_baseHot() public {
+        hot.setSigner(EOASigner);
 
         // Test Swap with EOA Signer
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: getEOASignedQuote(_getSensibleSOTParams(), EOASignerPrivateKey),
+            externalContext: getEOASignedQuote(_getSensibleHOTParams(), EOASignerPrivateKey),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -574,16 +574,16 @@ contract SOTConcreteTest is SOTBase {
 
         pool.swap(params);
 
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
-        sotParams.expectedFlag = 1;
-        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
+        hotParams.expectedFlag = 1;
+        hotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2010 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
 
         PoolState memory preState = getPoolState();
 
-        params.swapContext.externalContext = getEOASignedQuote(sotParams, EOASignerPrivateKey);
+        params.swapContext.externalContext = getEOASignedQuote(hotParams, EOASignerPrivateKey);
 
         pool.swap(params);
 
@@ -603,26 +603,26 @@ contract SOTConcreteTest is SOTBase {
         checkPoolState(expectedState, postState);
     }
 
-    function test_swap_solver_swapMathWithFee() public {
-        // Excess solver feeInBips
-        vm.expectRevert(SOT.SOT__setSolverFeeInBips_invalidSolverFee.selector);
-        sot.setSolverFeeInBips(101, 5);
+    function test_swap_hot_swapMathWithFee() public {
+        // Excess hot feeInBips
+        vm.expectRevert(HOT.HOT__setHotFeeInBips_invalidHotFee.selector);
+        hot.setHotFeeInBips(101, 5);
 
-        vm.expectRevert(SOT.SOT__setSolverFeeInBips_invalidSolverFee.selector);
-        sot.setSolverFeeInBips(5, 101);
+        vm.expectRevert(HOT.HOT__setHotFeeInBips_invalidHotFee.selector);
+        hot.setHotFeeInBips(5, 101);
 
-        // Correct solver feeInBips: token0 = 0.1%, token1 = 0.5%
-        sot.setSolverFeeInBips(10, 50);
+        // Correct hot feeInBips: token0 = 0.1%, token1 = 0.5%
+        hot.setHotFeeInBips(10, 50);
 
-        (, , , , uint16 solverFeeBipsToken0, uint16 solverFeeBipsToken1, ) = sot.solverReadSlot();
+        (, , , , uint16 hotFeeBipsToken0, uint16 hotFeeBipsToken1, ) = hot.hotReadSlot();
 
-        assertEq(solverFeeBipsToken0, 10, 'solverFeeBipsToken0');
-        assertEq(solverFeeBipsToken1, 50, 'solverFeeBipsToken1');
+        assertEq(hotFeeBipsToken0, 10, 'hotFeeBipsToken0');
+        assertEq(hotFeeBipsToken1, 50, 'hotFeeBipsToken1');
 
         // Test Swap with Contract Signer
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(sotParams),
+            externalContext: mockSigner.getSignedQuote(hotParams),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -671,9 +671,9 @@ contract SOTConcreteTest is SOTBase {
         params.swapTokenOut = address(token0);
         params.amountIn = amountIn;
 
-        sotParams.nonce = 55;
-        sotParams.isZeroToOne = false;
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        hotParams.nonce = 55;
+        hotParams.isZeroToOne = false;
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
 
         // Check the math in the other direction
         pool.swap(params);
@@ -692,11 +692,11 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_swap_invalidFeePath() public {
-        sot.setSolverFeeInBips(10, 50);
+        hot.setHotFeeInBips(10, 50);
 
-        // Solver Swap, amm fee path
+        // Hot Swap, amm fee path
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(_getSensibleSOTParams()),
+            externalContext: mockSigner.getSignedQuote(_getSensibleHOTParams()),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('')
@@ -713,14 +713,14 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidFeePath.selector);
+        vm.expectRevert(HOT.HOT__getLiquidityQuote_invalidFeePath.selector);
         pool.swap(params);
 
-        // AMM Swap, solver fee path
+        // AMM Swap, hot fee path
         data.externalContext = bytes('');
         data.swapFeeModuleContext = bytes('1');
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_invalidFeePath.selector);
+        vm.expectRevert(HOT.HOT__getLiquidityQuote_invalidFeePath.selector);
         pool.swap(params);
 
         data.externalContext = bytes('');
@@ -731,28 +731,28 @@ contract SOTConcreteTest is SOTBase {
         assertNotEq(amountOut, 0, 'amountOut');
     }
 
-    function test_swap_solver_multipleQuotes() public {
+    function test_swap_hot_multipleQuotes() public {
         // Initial block timestamp set to 1000
         vm.warp(1000);
         feedToken0.updateAnswer(2000e8);
         feedToken1.updateAnswer(1e8);
 
-        (, uint8 maxAllowedQuotes, , , , , ) = sot.solverReadSlot();
+        (, uint8 maxAllowedQuotes, , , , , ) = hot.hotReadSlot();
         assertEq(maxAllowedQuotes, 2, 'maxAllowedQuotes 1');
 
-        vm.expectRevert(SOT.SOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
-        sot.setMaxAllowedQuotes(57);
+        vm.expectRevert(HOT.HOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes.selector);
+        hot.setMaxAllowedQuotes(57);
 
-        sot.setMaxAllowedQuotes(0);
-        (, maxAllowedQuotes, , , , , ) = sot.solverReadSlot();
+        hot.setMaxAllowedQuotes(0);
+        (, maxAllowedQuotes, , , , , ) = hot.hotReadSlot();
 
         assertEq(maxAllowedQuotes, 0, 'maxAllowedQuotes 2');
 
-        SolverOrderType memory sotParams = _getSensibleSOTParams();
-        sotParams.signatureTimestamp = (block.timestamp - 5).toUint32();
+        HybridOrderType memory hotParams = _getSensibleHOTParams();
+        hotParams.signatureTimestamp = (block.timestamp - 5).toUint32();
 
         SovereignPoolSwapContextData memory data = SovereignPoolSwapContextData({
-            externalContext: mockSigner.getSignedQuote(sotParams),
+            externalContext: mockSigner.getSignedQuote(hotParams),
             verifierContext: bytes(''),
             swapCallbackContext: bytes(''),
             swapFeeModuleContext: bytes('1')
@@ -769,10 +769,10 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(HOT.HOT___hotSwap_maxHotQuotesExceeded.selector);
         pool.swap(params);
 
-        sot.setMaxAllowedQuotes(3);
+        hot.setMaxAllowedQuotes(3);
 
         // First Swap: Discounted
         PoolState memory preState = getPoolState();
@@ -781,7 +781,7 @@ contract SOTConcreteTest is SOTBase {
 
         PoolState memory postState = getPoolState();
 
-        SolverWriteSlot memory expectedSolverWriteSlot = SolverWriteSlot({
+        HotWriteSlot memory expectedHotWriteSlot = HotWriteSlot({
             lastProcessedBlockQuoteCount: 1,
             feeGrowthE6Token0: 500,
             feeMaxToken0: 100,
@@ -805,32 +805,32 @@ contract SOTConcreteTest is SOTBase {
             managerFee1: 0
         });
 
-        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+        HotWriteSlot memory hotWriteSlot = getHotWriteSlot();
 
-        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkHotWriteSlot(hotWriteSlot, expectedHotWriteSlot);
         checkPoolState(expectedState, postState);
 
         // Invalid quote is sent in between
-        sotParams.nonce = 0;
-        sotParams.signatureTimestamp = (block.timestamp + 5).toUint32();
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        hotParams.nonce = 0;
+        hotParams.signatureTimestamp = (block.timestamp + 5).toUint32();
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
 
-        vm.expectRevert(SOTParams.SOTParams__validateBasicParams_invalidSignatureTimestamp.selector);
+        vm.expectRevert(HOTParams.HOTParams__validateBasicParams_invalidSignatureTimestamp.selector);
         pool.swap(params);
 
         //  A more updated quote is sent, but should still be considered base
-        sotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
-        sotParams.sqrtSolverPriceX96Base = 3544076829374435021495299114820;
-        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+        hotParams.signatureTimestamp = (block.timestamp - 3).toUint32();
+        hotParams.sqrtHotPriceX96Base = 3544076829374435021495299114820;
+        hotParams.sqrtHotPriceX96Discounted = getSqrtPriceX96(
             1990 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+        hotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2003 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
 
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
         params.amountIn = 2e18;
 
         // Second Swap: Base
@@ -843,31 +843,31 @@ contract SOTConcreteTest is SOTBase {
 
         checkPoolState(expectedState, postState);
 
-        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 2;
-        expectedSolverWriteSlot.alternatingNonceBitmap = 3;
+        expectedHotWriteSlot.lastProcessedBlockQuoteCount = 2;
+        expectedHotWriteSlot.alternatingNonceBitmap = 3;
 
-        solverWriteSlot = getSolverWriteSlot();
+        hotWriteSlot = getHotWriteSlot();
 
-        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkHotWriteSlot(hotWriteSlot, expectedHotWriteSlot);
 
         // Third Swap: Base
-        sotParams.nonce = 2;
-        sotParams.signatureTimestamp = (block.timestamp - 1).toUint32();
-        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+        hotParams.nonce = 2;
+        hotParams.signatureTimestamp = (block.timestamp - 1).toUint32();
+        hotParams.sqrtHotPriceX96Base = getSqrtPriceX96(
             2002 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+        hotParams.sqrtHotPriceX96Discounted = getSqrtPriceX96(
             1998 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+        hotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.isZeroToOne = false;
+        hotParams.isZeroToOne = false;
 
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
         params.amountIn = 3e18;
         params.isZeroToOne = false;
         params.swapTokenOut = address(token0);
@@ -875,36 +875,36 @@ contract SOTConcreteTest is SOTBase {
         preState = postState;
         pool.swap(params);
         postState = getPoolState();
-        solverWriteSlot = getSolverWriteSlot();
+        hotWriteSlot = getHotWriteSlot();
 
         expectedState.reserve0 = preState.reserve0 - uint256(Math.mulDiv(3e18, 1 << 192, 2002 << 192));
         expectedState.reserve1 = preState.reserve1 + 3e18;
 
-        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 3;
-        expectedSolverWriteSlot.alternatingNonceBitmap = 7;
+        expectedHotWriteSlot.lastProcessedBlockQuoteCount = 3;
+        expectedHotWriteSlot.alternatingNonceBitmap = 7;
 
         checkPoolState(expectedState, postState);
-        checkSolverWriteSlot(expectedSolverWriteSlot, solverWriteSlot);
+        checkHotWriteSlot(expectedHotWriteSlot, hotWriteSlot);
 
         // Fourth Swap: Max quotes exceeded should revert
-        sotParams.nonce = 3;
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        hotParams.nonce = 3;
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
 
-        vm.expectRevert(SOT.SOT___solverSwap_maxSolverQuotesExceeded.selector);
+        vm.expectRevert(HOT.HOT___hotSwap_maxHotQuotesExceeded.selector);
         pool.swap(params);
 
         // Next Block
         vm.warp(1001);
 
         // Older than the last processed signature timestamp, should be treated as base.
-        sotParams = _getSensibleSOTParams();
-        sotParams.signatureTimestamp = (block.timestamp - 10).toUint32();
-        sotParams.expectedFlag = 1;
-        sotParams.isZeroToOne = true;
+        hotParams = _getSensibleHOTParams();
+        hotParams.signatureTimestamp = (block.timestamp - 10).toUint32();
+        hotParams.expectedFlag = 1;
+        hotParams.isZeroToOne = true;
 
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
 
-        expectedSolverWriteSlot = getSolverWriteSlot();
+        expectedHotWriteSlot = getHotWriteSlot();
         preState = getPoolState();
 
         params.isZeroToOne = true;
@@ -914,43 +914,43 @@ contract SOTConcreteTest is SOTBase {
         pool.swap(params);
         uint256 postGas = gasleft();
 
-        console.log('gas base solver warm: ', preGas - postGas);
+        console.log('gas base hot warm: ', preGas - postGas);
 
         postState = getPoolState();
-        solverWriteSlot = getSolverWriteSlot();
+        hotWriteSlot = getHotWriteSlot();
 
-        expectedSolverWriteSlot.alternatingNonceBitmap = 5;
-        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 1;
-        expectedSolverWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
-        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32() - 1;
-        expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 6;
+        expectedHotWriteSlot.alternatingNonceBitmap = 5;
+        expectedHotWriteSlot.lastProcessedBlockQuoteCount = 1;
+        expectedHotWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+        expectedHotWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32() - 1;
+        expectedHotWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 6;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
         expectedState.reserve1 = preState.reserve1 - (params.amountIn * 2000 - 1);
 
-        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkHotWriteSlot(hotWriteSlot, expectedHotWriteSlot);
         checkPoolState(expectedState, postState);
 
         // The second quote in the new block has a more updated timestamp, should be treated as discounted
-        sotParams.signatureTimestamp = (block.timestamp - 2).toUint32();
-        sotParams.expectedFlag = 0;
-        sotParams.sqrtSolverPriceX96Base = getSqrtPriceX96(
+        hotParams.signatureTimestamp = (block.timestamp - 2).toUint32();
+        hotParams.expectedFlag = 0;
+        hotParams.sqrtHotPriceX96Base = getSqrtPriceX96(
             2002 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.sqrtSolverPriceX96Discounted = getSqrtPriceX96(
+        hotParams.sqrtHotPriceX96Discounted = getSqrtPriceX96(
             1997 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
+        hotParams.sqrtSpotPriceX96New = getSqrtPriceX96(
             2004 * (10 ** feedToken0.decimals()),
             1 * (10 ** feedToken1.decimals())
         );
-        sotParams.isZeroToOne = true;
+        hotParams.isZeroToOne = true;
 
-        data.externalContext = mockSigner.getSignedQuote(sotParams);
+        data.externalContext = mockSigner.getSignedQuote(hotParams);
 
-        expectedSolverWriteSlot = getSolverWriteSlot();
+        expectedHotWriteSlot = getHotWriteSlot();
         preState = getPoolState();
 
         params.isZeroToOne = true;
@@ -960,17 +960,17 @@ contract SOTConcreteTest is SOTBase {
         preGas = gasleft();
         pool.swap(params);
         postGas = gasleft();
-        console.log('gas discounted solver warm: ', preGas - postGas);
+        console.log('gas discounted hot warm: ', preGas - postGas);
 
         postState = getPoolState();
-        solverWriteSlot = getSolverWriteSlot();
+        hotWriteSlot = getHotWriteSlot();
 
-        expectedSolverWriteSlot.alternatingNonceBitmap = 7;
-        expectedSolverWriteSlot.lastProcessedBlockQuoteCount = 2;
-        expectedSolverWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
-        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
-        expectedSolverWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
-        expectedSolverWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 2;
+        expectedHotWriteSlot.alternatingNonceBitmap = 7;
+        expectedHotWriteSlot.lastProcessedBlockQuoteCount = 2;
+        expectedHotWriteSlot.lastProcessedQuoteTimestamp = block.timestamp.toUint32();
+        expectedHotWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
+        expectedHotWriteSlot.lastStateUpdateTimestamp = block.timestamp.toUint32();
+        expectedHotWriteSlot.lastProcessedSignatureTimestamp = block.timestamp.toUint32() - 2;
 
         expectedState.reserve0 = preState.reserve0 + params.amountIn;
         expectedState.reserve1 = preState.reserve1 - (params.amountIn * 1997 - 1);
@@ -979,7 +979,7 @@ contract SOTConcreteTest is SOTBase {
             1 * (10 ** feedToken1.decimals())
         );
 
-        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkHotWriteSlot(hotWriteSlot, expectedHotWriteSlot);
         checkPoolState(expectedState, postState);
     }
 
@@ -992,24 +992,24 @@ contract SOTConcreteTest is SOTBase {
         uint160 sqrtPrice2001 = getSqrtPriceX96(2001 * token0Base, 1 * token1Base);
         uint160 sqrtPrice2004 = getSqrtPriceX96(2004 * token0Base, 1 * token1Base);
 
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
-        sot.setPriceBounds(sqrtPrice2004, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
+        vm.expectRevert(HOTParams.HOTParams__validatePriceBounds_invalidPriceBounds.selector);
+        hot.setPriceBounds(sqrtPrice2004, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
 
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
-        sot.setPriceBounds(SOTConstants.MIN_SQRT_PRICE - 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
+        vm.expectRevert(HOTParams.HOTParams__validatePriceBounds_invalidPriceBounds.selector);
+        hot.setPriceBounds(HOTConstants.MIN_SQRT_PRICE - 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
 
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_invalidPriceBounds.selector);
-        sot.setPriceBounds(SOTConstants.MAX_SQRT_PRICE + 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
+        vm.expectRevert(HOTParams.HOTParams__validatePriceBounds_invalidPriceBounds.selector);
+        hot.setPriceBounds(HOTConstants.MAX_SQRT_PRICE + 1, sqrtPrice1996, sqrtPrice2000, sqrtPrice2004);
 
         // New sqrt price bounds much include current sqrt spot price
-        vm.expectRevert(SOTParams.SOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
-        sot.setPriceBounds(sqrtPrice2001, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
+        vm.expectRevert(HOTParams.HOTParams__validatePriceBounds_newSpotPriceOutOfBounds.selector);
+        hot.setPriceBounds(sqrtPrice2001, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
 
         uint160 sqrtPriceLowX96;
         uint160 sqrtPriceHighX96;
 
         {
-            (, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+            (, sqrtPriceLowX96, sqrtPriceHighX96) = hot.getAMMState();
 
             uint160 sqrtPrice2100 = getSqrtPriceX96(
                 2180 * 10 ** feedToken0.decimals(),
@@ -1018,7 +1018,7 @@ contract SOTConcreteTest is SOTBase {
 
             _setAMMState(sqrtPrice2100, sqrtPriceLowX96, sqrtPriceHighX96);
 
-            sot.setMaxOracleDeviationBips(100, 100);
+            hot.setMaxOracleDeviationBips(100, 100);
             feedToken0.updateAnswer(5000e8);
 
             uint160 sqrtPrice1980 = getSqrtPriceX96(
@@ -1030,22 +1030,22 @@ contract SOTConcreteTest is SOTBase {
                 1 * 10 ** feedToken1.decimals()
             );
 
-            vm.expectRevert(SOT.SOT__setPriceBounds_spotPriceAndOracleDeviation.selector);
-            sot.setPriceBounds(sqrtPrice1980, sqrtPrice2200, 0, 0);
+            vm.expectRevert(HOT.HOT__setPriceBounds_spotPriceAndOracleDeviation.selector);
+            hot.setPriceBounds(sqrtPrice1980, sqrtPrice2200, 0, 0);
 
             _setAMMState(sqrtPrice2000, sqrtPriceLowX96, sqrtPriceHighX96);
             feedToken0.updateAnswer(2000e8);
         }
 
-        sot.setPriceBounds(sqrtPrice1996, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
-        (, sqrtPriceLowX96, sqrtPriceHighX96) = sot.getAMMState();
+        hot.setPriceBounds(sqrtPrice1996, sqrtPrice2004, sqrtPrice2000, sqrtPrice2004);
+        (, sqrtPriceLowX96, sqrtPriceHighX96) = hot.getAMMState();
 
         // Wolfram Calculations, using uniswap book equations
         // liquidity0 = 223942152100743332644993.439824912284555965182450458024505347
         // liquidity1 = 223494938393435637038291.193984236332870991687954456111819346
         // expectedEffectiveAMMLiquidity = 223494938393435637038291
 
-        assertEq(sot.effectiveAMMLiquidity(), 223494938393435637038291, 'effectiveAMMLiquidity');
+        assertEq(hot.effectiveAMMLiquidity(), 223494938393435637038291, 'effectiveAMMLiquidity');
 
         assertEq(sqrtPriceLowX96, sqrtPrice1996, 'sqrtPriceLowX96');
         assertEq(sqrtPriceHighX96, sqrtPrice2004, 'sqrtPriceHighX96');
@@ -1053,19 +1053,19 @@ contract SOTConcreteTest is SOTBase {
 
     function test_depositLiquidity() public {
         // Deposit liquidity
-        sot.depositLiquidity(1, 1, 0, 0);
+        hot.depositLiquidity(1, 1, 0, 0);
 
         (uint256 reserve0, uint256 reserve1) = pool.getReserves();
         assertEq(reserve0, 5e18 + 1, 'reserve0');
         assertEq(reserve1, 10_000e18 + 1, 'reserve1');
 
-        sot.depositLiquidity(1, 0, 0, 0);
+        hot.depositLiquidity(1, 0, 0, 0);
 
         (reserve0, reserve1) = pool.getReserves();
         assertEq(reserve0, 5e18 + 2, 'reserve0');
         assertEq(reserve1, 10_000e18 + 1, 'reserve1');
 
-        sot.depositLiquidity(0, 1, 0, 0);
+        hot.depositLiquidity(0, 1, 0, 0);
 
         (reserve0, reserve1) = pool.getReserves();
         assertEq(reserve0, 5e18 + 2, 'reserve0');
@@ -1073,8 +1073,8 @@ contract SOTConcreteTest is SOTBase {
 
         // Deposit with any other address except liquidity provider.
         vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
-        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
-        sot.depositLiquidity(1, 1, 0, 0);
+        vm.expectRevert(HOT.HOT__onlyLiquidityProvider.selector);
+        hot.depositLiquidity(1, 1, 0, 0);
         vm.stopPrank();
 
         // Burn all tokens
@@ -1082,32 +1082,32 @@ contract SOTConcreteTest is SOTBase {
         token1.transfer(address(1), token1.balanceOf(address(this)));
 
         vm.expectRevert('ERC20: transfer amount exceeds balance');
-        sot.depositLiquidity(1, 1, 0, 0);
+        hot.depositLiquidity(1, 1, 0, 0);
     }
 
     function test_depositLiquidity_oracleDeviation() public {
         vm.startPrank(makeAddr('NOT_MANAGER'));
-        vm.expectRevert(SOT.SOT__onlyManager.selector);
+        vm.expectRevert(HOT.HOT__onlyManager.selector);
 
-        sot.setMaxOracleDeviationBips(100, 100);
+        hot.setMaxOracleDeviationBips(100, 100);
         vm.stopPrank();
 
-        vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
-        sot.setMaxOracleDeviationBips(uint16(5001), uint16(1));
+        vm.expectRevert(HOT.HOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
+        hot.setMaxOracleDeviationBips(uint16(5001), uint16(1));
 
-        vm.expectRevert(SOT.SOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
-        sot.setMaxOracleDeviationBips(uint16(1), uint16(5001));
+        vm.expectRevert(HOT.HOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds.selector);
+        hot.setMaxOracleDeviationBips(uint16(1), uint16(5001));
 
         // 1% deviation in sqrtSpotPrices means ~2% deviation in real prices
-        sot.setMaxOracleDeviationBips(100, 100);
-        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = sot.solverReadSlot();
+        hot.setMaxOracleDeviationBips(100, 100);
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = hot.hotReadSlot();
 
         assertEq(maxOracleDeviationBipsLower, 100, 'maxOracleDeviationBipsLower');
         assertEq(maxOracleDeviationBipsUpper, 100, 'maxOracleDeviationBipsUpper');
 
         // Spot price falls within the deviation
         {
-            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
             uint160 sqrtPrice5099 = getSqrtPriceX96(
                 5049 * 10 ** feedToken0.decimals(),
@@ -1120,13 +1120,13 @@ contract SOTConcreteTest is SOTBase {
         feedToken0.updateAnswer(5000e8);
 
         // This should not revert
-        sot.depositLiquidity(1, 1, 0, 0);
+        hot.depositLiquidity(1, 1, 0, 0);
         (uint256 reserve0, uint256 reserve1) = pool.getReserves();
         assertEq(reserve0, 5e18 + 1, 'reserve0');
         assertEq(reserve1, 10_000e18 + 1, 'reserve1');
 
         {
-            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
             uint160 sqrtPrice5101 = getSqrtPriceX96(
                 5101 * 10 ** feedToken0.decimals(),
@@ -1137,11 +1137,11 @@ contract SOTConcreteTest is SOTBase {
         }
 
         // Should revert, as deviation is greater than 2% on the higher side
-        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
-        sot.depositLiquidity(1, 1, 0, 0);
+        vm.expectRevert(HOT.HOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        hot.depositLiquidity(1, 1, 0, 0);
 
         {
-            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+            (, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
             uint160 sqrtPrice4899 = getSqrtPriceX96(
                 4899 * 10 ** feedToken0.decimals(),
@@ -1152,19 +1152,19 @@ contract SOTConcreteTest is SOTBase {
         }
 
         // Should revert, as deviation is greater than 2% on the lower side
-        vm.expectRevert(SOT.SOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
-        sot.depositLiquidity(1, 1, 0, 0);
+        vm.expectRevert(HOT.HOT__depositLiquidity_spotPriceAndOracleDeviation.selector);
+        hot.depositLiquidity(1, 1, 0, 0);
     }
 
     function test_withdrawLiquidity() public {
         // Withdraw with any other address except liquidity provider.
         vm.startPrank(address(makeAddr('NOT_LIQUIDITY_PROVIDER')));
-        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
-        sot.withdrawLiquidity(1, 1, address(this), 0, 0);
+        vm.expectRevert(HOT.HOT__onlyLiquidityProvider.selector);
+        hot.withdrawLiquidity(1, 1, address(this), 0, 0);
         vm.stopPrank();
 
         // Withdraw liquidity to liquidity provider address
-        sot.withdrawLiquidity(5e18, 10_000e18, makeAddr('RECEIVER'), 0, 0);
+        hot.withdrawLiquidity(5e18, 10_000e18, makeAddr('RECEIVER'), 0, 0);
 
         assertEq(token0.balanceOf(makeAddr('RECEIVER')), 5e18, 'balance0');
         assertEq(token1.balanceOf(makeAddr('RECEIVER')), 10_000e18, 'balance0');
@@ -1175,13 +1175,13 @@ contract SOTConcreteTest is SOTBase {
 
         // Withdraw liquidity again
         vm.expectRevert(SovereignPool.SovereignPool__withdrawLiquidity_insufficientReserve0.selector);
-        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+        hot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
     }
 
     function test_withdrawLiquidity_cappedEffectiveLiquidity() public {
-        sot.depositLiquidity(0, 1e23, 0, 0);
+        hot.depositLiquidity(0, 1e23, 0, 0);
 
-        uint128 preLiquidity = sot.effectiveAMMLiquidity();
+        uint128 preLiquidity = hot.effectiveAMMLiquidity();
 
         {
             uint160 sqrtSpotPriceX96 = getSqrtPriceX96(
@@ -1202,9 +1202,9 @@ contract SOTConcreteTest is SOTBase {
             _setAMMState(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
         }
 
-        sot.withdrawLiquidity(1, 0, address(this), 0, 0);
+        hot.withdrawLiquidity(1, 0, address(this), 0, 0);
 
-        uint128 postLiquidity = sot.effectiveAMMLiquidity();
+        uint128 postLiquidity = hot.effectiveAMMLiquidity();
         console.log('preLiquidity: ', preLiquidity);
         console.log('postLiquidity: ', postLiquidity);
 
@@ -1212,27 +1212,27 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_pause() public {
-        (bool isPaused, , , , , , ) = sot.solverReadSlot();
-        // Default SOT is unpaused
+        (bool isPaused, , , , , , ) = hot.hotReadSlot();
+        // Default HOT is unpaused
         assertFalse(isPaused, 'isPaused error 1');
 
         // Set to the same value again
-        sot.setPause(false);
-        (isPaused, , , , , , ) = sot.solverReadSlot();
+        hot.setPause(false);
+        (isPaused, , , , , , ) = hot.hotReadSlot();
         assertFalse(isPaused, 'isPaused error 2');
 
-        // Pause the SOT. At this point SOT has (5e18, 10_000e18) liquidity
-        sot.setPause(true);
-        (isPaused, , , , , , ) = sot.solverReadSlot();
+        // Pause the HOT. At this point HOT has (5e18, 10_000e18) liquidity
+        hot.setPause(true);
+        (isPaused, , , , , , ) = hot.hotReadSlot();
         assertTrue(isPaused, 'isPaused error 3');
 
         // Deposits are paused
-        vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
-        sot.depositLiquidity(1e18, 1e18, 0, 0);
+        vm.expectRevert(HOT.HOT__onlyUnpaused.selector);
+        hot.depositLiquidity(1e18, 1e18, 0, 0);
 
         // Swaps are paused
         SovereignPoolSwapContextData memory data;
-        vm.expectRevert(SOT.SOT__onlyUnpaused.selector);
+        vm.expectRevert(HOT.HOT__onlyUnpaused.selector);
         SovereignPoolSwapParams memory params = SovereignPoolSwapParams({
             isSwapCallback: false,
             isZeroToOne: false,
@@ -1250,7 +1250,7 @@ contract SOTConcreteTest is SOTBase {
         uint256 preBalance0 = token0.balanceOf(address(this));
         uint256 preBalance1 = token1.balanceOf(address(this));
 
-        sot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
+        hot.withdrawLiquidity(5e18, 10_000e18, address(this), 0, 0);
 
         (reserve0, reserve1) = pool.getReserves();
         assertEq(reserve0, 0, 'reserve0 1');
@@ -1258,13 +1258,13 @@ contract SOTConcreteTest is SOTBase {
         assertEq(token0.balanceOf(address(this)) - preBalance0, 5e18, 'balance0');
         assertEq(token1.balanceOf(address(this)) - preBalance1, 10_000e18, 'balance1');
 
-        // Unpause the SOT
-        sot.setPause(false);
-        (isPaused, , , , , , ) = sot.solverReadSlot();
+        // Unpause the HOT
+        hot.setPause(false);
+        (isPaused, , , , , , ) = hot.hotReadSlot();
         assertFalse(isPaused, 'isPaused error 4');
 
         // Deposits are unpaused
-        sot.depositLiquidity(1e18, 1e18, 0, 0);
+        hot.depositLiquidity(1e18, 1e18, 0, 0);
         (reserve0, reserve1) = pool.getReserves();
         assertEq(reserve0, 1e18, 'reserve0 2');
         assertEq(reserve1, 1e18, 'reserve1 2');
@@ -1281,7 +1281,7 @@ contract SOTConcreteTest is SOTBase {
         uint160 sqrtPrice2005 = getSqrtPriceX96(2005 * token0Base, 1 * token1Base);
 
         // Spot price range is exact, deposit shouldn't revert
-        sot.depositLiquidity(1, 1, sqrtPrice1991, sqrtPrice2005);
+        hot.depositLiquidity(1, 1, sqrtPrice1991, sqrtPrice2005);
 
         (uint256 reserve0, uint256 reserve1) = pool.getReserves();
         assertEq(reserve0, 5e18 + 1, 'reserve0');
@@ -1289,17 +1289,17 @@ contract SOTConcreteTest is SOTBase {
 
         // Spot price is out of range, deposit should revert
         vm.expectRevert(
-            abi.encodeWithSelector(SOT.SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+            abi.encodeWithSelector(HOT.HOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
         );
-        sot.depositLiquidity(1, 1, sqrtPrice2001, sqrtPrice2005);
+        hot.depositLiquidity(1, 1, sqrtPrice2001, sqrtPrice2005);
 
         // Revert if there are bounds set and we pass either of the values as zero
-        vm.expectRevert(SOT.SOT___checkSpotPriceRange_invalidBounds.selector);
-        sot.depositLiquidity(1, 1, 0, 1);
+        vm.expectRevert(HOT.HOT___checkSpotPriceRange_invalidBounds.selector);
+        hot.depositLiquidity(1, 1, 0, 1);
 
         // Exact spot price range for setPriceBounds, should work
-        sot.setPriceBounds(sqrtPrice1999, sqrtPrice2001, sqrtPrice1991, sqrtPrice2005);
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        hot.setPriceBounds(sqrtPrice1999, sqrtPrice2001, sqrtPrice1991, sqrtPrice2005);
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
         assertEq(sqrtSpotPriceX96, sqrtPrice2000, 'sqrtSpotPriceX96');
         assertEq(sqrtPriceLowX96, sqrtPrice1999, 'sqrtPriceLowX96');
@@ -1307,16 +1307,16 @@ contract SOTConcreteTest is SOTBase {
 
         // Spot price is out of range, setPriceBounds should revert
         vm.expectRevert(
-            abi.encodeWithSelector(SOT.SOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
+            abi.encodeWithSelector(HOT.HOT___checkSpotPriceRange_invalidSqrtSpotPriceX96.selector, sqrtPrice2000)
         );
-        sot.setPriceBounds(sqrtPrice1999, sqrtPrice2005, sqrtPrice1991, sqrtPrice1999);
+        hot.setPriceBounds(sqrtPrice1999, sqrtPrice2005, sqrtPrice1991, sqrtPrice1999);
 
         // (0,0) bypasses all checks
-        sot.withdrawLiquidity(1e18, 1e18, address(this), 0, 0);
+        hot.withdrawLiquidity(1e18, 1e18, address(this), 0, 0);
     }
 
     function test_computeSwapStep() public {
-        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = sot.getAMMState();
+        (uint160 sqrtSpotPriceX96, uint160 sqrtPriceLowX96, uint160 sqrtPriceHighX96) = hot.getAMMState();
 
         bool isZeroToOne = false;
         uint160 sqrtSpotPriceX96New;
@@ -1324,9 +1324,9 @@ contract SOTConcreteTest is SOTBase {
         uint256 amountInFilled;
         uint256 amountOut;
 
-        sot.depositLiquidity(5e18, 10_000e18, 0, 0);
+        hot.depositLiquidity(5e18, 10_000e18, 0, 0);
 
-        uint128 effectiveLiquidity = sot.effectiveAMMLiquidity();
+        uint128 effectiveLiquidity = hot.effectiveAMMLiquidity();
 
         (sqrtSpotPriceX96New, amountInFilled, amountOut, ) = SwapMath.computeSwapStep(
             sqrtSpotPriceX96,
@@ -1351,46 +1351,46 @@ contract SOTConcreteTest is SOTBase {
     }
 
     function test_getSwapFeeInBips_ammSwap() public {
-        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+        HotWriteSlot memory hotWriteSlot = getHotWriteSlot();
 
-        solverWriteSlot.lastProcessedSignatureTimestamp = uint32(block.timestamp);
+        hotWriteSlot.lastProcessedSignatureTimestamp = uint32(block.timestamp);
 
         // for token0
-        solverWriteSlot.feeGrowthE6Token0 = 10;
-        solverWriteSlot.feeMinToken0 = 20;
-        solverWriteSlot.feeMaxToken0 = 1000;
+        hotWriteSlot.feeGrowthE6Token0 = 10;
+        hotWriteSlot.feeMinToken0 = 20;
+        hotWriteSlot.feeMaxToken0 = 1000;
 
         // for token1
-        solverWriteSlot.feeGrowthE6Token1 = 100;
-        solverWriteSlot.feeMinToken1 = 10;
-        solverWriteSlot.feeMaxToken1 = 1000;
+        hotWriteSlot.feeGrowthE6Token1 = 100;
+        hotWriteSlot.feeMinToken1 = 10;
+        hotWriteSlot.feeMaxToken1 = 1000;
 
-        _setSolverWriteSlot(solverWriteSlot);
+        _setHotWriteSlot(hotWriteSlot);
 
-        solverWriteSlot = getSolverWriteSlot();
+        hotWriteSlot = getHotWriteSlot();
 
-        assertEq(solverWriteSlot.feeGrowthE6Token0, 10);
+        assertEq(hotWriteSlot.feeGrowthE6Token0, 10);
 
         uint256 snapshot = vm.snapshot();
 
         vm.warp(block.timestamp + 100);
 
         // for token0
-        uint32 feeInBips = solverWriteSlot.feeMinToken0 +
+        uint32 feeInBips = hotWriteSlot.feeMinToken0 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthE6Token0,
-                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    hotWriteSlot.feeGrowthE6Token0,
+                    (block.timestamp - hotWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
             );
 
-        if (feeInBips > solverWriteSlot.feeMaxToken0) {
-            feeInBips = solverWriteSlot.feeMaxToken0;
+        if (feeInBips > hotWriteSlot.feeMaxToken0) {
+            feeInBips = hotWriteSlot.feeMaxToken0;
         }
 
         vm.prank(address(pool));
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
+        SwapFeeModuleData memory swapFeeModuleData = hot.getSwapFeeInBips(
             address(token0),
             address(token1),
             0,
@@ -1402,21 +1402,21 @@ contract SOTConcreteTest is SOTBase {
 
         // for token1
         feeInBips =
-            solverWriteSlot.feeMinToken1 +
+            hotWriteSlot.feeMinToken1 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthE6Token1,
-                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    hotWriteSlot.feeGrowthE6Token1,
+                    (block.timestamp - hotWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
             );
 
-        if (feeInBips > solverWriteSlot.feeMaxToken1) {
-            feeInBips = solverWriteSlot.feeMaxToken1;
+        if (feeInBips > hotWriteSlot.feeMaxToken1) {
+            feeInBips = hotWriteSlot.feeMaxToken1;
         }
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = hot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
@@ -1426,57 +1426,57 @@ contract SOTConcreteTest is SOTBase {
 
         // for token0
         feeInBips =
-            solverWriteSlot.feeMinToken0 +
+            hotWriteSlot.feeMinToken0 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthE6Token0,
-                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    hotWriteSlot.feeGrowthE6Token0,
+                    (block.timestamp - hotWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
             );
 
-        if (feeInBips > solverWriteSlot.feeMaxToken0) {
-            feeInBips = solverWriteSlot.feeMaxToken0;
+        if (feeInBips > hotWriteSlot.feeMaxToken0) {
+            feeInBips = hotWriteSlot.feeMaxToken0;
         }
 
         vm.prank(address(pool));
 
-        swapFeeModuleData = sot.getSwapFeeInBips(address(token0), address(token1), 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = hot.getSwapFeeInBips(address(token0), address(token1), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
 
         // for token1
         feeInBips =
-            solverWriteSlot.feeMinToken1 +
+            hotWriteSlot.feeMinToken1 +
             uint32(
                 Math.mulDiv(
-                    solverWriteSlot.feeGrowthE6Token1,
-                    (block.timestamp - solverWriteSlot.lastProcessedSignatureTimestamp),
+                    hotWriteSlot.feeGrowthE6Token1,
+                    (block.timestamp - hotWriteSlot.lastProcessedSignatureTimestamp),
                     100
                 )
             );
 
-        if (feeInBips > solverWriteSlot.feeMaxToken1) {
-            feeInBips = solverWriteSlot.feeMaxToken1;
+        if (feeInBips > hotWriteSlot.feeMaxToken1) {
+            feeInBips = hotWriteSlot.feeMaxToken1;
         }
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
+        swapFeeModuleData = hot.getSwapFeeInBips(address(token1), address(token0), 0, ZERO_ADDRESS, new bytes(0));
 
         assertEq(swapFeeModuleData.feeInBips, feeInBips);
     }
 
-    function test_getSwapFeeInBips_solverSwap() public {
-        SolverReadSlot memory solverReadSlot = getSolverReadSlot();
+    function test_getSwapFeeInBips_hotSwap() public {
+        HotReadSlot memory hotReadSlot = getHotReadSlot();
 
-        solverReadSlot.maxAllowedQuotes = 5;
-        solverReadSlot.solverFeeBipsToken0 = 10;
-        solverReadSlot.solverFeeBipsToken1 = 20;
+        hotReadSlot.maxAllowedQuotes = 5;
+        hotReadSlot.hotFeeBipsToken0 = 10;
+        hotReadSlot.hotFeeBipsToken1 = 20;
 
-        _setSolverReadSlot(solverReadSlot);
+        _setHotReadSlot(hotReadSlot);
 
         vm.prank(address(pool));
-        SwapFeeModuleData memory swapFeeModuleData = sot.getSwapFeeInBips(
+        SwapFeeModuleData memory swapFeeModuleData = hot.getSwapFeeInBips(
             address(token0),
             address(token1),
             0,
@@ -1487,7 +1487,7 @@ contract SOTConcreteTest is SOTBase {
         assertEq(swapFeeModuleData.feeInBips, 10);
 
         vm.prank(address(pool));
-        swapFeeModuleData = sot.getSwapFeeInBips(ZERO_ADDRESS, ZERO_ADDRESS, 0, ZERO_ADDRESS, new bytes(1));
+        swapFeeModuleData = hot.getSwapFeeInBips(ZERO_ADDRESS, ZERO_ADDRESS, 0, ZERO_ADDRESS, new bytes(1));
 
         assertEq(swapFeeModuleData.feeInBips, 20);
     }
@@ -1497,35 +1497,35 @@ contract SOTConcreteTest is SOTBase {
 
         assertEq(pool.isLocked(), true, 'Pool Not Locked');
 
-        vm.expectRevert(SOT.SOT__poolReentrant.selector);
-        sot.effectiveAMMLiquidity();
+        vm.expectRevert(HOT.HOT__poolReentrant.selector);
+        hot.effectiveAMMLiquidity();
 
-        vm.expectRevert(SOT.SOT__poolReentrant.selector);
-        sot.getAMMState();
+        vm.expectRevert(HOT.HOT__poolReentrant.selector);
+        hot.getAMMState();
 
-        vm.expectRevert(SOT.SOT__poolReentrant.selector);
-        sot.getReservesAtPrice(0);
+        vm.expectRevert(HOT.HOT__poolReentrant.selector);
+        hot.getReservesAtPrice(0);
 
-        vm.expectRevert(SOT.SOT__poolReentrant.selector);
-        sot.setPriceBounds(0, 0, 0, 0);
+        vm.expectRevert(HOT.HOT__poolReentrant.selector);
+        hot.setPriceBounds(0, 0, 0, 0);
     }
 
     function test_eip712Signature() public {
         address publicKey = 0xA52A878CE46F233794FeE5c976eb2528e17510d7;
         uint256 privateKey = 0x709fd5c6a885a6efbe01bce2d72cb1b4b0c56abcf3599f39108764ce5bf2c59e;
-        address sotAddress = 0xf678F3DF67EBea04b3a0c1C2636eEc2504c92BA2;
+        address hotAddress = 0xf678F3DF67EBea04b3a0c1C2636eEc2504c92BA2;
 
-        SolverOrderType memory sotParams = SolverOrderType({
+        HybridOrderType memory hotParams = HybridOrderType({
             amountInMax: 10e18,
-            sqrtSolverPriceX96Discounted: getSqrtPriceX96(
+            sqrtHotPriceX96Discounted: getSqrtPriceX96(
                 2290 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())
             ),
-            // Solving is expensive and we don't want to SOT reverts
-            // multiple SOT can land in the same block
-            // the first SOT is doing the favor of unlocking the pool, shifting the spotPrice
+            // Solving is expensive and we don't want to HOT reverts
+            // multiple HOT can land in the same block
+            // the first HOT is doing the favor of unlocking the pool, shifting the spotPrice
             // if you land first you'll get the discounted price if you land second you will get a base price
-            sqrtSolverPriceX96Base: getSqrtPriceX96(
+            sqrtHotPriceX96Base: getSqrtPriceX96(
                 2290 * (10 ** feedToken0.decimals()),
                 1 * (10 ** feedToken1.decimals())
             ),
@@ -1552,8 +1552,8 @@ contract SOTConcreteTest is SOTBase {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',
-                getDomainSeparatorV4(11155111, sotAddress),
-                keccak256(abi.encode(SOTConstants.SOT_TYPEHASH, sotParams))
+                getDomainSeparatorV4(11155111, hotAddress),
+                keccak256(abi.encode(HOTConstants.HOT_TYPEHASH, hotParams))
             )
         );
 
@@ -1562,7 +1562,7 @@ contract SOTConcreteTest is SOTBase {
         bytes memory signature = abi.encodePacked(r, s, bytes1(v));
 
         bytes
-            memory viemSignature = hex'982d655882b1f267e7692341df9edce4f4b9c1ce626d36dc5cd27725e1d40b9f67f4c3d6e8d356fe03112c9d9be9af0d983e7f19248f16e9573d1407f004bc191b';
+            memory viemSignature = hex'ee516c293d0e25b89d76f4ea31b8890eb47102febf34f5c5b153ed3f7d039d7415ddaae9883aaef802a1b635dc943c7f2240a9423bfd260a96af6a62f321781e1b';
 
         assertEq(signature, viemSignature, 'eip712 signature mismatch');
 
@@ -1572,55 +1572,55 @@ contract SOTConcreteTest is SOTBase {
     function test_setFeeds() public {
         SovereignPoolConstructorArgs memory poolArgs = _generateDefaultConstructorArgs();
         pool = this.deploySovereignPool(poolArgs);
-        SOTConstructorArgs memory sotArgs = generateDefaultSOTConstructorArgs(pool);
-        sotArgs.feedToken0 = address(0);
-        sotArgs.feedToken1 = address(0);
+        HOTConstructorArgs memory hotArgs = generateDefaultHOTConstructorArgs(pool);
+        hotArgs.feedToken0 = address(0);
+        hotArgs.feedToken1 = address(0);
 
-        sot = this.deploySOT(sotArgs);
+        hot = this.deployHOT(hotArgs);
 
         vm.startPrank(makeAddr('NOT_MANAGER'));
-        vm.expectRevert(SOT.SOT__onlyManager.selector);
-        sot.setFeeds(address(1), address(1));
+        vm.expectRevert(HOT.HOT__onlyManager.selector);
+        hot.setFeeds(address(1), address(1));
         vm.stopPrank();
 
-        vm.expectRevert(SOT.SOT__setFeeds_feedSetNotApproved.selector);
-        sot.setFeeds(address(1), address(1));
+        vm.expectRevert(HOT.HOT__setFeeds_feedSetNotApproved.selector);
+        hot.setFeeds(address(1), address(1));
 
         vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
-        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
-        sot.approveFeedSet();
+        vm.expectRevert(HOT.HOT__onlyLiquidityProvider.selector);
+        hot.approveFeedSet();
         vm.stopPrank();
 
-        sot.approveFeedSet();
-        sot.setFeeds(address(1), address(1));
+        hot.approveFeedSet();
+        hot.setFeeds(address(1), address(1));
 
-        assertEq(address(sot.feedToken0()), address(1), 'feedToken0');
-        assertEq(address(sot.feedToken1()), address(1), 'feedToken1');
+        assertEq(address(hot.feedToken0()), address(1), 'feedToken0');
+        assertEq(address(hot.feedToken1()), address(1), 'feedToken1');
 
-        vm.expectRevert(SOTOracle.SOTOracle___setFeeds_feedsAlreadySet.selector);
-        sot.setFeeds(address(2), address(2));
+        vm.expectRevert(HOTOracle.HOTOracle___setFeeds_feedsAlreadySet.selector);
+        hot.setFeeds(address(2), address(2));
     }
 
     function test_setAMMFees() public {
-        SolverWriteSlot memory expectedSolverWriteSlot = getSolverWriteSlot();
+        HotWriteSlot memory expectedHotWriteSlot = getHotWriteSlot();
 
         vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
-        vm.expectRevert(SOT.SOT__onlyLiquidityProvider.selector);
-        sot.setAMMFees(100, 200, 300, 400, 500, 600);
+        vm.expectRevert(HOT.HOT__onlyLiquidityProvider.selector);
+        hot.setAMMFees(100, 200, 300, 400, 500, 600);
         vm.stopPrank();
 
-        sot.setAMMFees(100, 200, 300, 400, 500, 600);
+        hot.setAMMFees(100, 200, 300, 400, 500, 600);
 
-        SolverWriteSlot memory solverWriteSlot = getSolverWriteSlot();
+        HotWriteSlot memory hotWriteSlot = getHotWriteSlot();
 
-        expectedSolverWriteSlot.feeMinToken0 = 100;
-        expectedSolverWriteSlot.feeMaxToken0 = 200;
-        expectedSolverWriteSlot.feeGrowthE6Token0 = 300;
-        expectedSolverWriteSlot.feeMinToken1 = 400;
-        expectedSolverWriteSlot.feeMaxToken1 = 500;
-        expectedSolverWriteSlot.feeGrowthE6Token1 = 600;
+        expectedHotWriteSlot.feeMinToken0 = 100;
+        expectedHotWriteSlot.feeMaxToken0 = 200;
+        expectedHotWriteSlot.feeGrowthE6Token0 = 300;
+        expectedHotWriteSlot.feeMinToken1 = 400;
+        expectedHotWriteSlot.feeMaxToken1 = 500;
+        expectedHotWriteSlot.feeGrowthE6Token1 = 600;
 
-        checkSolverWriteSlot(solverWriteSlot, expectedSolverWriteSlot);
+        checkHotWriteSlot(hotWriteSlot, expectedHotWriteSlot);
     }
 
     function test_swap_zeroAmount() public {
@@ -1636,7 +1636,7 @@ contract SOTConcreteTest is SOTBase {
             swapContext: data
         });
 
-        vm.expectRevert(SOT.SOT__getLiquidityQuote_zeroAmountOut.selector);
+        vm.expectRevert(HOT.HOT__getLiquidityQuote_zeroAmountOut.selector);
         pool.swap(params);
     }
 }

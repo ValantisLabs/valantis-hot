@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.19;
 
 import { LiquidityAmounts } from '../../lib/v3-periphery/contracts/libraries/LiquidityAmounts.sol';
@@ -6,7 +6,7 @@ import { LiquidityAmounts } from '../../lib/v3-periphery/contracts/libraries/Liq
 import { ISovereignPool } from '../../lib/valantis-core/src/pools/interfaces/ISovereignPool.sol';
 
 import { TightPack } from '../libraries/utils/TightPack.sol';
-import { AMMState } from '../structs/SOTStructs.sol';
+import { AMMState } from '../structs/HOTStructs.sol';
 
 library ReserveMath {
     using TightPack for AMMState;
