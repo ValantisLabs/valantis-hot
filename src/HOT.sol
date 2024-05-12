@@ -28,13 +28,7 @@ import { HOTParams } from './libraries/HOTParams.sol';
 import { TightPack } from './libraries/utils/TightPack.sol';
 import { AlternatingNonceBitmap } from './libraries/AlternatingNonceBitmap.sol';
 import { HOTConstants } from './libraries/HOTConstants.sol';
-import {
-    HybridOrderType,
-    HotWriteSlot,
-    HotReadSlot,
-    HOTConstructorArgs,
-    AMMState
-} from './structs/HOTStructs.sol';
+import { HybridOrderType, HotWriteSlot, HotReadSlot, HOTConstructorArgs, AMMState } from './structs/HOTStructs.sol';
 import { HOTOracle } from './HOTOracle.sol';
 import { IHOT } from './interfaces/IHOT.sol';
 
@@ -258,7 +252,8 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         _maxDelay = _args.maxDelay;
 
         if (
-            _args.hotMaxDiscountBipsLower > HOTConstants.BIPS || _args.hotMaxDiscountBipsUpper > HOTConstants.BIPS
+            _args.hotMaxDiscountBipsLower > _args.maxOracleDeviationBound ||
+            _args.hotMaxDiscountBipsUpper > _args.maxOracleDeviationBound
         ) {
             revert HOT__constructor_invalidHotMaxDiscountBips();
         }
@@ -445,8 +440,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
      */
     function setHotFeeInBips(uint16 _hotFeeBipsToken0, uint16 _hotFeeBipsToken1) external onlyManager {
         if (
-            _hotFeeBipsToken0 > HOTConstants.MAX_HOT_FEE_IN_BIPS ||
-            _hotFeeBipsToken1 > HOTConstants.MAX_HOT_FEE_IN_BIPS
+            _hotFeeBipsToken0 > HOTConstants.MAX_HOT_FEE_IN_BIPS || _hotFeeBipsToken1 > HOTConstants.MAX_HOT_FEE_IN_BIPS
         ) {
             revert HOT__setHotFeeInBips_invalidHotFee();
         }
@@ -756,9 +750,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         // Verification of branches is done during `getLiquidityQuote`
         if (_swapFeeModuleContext.length != 0) {
             // Hot Branch
-            swapFeeModuleData.feeInBips = isZeroToOne
-                ? hotReadSlot.hotFeeBipsToken0
-                : hotReadSlot.hotFeeBipsToken1;
+            swapFeeModuleData.feeInBips = isZeroToOne ? hotReadSlot.hotFeeBipsToken0 : hotReadSlot.hotFeeBipsToken1;
         } else {
             // AMM Branch
             swapFeeModuleData.feeInBips = _getAMMFeeInBips(isZeroToOne);
@@ -817,9 +809,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         // depending on the requested input token
         uint16 feeMin = isZeroToOne ? hotWriteSlotCache.feeMinToken0 : hotWriteSlotCache.feeMinToken1;
         uint16 feeMax = isZeroToOne ? hotWriteSlotCache.feeMaxToken0 : hotWriteSlotCache.feeMaxToken1;
-        uint16 feeGrowthE6 = isZeroToOne
-            ? hotWriteSlotCache.feeGrowthE6Token0
-            : hotWriteSlotCache.feeGrowthE6Token1;
+        uint16 feeGrowthE6 = isZeroToOne ? hotWriteSlotCache.feeGrowthE6Token0 : hotWriteSlotCache.feeGrowthE6Token1;
 
         // Calculate dynamic fee, linearly increasing over time
         uint256 feeInBipsTemp = uint256(feeMin) +
@@ -890,11 +880,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         // Check that the fee path was chosen correctly
         if (
             almLiquidityQuoteInput.feeInBips !=
-            (
-                almLiquidityQuoteInput.isZeroToOne
-                    ? hotReadSlotCache.hotFeeBipsToken0
-                    : hotReadSlotCache.hotFeeBipsToken1
-            )
+            (almLiquidityQuoteInput.isZeroToOne ? hotReadSlotCache.hotFeeBipsToken0 : hotReadSlotCache.hotFeeBipsToken1)
         ) {
             revert HOT__getLiquidityQuote_invalidFeePath();
         }
