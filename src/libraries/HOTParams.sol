@@ -126,12 +126,7 @@ library HOTParams {
 
         // sqrt hot and new AMM spot price cannot differ beyond allowed bounds
         if (
-            !checkPriceDeviation(
-                sqrtHotPriceX96,
-                sqrtSpotPriceNewX96,
-                hotMaxDiscountBipsLower,
-                hotMaxDiscountBipsUpper
-            )
+            !checkPriceDeviation(sqrtHotPriceX96, sqrtSpotPriceNewX96, hotMaxDiscountBipsLower, hotMaxDiscountBipsUpper)
         ) {
             revert HOTParams__validatePriceConsistency_hotAndSpotPriceNewExcessiveDeviation();
         }
