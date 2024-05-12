@@ -17,12 +17,12 @@ interface IHOT is IHOTOracle {
 
     event ALMDeployed(string indexed name, address alm, address pool);
     event AMMFeeSet(uint16 feeMaxToken0, uint16 feeMaxToken1);
-    event FeedSetApproval();
+    event OracleFeedsSet();
     event ManagerUpdate(address indexed manager);
     event MaxAllowedQuoteSet(uint8 maxQuotes);
     event MaxOracleDeviationBipsSet(uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper);
     event MaxTokenVolumeSet(uint256 amount0, uint256 amount1);
-    event OracleFeedsSet(address feed0, address feed1);
+    event OracleFeedsProposed(address feed0, address feed1);
     event PauseSet(bool pause);
     event PostWithdrawalLiquidityCapped(
         uint160 sqrtSpotPriceX96,
@@ -49,6 +49,9 @@ interface IHOT is IHOTOracle {
     function manager() external view returns (address);
 
     function maxTokenVolumes() external view returns (uint256, uint256);
+
+    function proposedFeedToken0() external view returns (address);
+    function proposedFeedToken1() external view returns (address);
 
     function hotReadSlot()
         external
@@ -83,6 +86,10 @@ interface IHOT is IHOTOracle {
     /************************************************
      *   FUNCTIONS
      ***********************************************/
+
+    function proposeFeeds(address _feedToken0, address _feedToken1) external;
+
+    function setFeeds() external;
 
     function setManager(address _manager) external;
 
