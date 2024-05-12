@@ -581,6 +581,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         @param _feeMaxToken1 Maximum fee for token1.
         @param _feeGrowthE6Token1 Fee growth rate for token1.
         @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees.
+        @dev It is recommended that `liquidityProvider` implements a timelock when calling this function.
      */
     function setAMMFees(
         uint16 _feeMinToken0,
