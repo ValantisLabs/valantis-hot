@@ -65,7 +65,7 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
     error HOT__depositLiquidity_spotPriceAndOracleDeviation();
     error HOT__getLiquidityQuote_invalidFeePath();
     error HOT__getLiquidityQuote_zeroAmountOut();
-    error HOT__setFeeds_feedSetNotApproved();
+    error HOT__proposedFeeds_proposedFeedsAlreadySet();
     error HOT__setMaxAllowedQuotes_invalidMaxAllowedQuotes();
     error HOT__setMaxOracleDeviationBips_exceedsMaxDeviationBounds();
     error HOT__setPriceBounds_spotPriceAndOracleDeviation();
@@ -129,9 +129,6 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
     /************************************************
      *  STORAGE
      ***********************************************/
-
-    bool private _feedSetApproved;
-
     /**
         @notice Active AMM Liquidity (which gets utilized during AMM swaps).
      */
@@ -176,6 +173,13 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
      */
     uint256 internal _maxToken0VolumeToQuote;
     uint256 internal _maxToken1VolumeToQuote;
+
+    /**
+	    @notice If feeds are not set during deployment, then manager can propose feeds, once after deployment.
+        @dev Can be updated by `manager`.
+     */
+    address public proposedFeedToken0;
+    address public proposedFeedToken1;
 
     /************************************************
      *  MODIFIERS
@@ -407,19 +411,20 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
     }
 
     /**
-        @notice Sets the feeds for token{0,1}.
+        @notice Propose the feeds for token{0,1}.
         @dev Only callable by `manager`.
         @dev It assumes that `manager` implements a timelock when calling this function.
         @dev Feeds can only be set once, and both should have non-zero values.
      */
-    function setFeeds(address _feedToken0, address _feedToken1) external onlyManager {
-        if (!_feedSetApproved) {
-            revert HOT__setFeeds_feedSetNotApproved();
+    function proposeFeeds(address _feedToken0, address _feedToken1) external onlyManager {
+        if (proposedFeedToken0 != address(0) || proposedFeedToken1 != address(0)) {
+            revert HOT__proposedFeeds_proposedFeedsAlreadySet();
         }
 
-        _setFeeds(_feedToken0, _feedToken1);
+        proposedFeedToken0 = _feedToken0;
+        proposedFeedToken1 = _feedToken1;
 
-        emit OracleFeedsSet(_feedToken0, _feedToken1);
+        emit OracleFeedsProposed(_feedToken0, _feedToken1);
     }
 
     /**
@@ -501,10 +506,15 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         emit PauseSet(_value);
     }
 
-    function approveFeedSet() external onlyLiquidityProvider {
-        _feedSetApproved = true;
+    /**
+        @notice Sets the oracle feeds for token{0,1} to the proposed feeds set by manager.
+        The oracle feeds should be set to 0, and the manager should have proposed valid non zero fields.
+        @dev Only callable by `liquidityProvider`.
+     */
+    function setFeeds() external onlyLiquidityProvider {
+        _setFeeds(proposedFeedToken0, proposedFeedToken1);
 
-        emit FeedSetApproval();
+        emit OracleFeedsSet();
     }
 
     /**
@@ -571,8 +581,8 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
         @param _feeMinToken1 Minimum fee for token1.
         @param _feeMaxToken1 Maximum fee for token1.
         @param _feeGrowthE6Token1 Fee growth rate for token1.
-        @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees
-            in case signer is not set for AMM-only mode.
+        @dev Only callable by `liquidityProvider`. Can allow liquidity provider to override fees.
+        @dev It is recommended that `liquidityProvider` implements a timelock when calling this function.
      */
     function setAMMFees(
         uint16 _feeMinToken0,

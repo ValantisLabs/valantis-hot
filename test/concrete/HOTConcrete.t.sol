@@ -1580,25 +1580,29 @@ contract HOTConcreteTest is HOTBase {
 
         vm.startPrank(makeAddr('NOT_MANAGER'));
         vm.expectRevert(HOT.HOT__onlyManager.selector);
-        hot.setFeeds(address(1), address(1));
+        hot.proposeFeeds(address(1), address(1));
         vm.stopPrank();
 
-        vm.expectRevert(HOT.HOT__setFeeds_feedSetNotApproved.selector);
-        hot.setFeeds(address(1), address(1));
+        vm.expectRevert(HOTOracle.HOTOracle___setFeeds_newFeedsCannotBeZero.selector);
+        hot.setFeeds();
 
         vm.startPrank(makeAddr('NOT_LIQUIDITY_PROVIDER'));
         vm.expectRevert(HOT.HOT__onlyLiquidityProvider.selector);
-        hot.approveFeedSet();
+        hot.setFeeds();
         vm.stopPrank();
 
-        hot.approveFeedSet();
-        hot.setFeeds(address(1), address(1));
+        hot.proposeFeeds(address(1), address(1));
+
+        vm.expectRevert(HOT.HOT__proposedFeeds_proposedFeedsAlreadySet.selector);
+        hot.proposeFeeds(address(1), address(1));
+
+        hot.setFeeds();
 
         assertEq(address(hot.feedToken0()), address(1), 'feedToken0');
         assertEq(address(hot.feedToken1()), address(1), 'feedToken1');
 
         vm.expectRevert(HOTOracle.HOTOracle___setFeeds_feedsAlreadySet.selector);
-        hot.setFeeds(address(2), address(2));
+        hot.setFeeds();
     }
 
     function test_setAMMFees() public {
