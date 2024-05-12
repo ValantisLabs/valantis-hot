@@ -252,7 +252,10 @@ contract HOT is ISovereignALM, ISwapFeeModuleMinimal, IHOT, EIP712, HOTOracle {
 
         _maxDelay = _args.maxDelay;
 
-        if (_args.hotMaxDiscountBipsLower > HOTConstants.BIPS || _args.hotMaxDiscountBipsUpper > HOTConstants.BIPS) {
+        if (
+            _args.hotMaxDiscountBipsLower > _args.maxOracleDeviationBound ||
+            _args.hotMaxDiscountBipsUpper > _args.maxOracleDeviationBound
+        ) {
             revert HOT__constructor_invalidHotMaxDiscountBips();
         }
 
