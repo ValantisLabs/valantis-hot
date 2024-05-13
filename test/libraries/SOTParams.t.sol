@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import { Test } from 'forge-std/Test.sol';
 import { console } from 'forge-std/console.sol';
 import { SafeCast } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/SafeCast.sol';
-import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
+import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/ALM/interfaces/ISovereignALM.sol';
 
 import { HOTParams } from '../../src/libraries/HOTParams.sol';
 import { TightPack } from '../../src/libraries/utils/TightPack.sol';

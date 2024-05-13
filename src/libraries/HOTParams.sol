@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import { Math } from '../../lib/valantis-core/lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
-import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
+import { ALMLiquidityQuoteInput } from '../../lib/valantis-core/src/ALM/interfaces/ISovereignALM.sol';
 
 import { HybridOrderType, AMMState } from '../structs/HOTStructs.sol';
 import { TightPack } from '../libraries/utils/TightPack.sol';
