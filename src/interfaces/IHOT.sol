@@ -8,7 +8,7 @@ import { SwapFeeModuleData } from '../../lib/valantis-core/src/swap-fee-modules/
 import {
     ALMLiquidityQuote,
     ALMLiquidityQuoteInput
-} from '../../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
+} from '../../lib/valantis-core/src/ALM/interfaces/ISovereignALM.sol';
 
 interface IHOT is IHOTOracle {
     /************************************************

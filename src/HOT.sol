@@ -16,7 +16,7 @@ import {
     ISovereignALM,
     ALMLiquidityQuote,
     ALMLiquidityQuoteInput
-} from '../lib/valantis-core/src/alm/interfaces/ISovereignALM.sol';
+} from '../lib/valantis-core/src/ALM/interfaces/ISovereignALM.sol';
 import { ISovereignPool } from '../lib/valantis-core/src/pools/interfaces/ISovereignPool.sol';
 import {
     ISwapFeeModuleMinimal,
