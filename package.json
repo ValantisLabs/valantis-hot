@@ -26,7 +26,8 @@
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "viem": "^2.10.5"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -41,7 +42,7 @@
     "@types/mocha": ">=9.1.0",
     "@types/node": ">=16.0.0",
     "chai": "^4.2.0",
-    "ethers": "^6.4.0",
+    "ethers": "^6.12.1",
     "hardhat": "^2.19.5",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-preprocessor": "^0.1.5",
