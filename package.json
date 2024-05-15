@@ -20,13 +20,16 @@
     "compile": "forge-deploy gen-deployer && forge build",
     "deploy:ProtocolFactory": "forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url ",
     "deploy:SovereignPool": "forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url ",
-    "deploy:SOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url ",
-    "query:SOT": "forge script scripts/utils/SOTQuery.s.sol:SOTQueryScript --rpc-url ",
-    "deposit:SOT": "forge script scripts/deposit/SOTDeposit.s.sol:SOTDepositScript --rpc-url "
+    "deploy:HOT": "forge script scripts/deploy/02_SOTDeploy.s.sol:SOTDeployScript --rpc-url ",
+    "query:HOT": "forge script scripts/utils/SOTQuery.s.sol:SOTQueryScript --rpc-url ",
+    "deposit:HOT": "forge script scripts/deposit/SOTDeposit.s.sol:SOTDepositScript --rpc-url ",
+    "demo-viem:HOT": "npx ts-node scripts/hot-example/demo-viem.ts",
+    "demo-ethers:HOT": "npx ts-node scripts/hot-example/demo-ethers.ts"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "viem": "^2.10.5"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
@@ -41,7 +44,7 @@
     "@types/mocha": ">=9.1.0",
     "@types/node": ">=16.0.0",
     "chai": "^4.2.0",
-    "ethers": "^6.4.0",
+    "ethers": "^6.12.1",
     "hardhat": "^2.19.5",
     "hardhat-gas-reporter": "^1.0.8",
     "hardhat-preprocessor": "^0.1.5",

@@ -84,3 +84,14 @@ All relevent tests for contracts in src are in this folder
 **fuzz:** Fuzz tests are used to test public functions in target contracts like HOT.
 
 **mocks:** Mock contracts used to simulate different behaviour for different components.
+
+## Demo
+
+To run demo of Hot swap using scripts in `scripts/hot-example/`, use following command in terminal, after running yarn
+
+```
+# To run demo using viem
+API_KEY=<HOT_API_KEY> PK=<PRIVATE_KEY> GNOSIS_RPC=<RPC_URL> yarn demo-viem:HOT
+# To run demo using ethers
+API_KEY=<HOT_API_KEY> PK=<PRIVATE_KEY> GNOSIS_RPC=<RPC_URL> yarn demo-ethers:HOT
+```
