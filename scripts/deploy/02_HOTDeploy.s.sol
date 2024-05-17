@@ -43,11 +43,11 @@ contract HOTDeployScript is Script {
             revert HOTDeployScript__token0GteToken1();
         }
 
-        uint160 sqrtSpotPriceX96 = 4358039060504156305358848;
+        uint160 sqrtSpotPriceX96 = 4266567125057494535506749;
 
         HOT hot;
         {
-            uint160 sqrtPriceLowX96 = 4339505179874779489431521;
+            uint160 sqrtPriceLowX96 = 3961408125713216879677197;
             uint160 sqrtPriceHighX96 = 5010828967500958623728276;
 
             HOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
@@ -65,7 +65,8 @@ contract HOTDeployScript is Script {
                 maxDelay: 20 minutes,
                 maxOracleUpdateDurationFeed0: 24 hours,
                 maxOracleUpdateDurationFeed1: 24 hours,
-                hotMaxDiscountBips: 1000, // 10%
+                hotMaxDiscountBipsLower: 1000, // 10%
+                hotMaxDiscountBipsUpper: 1000, // 10%
                 maxOracleDeviationBound: 10000, // 100%
                 minAMMFeeGrowthE6: 1,
                 maxAMMFeeGrowthE6: 10000,
@@ -81,22 +82,23 @@ contract HOTDeployScript is Script {
             uint256 token1MaxVolume = 20_000 * (10 ** ERC20(token1).decimals());
 
             // Set HOT Parameters
-            hot.setMaxOracleDeviationBips(500); // 5%
+            hot.setMaxOracleDeviationBips(500, 500); // 5%
             hot.setMaxTokenVolumes(token0MaxVolume, token1MaxVolume);
             hot.setMaxAllowedQuotes(3);
         }
+        {
+            (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = hot.hotReadSlot();
 
-        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = hot.hotReadSlot();
-
-        if (
-            !HOTParams.checkPriceDeviation(
-                sqrtSpotPriceX96,
-                hot.getSqrtOraclePriceX96(),
-                maxOracleDeviationBipsLower,
-                maxOracleDeviationBipsUpper
-            )
-        ) {
-            revert HOTDeployScript__oraclePriceDeviation();
+            if (
+                !HOTParams.checkPriceDeviation(
+                    sqrtSpotPriceX96,
+                    hot.getSqrtOraclePriceX96(),
+                    maxOracleDeviationBipsLower,
+                    maxOracleDeviationBipsUpper
+                )
+            ) {
+                revert HOTDeployScript__oraclePriceDeviation();
+            }
         }
 
         // Set HOT in the Sovereign Pool

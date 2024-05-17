@@ -37,6 +37,12 @@ contract HOTQueryScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
+        (uint160 sqrtPriceX96, uint160 sqrtPriceLowerX96, uint160 sqrtPriceUpperX96) = hot.getAMMState();
+
+        console.log('sqrtSpotPrice: ', sqrtPriceX96);
+        console.log('sqrtPriceLow: ', sqrtPriceLowerX96);
+        console.log('sqrtPriceHigh: ', sqrtPriceUpperX96);
+
         (uint256 reserve0, uint256 reserve1) = pool.getReserves();
         console.log('Reserve0: ', reserve0);
         console.log('Reserve1: ', reserve1);

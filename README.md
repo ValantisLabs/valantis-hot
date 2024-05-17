@@ -87,7 +87,9 @@ All relevent tests for contracts in src are in this folder
 
 ## Demo
 
-To run demo of Hot swap using scripts in `scripts/hot-example/`, use following command in terminal, after running yarn
+To run demo of Hot swap using scripts in `scripts/hot-example/`, use following command in terminal, after running yarn.
+
+Note: Remember to approve the token transfers to the Sovereign Pool address, before running the scripts.
 
 ```
 # To run demo using viem
