@@ -8,9 +8,10 @@ import { IArrakisMetaVault } from './interfaces/IArrakisMetaVault.sol';
 import { IArrakisMetaVaultPublic } from './interfaces/IArrakisMetaVaultPublic.sol';
 import { IArrakisPublicVaultRouter } from './interfaces/IArrakisPublicVaultRouter.sol';
 
+import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 import { ERC20 } from 'valantis-core/lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol';
 
-uint256 constant maxAmount1 = 152 * 10 ** 6;
+uint256 constant maxAmount1 = 150 * 10 ** 6;
 uint256 constant maxAmount0 = 177561115760341835;
 
 contract HOTDepositScript is Script {
@@ -36,8 +37,8 @@ contract HOTDepositScript is Script {
         address token1 = IArrakisMetaVault(vault).token1();
         address module = address(IArrakisMetaVault(vault).module());
 
-        ERC20(token0).approve(module, amount0);
-        ERC20(token1).approve(module, amount1);
+        ERC20(token0).approve(module, type(uint256).max);
+        ERC20(token1).approve(module, type(uint256).max);
 
         IArrakisMetaVaultPublic(vault).mint(shares, account);
 
