@@ -21,26 +21,25 @@
 #     test/mocks/MockToken.sol:MockToken
 
 # SovereignPool Verify Script
+forge verify-contract \
+    --chain-id 1 \
+    --num-of-optimizations 20000 \
+    --watch \
+    --constructor-args $(cast abi-encode "constructor(address,address,address,address,address,address,bool,bool,uint256,uint256,uint256)" 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 0x502C7C62CeF3D7314597532510573b87663EF85b 0x502C7C62CeF3D7314597532510573b87663EF85b 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false false 0 0 0) \
+    --etherscan-api-key 55UPD4PWFW6GNVHDAI54RGUD7D6NWEYMV9 \
+    --compiler-version v0.8.19 \
+    0xCe626E0177b26066aF77f413Bf343F5BcABd682a \
+    lib/valantis-core/src/pools/SovereignPool.sol:SovereignPool 
+
+# HOT Verify Script
 # forge verify-contract \
 #     --chain-id 100 \
 #     --num-of-optimizations 20000 \
 #     --watch \
-#     --constructor-args $(cast abi-encode "constructor(address,address,address,address,address,address,bool,bool,uint256,uint256,uint256)" 0x64efc365149C78C55bfccaB24A48Ae03AffCa572 0x682d49D0Ead2B178DE4125781d2CEd108bEe41fD 0x25C15143f746A3d0722b4013aeDd90480e628740 0xeED403D7cacFC3c228b816B87C7a97513f782F01 0x0000000000000000000000000000000000000000 0x0000000000000000000000000000000000000000 false false 0 0 0) \
+#     --constructor-args $(cast abi-encode "constructor(address,address,address,address,address,address,uint160,uint160,uint160,uint32,uint32,uint32,uint16,uint16,uint16,uint16,uint16)" 0xF18b966Ad80eC4a866a7E795Cb1a0D5fdF59DC66 0xeED403D7cacFC3c228b816B87C7a97513f782F01 0xeED403D7cacFC3c228b816B87C7a97513f782F01 0xC6C9b4C1616Ff870622aEbbdD998cA5973e01336 0x26C31ac71010aF62E6B486D1132E266D6298857D 0xa767f745331D267c7751297D982b050c93985627 1314917972337811703078981570920448 1252707241875239655932069007848031 1771595571142957102961017161607260 1200 86400 86400 1000 10000 1 10000 1) \
 #     --etherscan-api-key G3C7HAXCHCSQDDIWPAHQSTE4MNFEUEUPKF \
 #     --compiler-version v0.8.19 \
-#     0xCe626E0177b26066aF77f413Bf343F5BcABd682a \
-#     lib/valantis-core/src/pools/SovereignPool.sol:SovereignPool 
-
-    
-# HOT Verify Script
-forge verify-contract \
-    --chain-id 100 \
-    --num-of-optimizations 20000 \
-    --watch \
-    --constructor-args $(cast abi-encode "constructor(address,address,address,address,address,address,uint160,uint160,uint160,uint32,uint32,uint32,uint16,uint16,uint16,uint16,uint16)" 0xF18b966Ad80eC4a866a7E795Cb1a0D5fdF59DC66 0xeED403D7cacFC3c228b816B87C7a97513f782F01 0xeED403D7cacFC3c228b816B87C7a97513f782F01 0xC6C9b4C1616Ff870622aEbbdD998cA5973e01336 0x26C31ac71010aF62E6B486D1132E266D6298857D 0xa767f745331D267c7751297D982b050c93985627 1314917972337811703078981570920448 1252707241875239655932069007848031 1771595571142957102961017161607260 1200 86400 86400 1000 10000 1 10000 1) \
-    --etherscan-api-key G3C7HAXCHCSQDDIWPAHQSTE4MNFEUEUPKF \
-    --compiler-version v0.8.19 \
-    0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61 \
-    src/HOT.sol:HOT 
+#     0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61 \
+#     src/HOT.sol:HOT 
 
 

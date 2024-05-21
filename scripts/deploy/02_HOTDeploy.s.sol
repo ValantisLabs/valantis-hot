@@ -43,12 +43,12 @@ contract HOTDeployScript is Script {
             revert HOTDeployScript__token0GteToken1();
         }
 
-        uint160 sqrtSpotPriceX96 = 4266567125057494535506749;
+        uint160 sqrtSpotPriceX96 = 1320469375237738959892399172266666;
 
         HOT hot;
         {
-            uint160 sqrtPriceLowX96 = 3961408125713216879677197;
-            uint160 sqrtPriceHighX96 = 5010828967500958623728276;
+            uint160 sqrtPriceLowX96 = 1252707241875239655932069007848031;
+            uint160 sqrtPriceHighX96 = 1771595571142957102961017161607260;
 
             HOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
@@ -78,11 +78,11 @@ contract HOTDeployScript is Script {
 
         {
             // Customize according to each token pair
-            uint256 token0MaxVolume = 100 * (10 ** ERC20(token0).decimals());
-            uint256 token1MaxVolume = 20_000 * (10 ** ERC20(token1).decimals());
+            uint256 token0MaxVolume = 20_000 * (10 ** ERC20(token0).decimals());
+            uint256 token1MaxVolume = 100 * (10 ** ERC20(token1).decimals());
 
             // Set HOT Parameters
-            hot.setMaxOracleDeviationBips(500, 500); // 5%
+            hot.setMaxOracleDeviationBips(1000, 1000); // 10%
             hot.setMaxTokenVolumes(token0MaxVolume, token1MaxVolume);
             hot.setMaxAllowedQuotes(3);
         }
@@ -97,6 +97,9 @@ contract HOTDeployScript is Script {
                     maxOracleDeviationBipsUpper
                 )
             ) {
+                console.log('Oracle Price: ', hot.getSqrtOraclePriceX96());
+                console.log('HOT Price: ', sqrtSpotPriceX96);
+
                 revert HOTDeployScript__oraclePriceDeviation();
             }
         }

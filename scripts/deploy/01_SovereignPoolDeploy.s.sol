@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import 'forge-std/Script.sol';
 
 import { SovereignPool, SovereignPoolConstructorArgs } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
+import { SovereignPoolFactory } from 'valantis-core/src/pools/factories/SovereignPoolFactory.sol';
 
 import { ProtocolFactory } from 'valantis-core/src/protocol-factory/ProtocolFactory.sol';
 import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
@@ -18,14 +19,18 @@ contract SovereignPoolDeployScript is Script {
         address deployerPublicKey = vm.parseJsonAddress(json, '.DeployerPublicKey');
         address token0 = vm.parseJsonAddress(json, '.Token0');
         address token1 = vm.parseJsonAddress(json, '.Token1');
-        ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
+        // ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
+        SovereignPoolFactory sovereignPoolFactory = SovereignPoolFactory(
+            vm.parseJsonAddress(json, '.SovereignPoolFactory')
+        );
 
         vm.startBroadcast(deployerPrivateKey);
+        // SovereignPoolFactory sovereignPoolFactory = new SovereignPoolFactory();
 
         SovereignPoolConstructorArgs memory poolArgs = SovereignPoolConstructorArgs({
             token0: token0,
             token1: token1,
-            protocolFactory: address(protocolFactory),
+            protocolFactory: deployerPublicKey,
             poolManager: deployerPublicKey,
             sovereignVault: address(0),
             verifierModule: address(0),
@@ -36,7 +41,7 @@ contract SovereignPoolDeployScript is Script {
             defaultSwapFeeBips: 0
         });
 
-        SovereignPool pool = SovereignPool(protocolFactory.deploySovereignPool(poolArgs));
+        SovereignPool pool = SovereignPool(sovereignPoolFactory.deploy(bytes32(0), abi.encode(poolArgs)));
 
         vm.writeJson(Strings.toHexString(address(pool)), path, '.SovereignPool');
 
