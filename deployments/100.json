@@ -10,9 +10,9 @@
   "DeployerPublicKey": "0xeED403D7cacFC3c228b816B87C7a97513f782F01",
   "ProtocolFactory": "0x25C15143f746A3d0722b4013aeDd90480e628740",
   "SovereignPoolFactory": "0x8d5817dba8dafdc57ef7a2fc22b845f28d496c61",
-  "SovereignPool": "0x35cc8c1bbf17001607879be8bff1c89725d61161",
+  "SovereignPool": "0x5e5a67764248045650e96941937ccbca80da92d3",
   "LiquidityProvider": "0x9B4AE758A0e4305c39a02f1AB46e1e7BAc8b2D9E",
-  "HOT": "0x7856e4d80a2e5d929cdbd6710324638fd64905fc",
+  "HOT": "0xd6871ba0887cd7fb463f9059202ad8fb123e0115",
   "ArrakisVault": "0x8c65404010892b265fF981C8789cE81E0385536b",
   "ArrakisRouter": "0xEF770D34d89eFe21fc7FB7391Af8F23772C2037f"
 }
