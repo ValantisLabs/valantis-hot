@@ -21,6 +21,7 @@
     "deploy:ProtocolFactory": "forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url ",
     "deploy:SovereignPool": "forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url ",
     "deploy:HOT": "forge script scripts/deploy/02_HOTDeploy.s.sol:HOTDeployScript --rpc-url ",
+    "arb:HOT": "forge script scripts/swap/HOTArb.s.sol:HOTArbScript --rpc-url ",
     "query:HOT": "forge script scripts/utils/HOTQuery.s.sol:HOTQueryScript --rpc-url ",
     "deposit:HOT": "forge script scripts/deposit/HOTDeposit.s.sol:HOTDepositScript --rpc-url ",
     "demo-viem:HOT": "npx ts-node scripts/hot-example/demo-viem.ts",
