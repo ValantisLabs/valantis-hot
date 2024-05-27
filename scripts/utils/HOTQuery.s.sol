@@ -43,9 +43,27 @@ contract HOTQueryScript is Script {
         console.log('sqrtPriceLow: ', sqrtPriceLowerX96);
         console.log('sqrtPriceHigh: ', sqrtPriceUpperX96);
 
+        uint160 sqrtOraclePriceX96 = hot.getSqrtOraclePriceX96();
+        console.log('sqrtOraclePriceX96: ', sqrtOraclePriceX96);
+
         (uint256 reserve0, uint256 reserve1) = pool.getReserves();
         console.log('Reserve0: ', reserve0);
         console.log('Reserve1: ', reserve1);
+
+        (, , uint16 maxOracleDeviationBipsLower, uint16 maxOracleDeviationBipsUpper, , , ) = hot.hotReadSlot();
+
+        console.log('maxOracleDeviationBipsLower: ', maxOracleDeviationBipsLower);
+        console.log('maxOracleDeviationBipsUpper: ', maxOracleDeviationBipsUpper);
+
+        console.log(
+            'check deviation passed: ',
+            HOTParams.checkPriceDeviation(
+                sqrtPriceX96,
+                sqrtOraclePriceX96,
+                maxOracleDeviationBipsLower,
+                maxOracleDeviationBipsUpper
+            )
+        );
 
         vm.stopBroadcast();
     }
