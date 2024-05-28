@@ -16,7 +16,7 @@ async function swap() {
     'X-API-Key': `${process.env.API_KEY}`,
   };
 
-  const gnosis_provider = new ethers.JsonRpcProvider(`${process.env.GNOSIS_RPC}`);
+  const gnosis_provider = new ethers.JsonRpcProvider(`${process.env.GNOSIS_RPC}`); // Set to MAINNET_RPC for mainnet
 
   const account = new Wallet(`0x${process.env.PK}`, gnosis_provider);
 
@@ -29,8 +29,8 @@ async function swap() {
     authorized_recipient: account.address, // address which receives token out
     authorized_sender: account.address, // should be same address which calls pool contract
     chain_id: 100, // 1 for mainnet, 100 for gnosis
-    token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis
-    token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis
+    token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 for mainnet)
+    token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 for mainnet)
     expected_gas_price: '0', // 1 gwei gas price
     volume_token_in: AMOUNT_IN.toString(), // 0.0001 * 1e18 ether
     volume_token_out_min: AMOUNT_OUT.toString(), // 0.29 * 1e6 USDC
