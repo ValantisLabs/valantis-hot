@@ -35,6 +35,7 @@ async function swap() {
     volume_token_in: AMOUNT_IN.toString(), // 0.0001 * 1e18 ether
     volume_token_out_min: AMOUNT_OUT.toString(), // 0.29 * 1e6 USDC
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds
+    quote_expiry: Math.ceil(Date.now() / 1000) + 120, // Quote valid for 120 seconds
   });
 
   const requestOptions = {

@@ -35,7 +35,8 @@ async function swap() {
     expected_gas_price: '0', // 1 gwei gas price
     volume_token_in: AMOUNT_IN.toString(),
     volume_token_out_min: AMOUNT_OUT.toString(),
-    request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds
+    request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds,
+    quote_expiry: Math.ceil(Date.now() / 1000) + 120, // Quote valid for 120 seconds
   });
 
   const requestOptions: RequestInit = {
