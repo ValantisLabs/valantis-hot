@@ -56,7 +56,7 @@ async function swap() {
   const walletClient = createWalletClient({
     name: 'Main',
     account,
-    chain: gnosis,
+    chain: gnosis, // set to `mainnet` for mainnet
     transport: http(`${process.env.GNOSIS_RPC}`), //Set to MAINNET_RPC for mainnet
   }).extend(publicActions);
 
