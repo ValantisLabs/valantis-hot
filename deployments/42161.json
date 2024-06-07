@@ -1,0 +1,18 @@
+{
+  "ChainID": "42161",
+  "BlockTime": "1",
+  "Token0": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+  "Token1": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+  "Token0Name": "WETH",
+  "Token1Name": "USDC",
+  "FeedToken0": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",
+  "FeedToken1": "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3",
+  "DeployerPublicKey": "0x502C7C62CeF3D7314597532510573b87663EF85b",
+  "ProtocolFactory": "0x502C7C62CeF3D7314597532510573b87663EF85b",
+  "SovereignPoolFactory": "0xcc5e67887272b039670c14b39c4959d8c74e057e",
+  "SovereignPool": "0x6d0ed01ef1d3200d0ce47e969e939be78e5defc1",
+  "LiquidityProvider": "0x1CdE9cFe9CD58615a1C4b279a7F40e9deE0AB85c",
+  "HOT": "0x8a625797de246d920b7bb3efcfc3e2ff52e13609",
+  "ArrakisVault": "0x1fbdAfE1131A29E8AFe04CC6BCBEA449235574b3",
+  "ArrakisRouter": ""
+}

@@ -43,12 +43,12 @@ contract HOTDeployScript is Script {
             revert HOTDeployScript__token0GteToken1();
         }
 
-        uint160 sqrtSpotPriceX96 = 1320469375237738959892399172266666;
+        uint160 sqrtSpotPriceX96 = 4906654539187017482928385;
 
         HOT hot;
         {
-            uint160 sqrtPriceLowX96 = 1252707241875239655932069007848031;
-            uint160 sqrtPriceHighX96 = 1771595571142957102961017161607260;
+            uint160 sqrtPriceLowX96 = 4339505179874779489431521;
+            uint160 sqrtPriceHighX96 = 5602277097478613991873193;
 
             HOTParams.validatePriceBounds(sqrtSpotPriceX96, sqrtPriceLowX96, sqrtPriceHighX96);
 
@@ -78,8 +78,8 @@ contract HOTDeployScript is Script {
 
         {
             // Customize according to each token pair
-            uint256 token0MaxVolume = 20_000 * (10 ** ERC20(token0).decimals());
-            uint256 token1MaxVolume = 100 * (10 ** ERC20(token1).decimals());
+            uint256 token0MaxVolume = 100 * (10 ** ERC20(token0).decimals());
+            uint256 token1MaxVolume = 20_000 * (10 ** ERC20(token1).decimals());
 
             // Set HOT Parameters
             hot.setMaxOracleDeviationBips(1000, 1000); // 10%
