@@ -1,7 +1,4 @@
-import { privateKeyToAccount } from 'viem/accounts';
-import { gnosis, mainnet } from 'viem/chains';
-import { Address, createWalletClient, encodeAbiParameters, http, parseAbiParameters, publicActions } from 'viem';
-import { SignTypedDataReturnType, decodeAbiParameters } from 'viem';
+import { AddressLike, Wallet, ethers } from 'ethers';
 
 import { fetchAmountOut } from './utils/price-api';
 
@@ -11,7 +8,9 @@ async function swapPartialFill() {
     'X-API-Key': `${process.env.API_KEY}`,
   };
 
-  const account = privateKeyToAccount(`0x${process.env.PK}`);
+  const gnosis_provider = new ethers.JsonRpcProvider(`${process.env.GNOSIS_RPC}`);
+
+  const account = new Wallet(`0x${process.env.PK}`, gnosis_provider);
 
   // 0.0001 * 1e18 ether
   const AMOUNT_IN = BigInt('100000000000000');
@@ -25,12 +24,12 @@ async function swapPartialFill() {
     token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis
     token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis
     expected_gas_price: '0', // 1 gwei gas price
-    volume_token_in: AMOUNT_IN.toString(),
-    volume_token_out_min: AMOUNT_OUT.toString(),
+    volume_token_in: AMOUNT_IN.toString(), // 0.0001 * 1e18 ether
+    volume_token_out_min: AMOUNT_OUT.toString(), // 0.29 * 1e6 USDC
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds
   });
 
-  const requestOptions: RequestInit = {
+  const requestOptions = {
     body: requestParams,
     method: 'POST',
     headers,
@@ -38,18 +37,13 @@ async function swapPartialFill() {
 
   const response = await fetch('https://hot.valantis.xyz/solver/order', requestOptions);
   const data = await response.json();
-  console.log(data);
-  const quote = data as {
-    pool_address: Address;
-    signed_payload: SignTypedDataReturnType;
-  };
 
-  const walletClient = createWalletClient({
-    name: 'Main',
-    account,
-    chain: gnosis,
-    transport: http(`${process.env.GNOSIS_RPC}`),
-  }).extend(publicActions);
+  console.log(data);
+
+  const quote = data as {
+    pool_address: AddressLike;
+    signed_payload: string;
+  };
 
   if (!quote.signed_payload) {
     console.log('Could not get signed payload');
@@ -57,20 +51,20 @@ async function swapPartialFill() {
   }
 
   // Human readable ABI params from SovereignPool::swap (pool_address)
-  const swapAbiParams = parseAbiParameters(
-    '(bool isSwapCallback, bool isZeroToOne, uint256 amountIn, uint256 amountOutMin, uint256 deadline, address recipient, address swapTokenOut, (bytes externalContext, bytes verifierContext, bytes swapCallbackContext, bytes swapFeeModuleContext))'
-  );
+  const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+  const swapAbiParams = [
+    'tuple(bool isSwapCallback, bool isZeroToOne, uint256 amountIn, uint256 amountOutMin, uint256 deadline, address recipient, address swapTokenOut, tuple(bytes externalContext, bytes verifierContext, bytes swapCallbackContext, bytes swapFeeModuleContext) SwapContext) SovereignPoolSwapParams',
+  ];
 
   // Decode signed_payload
-  const payloadSliced = `0x${quote.signed_payload.slice(10)}`;
-  const decodedParams = decodeAbiParameters(swapAbiParams, payloadSliced as `0x{string}`)[0];
+  const decodedParams = abiCoder.decode(swapAbiParams, `0x${quote.signed_payload.slice(10)}`)[0];
 
   // Recalculate amountIn and amountOutMin to execute a partially fillable HOT swap
   const amountInPartialFill = AMOUNT_IN / BigInt('2');
   const amountOutMinPartialFill = AMOUNT_OUT / BigInt('2');
 
   // Re-encode payload with amountInPartialFill and amountOutMinPartialFill
-  const encodedParamsPartialFill = encodeAbiParameters(swapAbiParams, [
+  const encodedParamsPartialFill = abiCoder.encode(swapAbiParams, [
     [
       decodedParams[0],
       decodedParams[1],
@@ -82,22 +76,17 @@ async function swapPartialFill() {
       decodedParams[7],
     ],
   ]);
-  const payloadPartialFill = `0x${quote.signed_payload.slice(2, 10)}${encodedParamsPartialFill.slice(
-    2
-  )}` as `0x{string}`;
+  const payloadPartialFill = `0x${quote.signed_payload.slice(2, 10)}${encodedParamsPartialFill.slice(2)}`;
 
-  console.log('payload partial fill: ', payloadPartialFill);
-
-  const txHash = await walletClient.sendTransaction({
-    account,
-    chain: gnosis,
+  const tx = await account.sendTransaction({
     to: quote.pool_address,
-    value: 0n,
     data: payloadPartialFill,
-    gas: 1_000_000n,
+    gasLimit: 1_000_000n,
   });
 
-  console.log(txHash);
+  const receipt = await tx.wait();
+
+  console.log(receipt?.hash);
 }
 
 swapPartialFill();
