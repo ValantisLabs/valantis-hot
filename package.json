@@ -25,7 +25,9 @@
     "query:HOT": "forge script scripts/utils/HOTQuery.s.sol:HOTQueryScript --rpc-url ",
     "deposit:HOT": "forge script scripts/deposit/HOTDeposit.s.sol:HOTDepositScript --rpc-url ",
     "demo-viem:HOT": "npx ts-node scripts/hot-example/demo-viem.ts",
-    "demo-ethers:HOT": "npx ts-node scripts/hot-example/demo-ethers.ts"
+    "demo-viem:HOT-partial-fill": "npx ts-node scripts/hot-example/demo-viem-partial-fill.ts",
+    "demo-ethers:HOT": "npx ts-node scripts/hot-example/demo-ethers.ts",
+    "demo-ethers:HOT-partial-fill": "npx ts-node scripts/hot-example/demo-ethers-partial-fill.ts"
   },
   "dependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
