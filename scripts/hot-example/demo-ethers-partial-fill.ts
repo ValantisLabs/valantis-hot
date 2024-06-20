@@ -8,9 +8,9 @@ async function swapPartialFill() {
     'X-API-Key': `${process.env.API_KEY}`,
   };
 
-  const gnosis_provider = new ethers.JsonRpcProvider(`${process.env.GNOSIS_RPC}`);
+  const arbitrum_provider = new ethers.JsonRpcProvider(`${process.env.ARBITRUM_RPC}`);
 
-  const account = new Wallet(`0x${process.env.PK}`, gnosis_provider);
+  const account = new Wallet(`0x${process.env.PK}`, arbitrum_provider);
 
   // 0.0001 * 1e18 ether
   const AMOUNT_IN = BigInt('100000000000000');
@@ -20,12 +20,12 @@ async function swapPartialFill() {
   const requestParams = JSON.stringify({
     authorized_recipient: account.address, // address which receives token out
     authorized_sender: account.address, // should be same address which calls pool contract
-    chain_id: 100, // 1 for mainnet, 100 for gnosis
-    token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis
-    token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis
+    chain_id: 42161, // 1 for mainnet, 42161 for arbitrum
+    token_in: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', // weth on arbitrum
+    token_out: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // USDC on arbitrum
     expected_gas_price: '0', // 1 gwei gas price
-    volume_token_in: AMOUNT_IN.toString(), // 0.0001 * 1e18 ether
-    volume_token_out_min: AMOUNT_OUT.toString(), // 0.29 * 1e6 USDC
+    amount_in: AMOUNT_IN.toString(), // 0.0001 * 1e18 ether
+    amount_out_requested: AMOUNT_OUT.toString(), // 0.29 * 1e6 USDC
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds
   });
 
@@ -43,6 +43,10 @@ async function swapPartialFill() {
   const quote = data as {
     pool_address: AddressLike;
     signed_payload: string;
+    volume_token_out: string;
+    amount_out_min_payload_offset: number;
+    amount_payload_offset: number;
+    gas_price: number;
   };
 
   if (!quote.signed_payload) {
