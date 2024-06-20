@@ -1,5 +1,5 @@
 import { privateKeyToAccount } from 'viem/accounts';
-import { gnosis, mainnet } from 'viem/chains';
+import { arbitrum, gnosis, mainnet } from 'viem/chains';
 import { Address, createWalletClient, encodeAbiParameters, http, parseAbiParameters, publicActions } from 'viem';
 import { SignTypedDataReturnType, decodeAbiParameters } from 'viem';
 
@@ -21,12 +21,12 @@ async function swapPartialFill() {
   const requestParams = JSON.stringify({
     authorized_recipient: account.address, // address which receives token out
     authorized_sender: account.address, // should be same address which calls pool contract
-    chain_id: 100, // 1 for mainnet, 100 for gnosis
-    token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis
-    token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis
+    chain_id: 42161, // 1 for mainnet, 100 for arbitrum
+    token_in: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', // weth on arbitrum
+    token_out: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // USDC on arbitrum
     expected_gas_price: '0', // 1 gwei gas price
-    volume_token_in: AMOUNT_IN.toString(),
-    volume_token_out_min: AMOUNT_OUT.toString(),
+    amount_in: AMOUNT_IN.toString(),
+    amount_out_requested: AMOUNT_OUT.toString(),
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds
   });
 
@@ -39,16 +39,21 @@ async function swapPartialFill() {
   const response = await fetch('https://hot.valantis.xyz/solver/order', requestOptions);
   const data = await response.json();
   console.log(data);
+
   const quote = data as {
     pool_address: Address;
     signed_payload: SignTypedDataReturnType;
+    volume_token_out: string;
+    amount_out_min_payload_offset: number;
+    amount_payload_offset: number;
+    gas_price: number;
   };
 
   const walletClient = createWalletClient({
     name: 'Main',
     account,
-    chain: gnosis,
-    transport: http(`${process.env.GNOSIS_RPC}`),
+    chain: arbitrum,
+    transport: http(`${process.env.ARBITRUM_RPC}`),
   }).extend(publicActions);
 
   if (!quote.signed_payload) {
@@ -90,7 +95,7 @@ async function swapPartialFill() {
 
   const txHash = await walletClient.sendTransaction({
     account,
-    chain: gnosis,
+    chain: arbitrum,
     to: quote.pool_address,
     value: 0n,
     data: payloadPartialFill,

@@ -1,5 +1,5 @@
 import { privateKeyToAccount } from 'viem/accounts';
-import { gnosis } from 'viem/chains';
+import { gnosis, arbitrum } from 'viem/chains';
 import { Address, createWalletClient, http, publicActions } from 'viem';
 import { SignTypedDataReturnType } from 'viem';
 
@@ -21,13 +21,13 @@ async function swap() {
   const requestParams = JSON.stringify({
     authorized_recipient: account.address, // address which receives token out
     authorized_sender: account.address, // should be same address which calls pool contract
-    chain_id: 100, // 1 for mainnet, 100 for gnosis
-    token_in: '0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1', // weth on gnosis (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 for mainnet)
-    token_out: '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83', // USDC on gnosis (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 for mainnet)
+    chain_id: 42161, // 1 for mainnet, 42161 for arbitrum
+    token_in: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', // weth on arbitrum (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 for mainnet)
+    token_out: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // USDC on arbitrum (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 for mainnet)
     expected_gas_price: '0',
     expected_gas_units: '0',
-    volume_token_in: AMOUNT_IN.toString(),
-    volume_token_out_min: AMOUNT_OUT.toString(),
+    amount_in: AMOUNT_IN.toString(),
+    amount_out_requested: AMOUNT_OUT.toString(),
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds,
     quote_expiry: Math.ceil(Date.now() / 1000) + 120, // Quote valid for 120 seconds
   });
@@ -49,8 +49,8 @@ async function swap() {
   const walletClient = createWalletClient({
     name: 'Main',
     account,
-    chain: gnosis, // set to `mainnet` for mainnet
-    transport: http(`${process.env.GNOSIS_RPC}`), //Set to MAINNET_RPC for mainnet
+    chain: arbitrum, // set to `mainnet` for mainnet
+    transport: http(`${process.env.ARBITRUM_RPC}`), //Set to MAINNET_RPC for mainnet
   }).extend(publicActions);
 
   if (!quote.signed_payload) {
@@ -60,7 +60,7 @@ async function swap() {
 
   const txHash = await walletClient.sendTransaction({
     account,
-    chain: gnosis,
+    chain: arbitrum,
     to: quote.pool_address,
     value: 0n,
     data: quote.signed_payload,
