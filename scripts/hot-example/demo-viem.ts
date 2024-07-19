@@ -27,7 +27,7 @@ async function swap() {
     expected_gas_price: '0',
     expected_gas_units: '0',
     amount_in: AMOUNT_IN.toString(),
-    amount_out_requested: AMOUNT_OUT.toString(),
+    amount_out_requested: '0',
     request_expiry: Math.ceil(Date.now() / 1000) + 30, // Expiry in 30 seconds,
     quote_expiry: Math.ceil(Date.now() / 1000) + 120, // Quote valid for 120 seconds
   });
