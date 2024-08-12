@@ -18,10 +18,3 @@ fs_permissions = [
 [fuzz]
 max_test_rejects = 2_147_483_648
 runs = 128
-
-[rpc_endpoints]
-sepolia = "${SEPOLIA_RPC_URL}"
-gnosis = "${GNOSIS_RPC_URL}"
-mainnet = "${MAINNET_RPC_URL}"
-arbitrum = "${ARBITRUM_RPC_URL}"
-
