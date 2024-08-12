@@ -14,14 +14,11 @@ contract ProtocolFactoryDeployScript is Script {
         string memory json = vm.readFile(path);
 
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
-        address deployerPublicKey = vm.parseJsonAddress(json, '.DeployerPublicKey');
+        address deployerPublicKey = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        ProtocolFactory protocolFactory = new ProtocolFactory(
-            deployerPublicKey,
-            uint32(vm.parseJsonUint(json, '.ChainID'))
-        );
+        ProtocolFactory protocolFactory = new ProtocolFactory(deployerPublicKey);
         SovereignPoolFactory sovereignPoolFactory = new SovereignPoolFactory();
         protocolFactory.setSovereignPoolFactory(address(sovereignPoolFactory));
 
