@@ -16,16 +16,12 @@ contract SovereignPoolDeployScript is Script {
         string memory json = vm.readFile(path);
 
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
-        address deployerPublicKey = vm.parseJsonAddress(json, '.DeployerPublicKey');
+        address deployerPublicKey = vm.addr(deployerPrivateKey);
         address token0 = vm.parseJsonAddress(json, '.Token0');
         address token1 = vm.parseJsonAddress(json, '.Token1');
-        // ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
-        SovereignPoolFactory sovereignPoolFactory = SovereignPoolFactory(
-            vm.parseJsonAddress(json, '.SovereignPoolFactory')
-        );
+        ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
 
         vm.startBroadcast(deployerPrivateKey);
-        // SovereignPoolFactory sovereignPoolFactory = new SovereignPoolFactory();
 
         SovereignPoolConstructorArgs memory poolArgs = SovereignPoolConstructorArgs({
             token0: token0,
@@ -41,9 +37,9 @@ contract SovereignPoolDeployScript is Script {
             defaultSwapFeeBips: 0
         });
 
-        SovereignPool pool = SovereignPool(sovereignPoolFactory.deploy(bytes32(0), abi.encode(poolArgs)));
+        address pool = protocolFactory.deploySovereignPool(poolArgs);
 
-        vm.writeJson(Strings.toHexString(address(pool)), path, '.SovereignPool');
+        vm.writeJson(Strings.toHexString(pool), path, '.SovereignPool');
 
         vm.stopBroadcast();
     }

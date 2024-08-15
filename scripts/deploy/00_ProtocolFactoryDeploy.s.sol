@@ -11,8 +11,6 @@ import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 contract ProtocolFactoryDeployScript is Script {
     function run() external {
         string memory path = DeployHelper.getPath();
-        string memory json = vm.readFile(path);
-
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
         address deployerPublicKey = vm.addr(deployerPrivateKey);
 
