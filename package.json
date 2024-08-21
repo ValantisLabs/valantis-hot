@@ -21,6 +21,7 @@
     "deploy:ProtocolFactory": "eval $(grep '^RPC_URL' .env) && forge script scripts/deploy/00_ProtocolFactoryDeploy.s.sol:ProtocolFactoryDeployScript --rpc-url $RPC_URL --verify",
     "deploy:SovereignPool": "eval $(grep '^RPC_URL' .env) && forge script scripts/deploy/01_SovereignPoolDeploy.s.sol:SovereignPoolDeployScript --rpc-url $RPC_URL --verify",
     "deploy:HOT": "eval $(grep '^RPC_URL' .env) && forge script scripts/deploy/02_HOTDeploy.s.sol:HOTDeployScript --rpc-url $RPC_URL --verify",
+    "deploy:HOTAMM": "eval $(grep '^RPC_URL' .env) && forge script scripts/deploy/03_HOTAMMDeploy.s.sol:HOTAMMDeployScript --rpc-url $RPC_URL --verify",
     "arb:HOT": "eval $(grep '^RPC_URL' .env) && forge script scripts/swap/HOTArb.s.sol:HOTArbScript --rpc-url $RPC_URL",
     "query:HOT": "eval $(grep '^RPC_URL' .env) && forge script scripts/utils/HOTQuery.s.sol:HOTQueryScript --rpc-url $RPC_URL",
     "deposit:HOT": "eval $(grep '^RPC_URL' .env) && forge script scripts/deposit/HOTDeposit.s.sol:HOTDepositScript --rpc-url $RPC_URL",
