@@ -8,11 +8,13 @@
   "FeedToken0": "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",
   "FeedToken1": "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3",
   "DeployerPublicKey": "0x502C7C62CeF3D7314597532510573b87663EF85b",
-  "ProtocolFactory": "0x9eea88168584895c3dc4b01cd95647e7c7b66d93",
-  "SovereignPoolFactory": "0x8392e8f0fffe031b841ba6db06c44f7be3ee8f26",
-  "SovereignPool": "0x7bceb6cd0fb5528c7867d1628487afd68e5d4799",
-  "LiquidityProvider": "0x1CdE9cFe9CD58615a1C4b279a7F40e9deE0AB85c",
-  "HOT": "0x99a2a800d88a9c636d13b2069a849e4e517d368e",
+  "ProtocolFactory": "0x7c4fda6476c0fd90ef9fb13919615f37fb61dc3a",
+  "SovereignPoolFactory": "0x6c1bc300f18e6f8c3ce95887024c3c1758a1db4e",
+  "SovereignPool": "0xc0c80150750d7a2852147b06c4fbc065bf1e0838",
+  "LiquidityProvider": "0x06aAd5A57722336C3b04C6515BBC1f83212f5D4a",
+  "HOT": "0xc4c855095f5872bec67d0916d49cf881d4fafe1e",
+  "HOTSigner": "0x498c8a1a179b5D1D4Ff64bC90Cf3224a3478765C",
+  "HOTManager": "0xAf6f9640092cB1236E5DB6E517576355b6C40b7f",
   "ArrakisVault": "0x1fbdAfE1131A29E8AFe04CC6BCBEA449235574b3",
   "ArrakisRouter": ""
 }

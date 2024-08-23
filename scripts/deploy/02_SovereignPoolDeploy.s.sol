@@ -5,10 +5,10 @@ import 'forge-std/Script.sol';
 
 import { SovereignPool, SovereignPoolConstructorArgs } from 'valantis-core/test/base/SovereignPoolBase.t.sol';
 import { SovereignPoolFactory } from 'valantis-core/src/pools/factories/SovereignPoolFactory.sol';
-
 import { ProtocolFactory } from 'valantis-core/src/protocol-factory/ProtocolFactory.sol';
-import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/utils/Strings.sol';
+
+import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 
 contract SovereignPoolDeployScript is Script {
     function run() external {
@@ -16,9 +16,11 @@ contract SovereignPoolDeployScript is Script {
         string memory json = vm.readFile(path);
 
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
-        address deployerPublicKey = vm.addr(deployerPrivateKey);
+        address deployerAddress = vm.addr(deployerPrivateKey);
+
         address token0 = vm.parseJsonAddress(json, '.Token0');
         address token1 = vm.parseJsonAddress(json, '.Token1');
+
         ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
 
         vm.startBroadcast(deployerPrivateKey);
@@ -26,8 +28,8 @@ contract SovereignPoolDeployScript is Script {
         SovereignPoolConstructorArgs memory poolArgs = SovereignPoolConstructorArgs({
             token0: token0,
             token1: token1,
-            protocolFactory: deployerPublicKey,
-            poolManager: deployerPublicKey,
+            protocolFactory: address(protocolFactory),
+            poolManager: deployerAddress,
             sovereignVault: address(0),
             verifierModule: address(0),
             isToken0Rebase: false,
