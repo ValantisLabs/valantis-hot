@@ -9,7 +9,7 @@ import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/util
 
 import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 
-contract ProtocolFactoryDeployScript is Script {
+contract SovereignPoolFactoryDeployScript is Script {
     function run() external {
         string memory path = DeployHelper.getPath();
         string memory json = vm.readFile(path);

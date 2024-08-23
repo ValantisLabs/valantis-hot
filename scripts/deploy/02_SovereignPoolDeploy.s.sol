@@ -11,6 +11,8 @@ import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/util
 import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 
 contract SovereignPoolDeployScript is Script {
+    error SovereignPoolDeployScript__token0GteToken1();
+
     function run() external {
         string memory path = DeployHelper.getPath();
         string memory json = vm.readFile(path);
@@ -20,6 +22,10 @@ contract SovereignPoolDeployScript is Script {
 
         address token0 = vm.parseJsonAddress(json, '.Token0');
         address token1 = vm.parseJsonAddress(json, '.Token1');
+
+        if (token0 >= token1) {
+            revert SovereignPoolDeployScript__token0GteToken1();
+        }
 
         ProtocolFactory protocolFactory = ProtocolFactory(vm.parseJsonAddress(json, '.ProtocolFactory'));
 
