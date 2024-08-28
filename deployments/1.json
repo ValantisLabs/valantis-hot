@@ -11,8 +11,10 @@
   "ProtocolFactory": "0x29939b3b2ad83882174a50dfd80a3b6329c4a603",
   "SovereignPoolFactory": "0xa68d6c59cf3048292dc4ec1f76ed9def8b6f9617",
   "SovereignPool": "0xd9a406dbc1a301b0d2ed5ba0d9398c4debe68202",
-  "LiquidityProvider": "0xE821e28124169a2cBf880f6267D43917f4E5438F",
-  "HOT": "0xf237851d574774e451ee8868314a6ea031c20cde",
+  "LiquidityProvider": "0x505f0Cc4D88E1B32d3F0F7FBf21258d2B30aD1E5",
+  "HOT": "0x3269994964dfe4aa5f8dd0c99ed40e881562132a",
+  "HOTSigner": "0x498c8a1a179b5D1D4Ff64bC90Cf3224a3478765C",
+  "HOTManager": "0xAf6f9640092cB1236E5DB6E517576355b6C40b7f",
   "ArrakisVault": "0x30f3A58E24d48F8b0A73D935C748141Ce3B1c0Ce",
   "ArrakisRouter": "0xdfE90e218f2a52Df8837dcD8fD4f3F81dfbeA1fF"
 }
