@@ -9,18 +9,25 @@ import { Strings } from 'valantis-core/lib/openzeppelin-contracts/contracts/util
 
 import { DeployHelper } from 'scripts/utils/DeployHelper.sol';
 
-contract ProtocolFactoryDeployScript is Script {
+contract SovereignPoolFactoryDeployScript is Script {
     function run() external {
         string memory path = DeployHelper.getPath();
+        string memory json = vm.readFile(path);
 
         uint256 deployerPrivateKey = vm.envUint('DEPLOYER_PRIVATE_KEY');
-        address protocolDeployer = vm.envAddress('PROTOCOL_DEPLOYER_ADDRESS');
+        address deployerAddress = vm.addr(deployerPrivateKey);
+
+        address protocolFactoryAddress = vm.parseJsonAddress(json, '.ProtocolFactory');
 
         vm.startBroadcast(deployerPrivateKey);
 
-        ProtocolFactory protocolFactory = new ProtocolFactory(protocolDeployer);
+        ProtocolFactory protocolFactory = ProtocolFactory(protocolFactoryAddress);
 
-        vm.writeJson(Strings.toHexString(address(protocolFactory)), path, '.ProtocolFactory');
+        SovereignPoolFactory sovereignPoolFactory = new SovereignPoolFactory();
+        if (deployerAddress == protocolFactory.protocolDeployer())
+            protocolFactory.setSovereignPoolFactory(address(sovereignPoolFactory));
+
+        vm.writeJson(Strings.toHexString(address(sovereignPoolFactory)), path, '.SovereignPoolFactory');
 
         vm.stopBroadcast();
     }

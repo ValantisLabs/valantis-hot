@@ -1,0 +1,20 @@
+{
+  "ChainID": "8453",
+  "BlockTime": "1",
+  "Token0": "0x4200000000000000000000000000000000000006",
+  "Token1": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "Token0Name": "WETH",
+  "Token1Name": "USDC",
+  "FeedToken0": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+  "FeedToken1": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+  "DeployerPublicKey": "0xeED403D7cacFC3c228b816B87C7a97513f782F01",
+  "ProtocolFactory": "0x739714b766b0e4af30794980c4cb2a9150e6aeec",
+  "SovereignPoolFactory": "0xcac5e476a3cbe6545fb726ea4c583ace92fd5aab",
+  "SovereignPool": "0x159dd549399811cd6247fb457497414baf8bfb08",
+  "LiquidityProvider": "0xE78311B9e0bBE4EB295AaF298A06e3dDcD3f226B",
+  "HOT": "0x6ca2d5dba66baf72ed10a5e9d7700263d5229aff",
+  "HOTSigner": "0x498c8a1a179b5D1D4Ff64bC90Cf3224a3478765C",
+  "HOTManager": "0xAf6f9640092cB1236E5DB6E517576355b6C40b7f",
+  "ArrakisVault": "0x8c65404010892b265fF981C8789cE81E0385536b",
+  "ArrakisRouter": "0xEF770D34d89eFe21fc7FB7391Af8F23772C2037f"
+}
