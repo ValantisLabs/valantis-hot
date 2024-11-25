@@ -28,6 +28,26 @@ To run foundry tests which included concrete tests and fuzz tests:
 forge test
 ```
 
+Deployments:
+
+Smart contract deployments are done using forge script. These are tagged in `package.json` as `deploy:*`.
+
+Simulate deployment without broadcasting:
+
+```
+yarn deploy:ProtocolFactory
+```
+
+Execute deployment and verify:
+
+```
+yarn deploy:ProtocolFactory --broadcast --verify
+```
+
+### Important:
+
+Make sure that `RPC_URL` is set in `.env`, and any initialization values required by forge script are set in `/deployments/{chainId}.json` file.
+
 Docs:
 
 ```
